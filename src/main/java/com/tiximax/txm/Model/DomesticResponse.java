@@ -18,7 +18,6 @@ public class DomesticResponse {
     private DomesticStatus status;
     private String note;
     private LocalDateTime timestamp;
-
     private String fromLocationName;
     private String toLocationName;
     private String toAddressName;

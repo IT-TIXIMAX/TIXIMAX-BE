@@ -106,4 +106,5 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
 
     @Query("SELECT MONTH(ol.orders.createdAt), COUNT(ol) FROM OrderLinks ol WHERE YEAR(ol.orders.createdAt) = :year GROUP BY MONTH(ol.orders.createdAt)")
     List<Object[]> countLinksByMonth(@Param("year") int year);
+
 }

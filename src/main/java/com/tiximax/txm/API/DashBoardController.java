@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
+import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -33,37 +34,37 @@ public class DashBoardController {
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType
     ) {
-        LocalDate now = LocalDate.now();
-
-        switch (filterType) {
-            case DAY -> {
-                startDate = now;
-                endDate = now;
-            }
-            case MONTH -> {
-                startDate = now.withDayOfMonth(1);
-                endDate = now.withDayOfMonth(now.lengthOfMonth());
-            }
-            case QUARTER -> {
-                int currentQuarter = (now.getMonthValue() - 1) / 3 + 1;
-                int startMonth = (currentQuarter - 1) * 3 + 1;
-                startDate = LocalDate.of(now.getYear(), startMonth, 1);
-                endDate = startDate.plusMonths(3).minusDays(1);
-            }
-            case HALF_YEAR -> {
-                startDate = now.minusMonths(6).withDayOfMonth(1);
-                endDate = now;
-            }
-            case CUSTOM -> {
-                // nếu không nhập startDate / endDate thì mặc định 6 tháng gần nhất
-                if (startDate == null || endDate == null) {
-                    startDate = now.minusMonths(6).withDayOfMonth(1);
-                    endDate = now;
-                }
-            }
-        }
-
-        return dashBoardService.getDashboard(startDate, endDate);
+//        LocalDate now = LocalDate.now();
+//
+//        switch (filterType) {
+//            case DAY -> {
+//                startDate = now;
+//                endDate = now;
+//            }
+//            case MONTH -> {
+//                startDate = now.withDayOfMonth(1);
+//                endDate = now.withDayOfMonth(now.lengthOfMonth());
+//            }
+//            case QUARTER -> {
+//                int currentQuarter = (now.getMonthValue() - 1) / 3 + 1;
+//                int startMonth = (currentQuarter - 1) * 3 + 1;
+//                startDate = LocalDate.of(now.getYear(), startMonth, 1);
+//                endDate = startDate.plusMonths(3).minusDays(1);
+//            }
+//            case HALF_YEAR -> {
+//                startDate = now.minusMonths(6).withDayOfMonth(1);
+//                endDate = now;
+//            }
+//            case CUSTOM -> {
+//                // nếu không nhập startDate / endDate thì mặc định 6 tháng gần nhất
+//                if (startDate == null || endDate == null) {
+//                    startDate = now.minusMonths(6).withDayOfMonth(1);
+//                    endDate = now;
+//                }
+//            }
+//        }
+        StartEndDate startEndDate = dashBoardService.getDateStartEnd(filterType);
+        return dashBoardService.getDashboard(startEndDate.getStartDate(), startEndDate.getEndDate());
     }
 
     @GetMapping("admin/orders")
@@ -113,4 +114,44 @@ public class DashBoardController {
         return ResponseEntity.ok(dashBoardService.getYearlyStatsWarehouse(year));
     }
 
+    @GetMapping("/routes/revenue-summary")
+    public ResponseEntity<List<RoutePaymentSummary>> getRevenueByRoute(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) PaymentStatus status) {
+
+        List<RoutePaymentSummary> result = dashBoardService.getRevenueByRoute(
+                startDate, endDate, filterType, status);
+
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("admin/debts-total")
+    public Map<String, BigDecimal> getAdminDebtsTotal() {
+        return dashBoardService.getDebtSummary(null, null);
+    }
+
+    @GetMapping("/admin/flight-revenue")
+    public ResponseEntity<Map<String, BigDecimal>> getFlightRevenue(
+            @RequestParam String flightCode,
+            @RequestParam BigDecimal inputCost,
+            @RequestParam(required = false, defaultValue = "0.0") Double minWeight) {
+
+        Map<String, BigDecimal> result = dashBoardService
+                .calculateFlightRevenueWithMinWeight(flightCode, inputCost, minWeight);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/admin/purchase-profit")
+    public ResponseEntity<BigDecimal> getPurchaseProfit(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate,
+            @RequestParam BigDecimal exchangeRate,
+            @RequestParam(required = false) Long routeId) {
+
+        BigDecimal profit = dashBoardService.calculatePurchaseProfit(startDate, endDate, exchangeRate, routeId);
+
+        return ResponseEntity.ok(profit);
+    }
 }

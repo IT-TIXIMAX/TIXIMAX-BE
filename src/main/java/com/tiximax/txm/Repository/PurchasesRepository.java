@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -186,4 +187,21 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
         Pageable pageable
 );
 
+    @Query("""
+        SELECT COALESCE(
+            SUM(o.finalPriceOrder - (p.finalPriceOrder * :exchangeRate)), 
+            0
+        )
+        FROM Purchases p
+        JOIN p.orders o
+        WHERE p.purchased = true
+          AND p.purchaseTime >= :start
+          AND p.purchaseTime < :end
+          AND o.route.routeId = :routeId
+        """)
+    BigDecimal calculatePurchaseProfitByRoute(
+            @Param("exchangeRate") BigDecimal exchangeRate,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId);
 }

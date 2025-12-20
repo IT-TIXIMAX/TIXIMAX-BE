@@ -16,4 +16,5 @@ public class DashboardResponse {
     private long newCustomers;
     private long totalLinks;
     private Double totalWeight;
+    private Double totalNetWeight;
 }

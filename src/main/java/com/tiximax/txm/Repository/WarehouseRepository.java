@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -40,10 +41,6 @@ Page<Warehouse> findWarehousesForPacking(
         Pageable pageable
 );
 
-
-
-
-
     List<Warehouse> findAllByStatus(WarehouseStatus warehouseStatus);
 
     @Query("SELECT w FROM Warehouse w WHERE w.trackingCode IN :trackingCodes")
@@ -53,11 +50,17 @@ Page<Warehouse> findWarehousesForPacking(
 
     List<Warehouse> findByPackingPackingIdAndTrackingCodeIn(Long packingId, List<String> trackingCodes);
 
-//    Double sumNetWeightByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
     @Query("SELECT COALESCE(SUM(w.netWeight), 0) " +
             "FROM Warehouse w " +
             "WHERE w.createdAt BETWEEN :start AND :end")
     Double sumNetWeightByCreatedAtBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(w.weight), 0) " +
+            "FROM Warehouse w " +
+            "WHERE w.createdAt BETWEEN :start AND :end")
+    Double sumWeightByCreatedAtBetween(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 
@@ -74,6 +77,33 @@ Page<Warehouse> findWarehousesForPacking(
     List<Warehouse> findByTrackingCodeInAndPackingIsNullWithOrdersAndLinks(
             @Param("codes") List<String> codes);
 
-    @Query("SELECT MONTH(w.createdAt), SUM(w.netWeight) FROM Warehouse w WHERE YEAR(w.createdAt) = :year GROUP BY MONTH(w.createdAt)")
+    @Query("SELECT MONTH(w.createdAt), SUM(w.weight) FROM Warehouse w WHERE YEAR(w.createdAt) = :year GROUP BY MONTH(w.createdAt)")
     List<Object[]> sumWeightByMonth(@Param("year") int year);
+
+    @Query("SELECT MONTH(w.createdAt), SUM(w.netWeight) FROM Warehouse w WHERE YEAR(w.createdAt) = :year GROUP BY MONTH(w.createdAt)")
+    List<Object[]> sumNetWeightByMonth(@Param("year") int year);
+
+    @Query("SELECT COALESCE(SUM(w.netWeight), 0) " +
+            "FROM Warehouse w " +
+            "WHERE w.packing.flightCode = :flightCode")
+    BigDecimal sumNetWeightByFlightCode(@Param("flightCode") String flightCode);
+
+    @Query("SELECT COALESCE(SUM(w.netWeight * o.priceShip), 0) " +
+            "FROM Warehouse w JOIN w.orders o " +
+            "WHERE w.packing.flightCode = :flightCode")
+    BigDecimal sumWeightedRevenueByFlightCode(@Param("flightCode") String flightCode);
+
+    @Query("""
+    SELECT 
+        o.customer.id,              
+        COALESCE(SUM(w.weight), 0.0),   
+        COALESCE(SUM(w.netWeight), 0.0),
+        o.priceShip                    
+    FROM Warehouse w
+    JOIN w.orders o
+    WHERE w.packing.flightCode = :flightCode
+    GROUP BY o.customer.id, o.priceShip
+    """)
+    List<Object[]> sumNetWeightAndPriceShipByCustomer(@Param("flightCode") String flightCode);
+
 }

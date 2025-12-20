@@ -327,5 +327,17 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
 
     @Query("SELECT MONTH(o.createdAt), COUNT(o) FROM Orders o WHERE YEAR(o.createdAt) = :year GROUP BY MONTH(o.createdAt)")
     List<Object[]> countOrdersByMonth(@Param("year") int year);
+
+    @Query("SELECT SUM(o.leftoverMoney) FROM Orders o WHERE o.leftoverMoney > 0 AND o.createdAt BETWEEN :start AND :end")
+    BigDecimal sumLeftoverMoneyPositive(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT SUM(ABS(o.leftoverMoney)) FROM Orders o WHERE o.leftoverMoney < 0 AND o.createdAt BETWEEN :start AND :end")
+    BigDecimal sumLeftoverMoneyNegative(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT SUM(o.leftoverMoney) FROM Orders o WHERE o.leftoverMoney > 0")
+    BigDecimal sumLeftoverMoneyPositiveAll();
+
+    @Query("SELECT SUM(ABS(o.leftoverMoney)) FROM Orders o WHERE o.leftoverMoney < 0")
+    BigDecimal sumLeftoverMoneyNegativeAll();
 }
 

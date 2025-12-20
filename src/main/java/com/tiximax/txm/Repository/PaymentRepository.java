@@ -5,14 +5,15 @@ import com.tiximax.txm.Entity.Payment;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
+import com.tiximax.txm.Model.RoutePaymentSummary;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -121,5 +122,37 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     @Query("SELECT MONTH(p.actionAt), SUM(p.collectedAmount) FROM Payment p WHERE YEAR(p.actionAt) = :year AND p.status = 'DA_THANH_TOAN_SHIP' GROUP BY MONTH(p.actionAt)")
     List<Object[]> sumShipByMonth(@Param("year") int year);
+
+//    @Query("""
+//    SELECT o.route.id    AS routeName,
+//           COALESCE(SUM(p.collectedAmount), 0) AS totalAmount
+//    FROM Payment p
+//    JOIN p.orders o
+//    WHERE p.status = :status
+//      AND p.actionAt BETWEEN :start AND :end
+//    GROUP BY o.route.id
+//    ORDER BY totalAmount DESC
+//    """)
+//    List<RoutePaymentSummary> sumRevenueByRoute(
+//            @Param("status") PaymentStatus status,
+//            @Param("start") LocalDateTime start,
+//            @Param("end") LocalDateTime end);
+
+    @Query("""
+    SELECT new com.tiximax.txm.Model.RoutePaymentSummary(
+        o.route.routeId,
+        COALESCE(SUM(p.collectedAmount), 0)
+    )
+    FROM Payment p
+    JOIN p.orders o
+    WHERE p.status = :status
+      AND p.actionAt BETWEEN :start AND :end
+    GROUP BY o.route.routeId
+    ORDER BY SUM(p.collectedAmount) DESC
+    """)
+    List<RoutePaymentSummary> sumRevenueByRoute(
+            @Param("status") PaymentStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }
 

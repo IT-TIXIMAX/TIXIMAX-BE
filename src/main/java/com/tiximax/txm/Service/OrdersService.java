@@ -1540,4 +1540,5 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
 
         return new ArrayList<>(groups.values());
     }
+
 }
