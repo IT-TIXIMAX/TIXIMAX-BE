@@ -126,7 +126,14 @@ public ResponseEntity<Page<PurchasePendingShipment>> getPendingShipmentFullPurch
     return ResponseEntity.ok(result);
 }
 
-
+@PostMapping("/money-exchange/add")
+public ResponseEntity<Purchases> createMoneyExchange(
+        @RequestParam String orderCode,
+        @RequestBody ExchangeRequest exchangeRequest
+) {
+    Purchases purchase = purchaseService.createMoneyExchange(orderCode, exchangeRequest);
+    return ResponseEntity.ok(purchase);
+}
 
     @PatchMapping("/{purchaseId}")
     public ResponseEntity<Purchases> updatePurchase(
