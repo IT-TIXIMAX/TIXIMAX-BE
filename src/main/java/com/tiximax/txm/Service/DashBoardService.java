@@ -383,27 +383,63 @@ public class DashBoardService {
     }
 
 
-    public BigDecimal calculatePurchaseProfit(
+//    public BigDecimal calculatePurchaseProfit(
+//            LocalDate startDate,
+//            LocalDate endDate,
+//            BigDecimal exchangeRate,
+//            Long routeId) {
+//
+//        if (startDate == null || endDate == null) {
+//            throw new RuntimeException("startDate và endDate không được để trống");
+//        }
+//        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
+//            throw new RuntimeException("Tỷ giá phải lớn hơn 0");
+//        }
+//
+//        LocalDateTime start = startDate.atStartOfDay();
+//        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+//
+//        BigDecimal profit = purchasesRepository.calculatePurchaseProfitByRoute(exchangeRate, start, end, routeId);
+//        return profit.setScale(0, RoundingMode.HALF_UP);
+//    }
+
+    public BigDecimal calculateEstimatedPurchaseProfit(
             LocalDate startDate,
             LocalDate endDate,
             BigDecimal exchangeRate,
             Long routeId) {
 
         if (startDate == null || endDate == null) {
-            throw new RuntimeException("startDate và endDate không được để trống");
+            throw new RuntimeException("Ngày bắt đầu và kết thúc không được để trống!");
         }
         if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeException("Tỷ giá phải lớn hơn 0");
         }
 
-        if (routeId == null) {
-            throw new RuntimeException("Tuyến không thể để trống!");
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+
+        BigDecimal profit = purchasesRepository.calculateEstimatedPurchaseProfitByRoute(exchangeRate, start, end, routeId);
+        return profit.setScale(0, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal calculateActualPurchaseProfit(
+            LocalDate startDate,
+            LocalDate endDate,
+            BigDecimal exchangeRate,
+            Long routeId) {
+
+        if (startDate == null || endDate == null) {
+            throw new RuntimeException("Ngày bắt đầu và kết thúc không được để trống!");
+        }
+        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Tỷ giá phải lớn hơn 0");
         }
 
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
 
-        BigDecimal profit = purchasesRepository.calculatePurchaseProfitByRoute(exchangeRate, start, end, routeId);
+        BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(exchangeRate, start, end, routeId);
         return profit.setScale(0, RoundingMode.HALF_UP);
     }
 }

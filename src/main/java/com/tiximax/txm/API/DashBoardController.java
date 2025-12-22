@@ -143,14 +143,26 @@ public class DashBoardController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/admin/purchase-profit")
-    public ResponseEntity<BigDecimal> getPurchaseProfit(
+    @GetMapping("/admin/estimated-profit")
+    public ResponseEntity<BigDecimal> getEstimatedProfit(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate,
             @RequestParam BigDecimal exchangeRate,
             @RequestParam(required = false) Long routeId) {
 
-        BigDecimal profit = dashBoardService.calculatePurchaseProfit(startDate, endDate, exchangeRate, routeId);
+        BigDecimal profit = dashBoardService.calculateEstimatedPurchaseProfit(startDate, endDate, exchangeRate, routeId);
+
+        return ResponseEntity.ok(profit);
+    }
+
+    @GetMapping("/admin/actual-profit")
+    public ResponseEntity<BigDecimal> getActualProfit(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate,
+            @RequestParam BigDecimal exchangeRate,
+            @RequestParam(required = false) Long routeId) {
+
+        BigDecimal profit = dashBoardService.calculateActualPurchaseProfit(startDate, endDate, exchangeRate, routeId);
 
         return ResponseEntity.ok(profit);
     }
