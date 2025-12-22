@@ -4,6 +4,7 @@ import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Purchases;
 import com.tiximax.txm.Enums.PurchaseFilter;
 
+import com.tiximax.txm.Model.PurchaseProfitResult;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -225,7 +226,7 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
           AND NOT EXISTS (
               SELECT 1 FROM OrderLinks ol
               WHERE ol.purchase = p
-                AND ol.status NOT IN (
+                AND ol.status IN (
                     'CHO_MUA',
                     'DA_MUA',
                     'DAU_GIA_THANH_CONG',
