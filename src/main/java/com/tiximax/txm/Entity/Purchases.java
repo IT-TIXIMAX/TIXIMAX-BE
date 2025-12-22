@@ -29,6 +29,8 @@ public class Purchases {
 
     private BigDecimal finalPriceOrder;
 
+    private BigDecimal exchangeRate = BigDecimal.valueOf(0);
+
     private String note;
 
     @Column(name = "is_purchased")

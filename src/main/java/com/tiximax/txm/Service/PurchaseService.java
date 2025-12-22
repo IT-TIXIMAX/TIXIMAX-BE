@@ -68,18 +68,10 @@ public class PurchaseService {
         }
         BigDecimal priceLinks = BigDecimal.ZERO;
 
-//        for (OrderLinks ol : orderLinks){
-//            priceLinks.add(ol.getTotalWeb());
-//        }
         for (OrderLinks ol : orderLinks){
             priceLinks = priceLinks.add(ol.getTotalWeb());
         }
 
-        // if (purchaseRequest.getPurchaseTotal().compareTo(priceLinks) > 0){
-        //     throw new IllegalStateException("Giá mua đang cao hơn giá tiền thu khách!");
-        // }
-
-//        if (!order.getStatus().equals(OrderStatus.CHO_MUA)){
         if (!(order.getStatus().equals(OrderStatus.CHO_MUA) || order.getStatus().equals(OrderStatus.CHO_NHAP_KHO_NN))){
             throw new RuntimeException("Đơn hàng chưa đủ điều kiện để mua hàng!");
         }
@@ -96,8 +88,6 @@ public class PurchaseService {
             }
         }
 
-//        boolean allActive = orderLinks.stream()
-//                .allMatch(link -> link.getStatus() == OrderLinkStatus.CHO_MUA);
         boolean allActive = orderLinks.stream()
                 .allMatch(link -> link.getStatus() == OrderLinkStatus.CHO_MUA || link.getStatus() == OrderLinkStatus.MUA_SAU);
         if (!allActive) {
@@ -110,6 +100,7 @@ public class PurchaseService {
         purchase.setOrders(order);
         purchase.setPurchased(true);
         purchase.setNote(purchaseRequest.getNote());
+        purchase.setExchangeRate(purchaseRequest.getExchangeRate());
         purchase.setPurchaseImage(purchaseRequest.getImage());
         purchase.setFinalPriceOrder(purchaseRequest.getPurchaseTotal());
 
@@ -210,7 +201,6 @@ public class PurchaseService {
         throw new IllegalArgumentException("Tất cả mã phải ở trạng thái HOẠT ĐỘNG!");
     }
 
-    // Tạo purchase
     Purchases purchase = new Purchases();
     purchase.setPurchaseCode(generatePurchaseCode());
     purchase.setPurchaseTime(LocalDateTime.now());
@@ -223,7 +213,6 @@ public class PurchaseService {
 
     purchase = purchasesRepository.save(purchase);
 
-    // Cập nhật orderLinks
     for (OrderLinks link : orderLinks) {
         link.setPurchase(purchase);
         link.setShipWeb(purchaseRequest.getShipWeb());
@@ -247,16 +236,14 @@ public class PurchaseService {
                               link.getStatus() == OrderLinkStatus.DA_HUY);
 
     if (allValid && !allOrderLinks.isEmpty()) {
-    BigDecimal purchaseTotal = purchaseRequest.getPurchaseTotal();  // Giá sau đấu giá
-    BigDecimal priceBeforeFee = order.getPriceBeforeFee();          // Giá dự kiến ban đầu
-    BigDecimal exchange = order.getExchangeRate();                  // Tỷ giá VND/CNY
+    BigDecimal purchaseTotal = purchaseRequest.getPurchaseTotal();
+    BigDecimal priceBeforeFee = order.getPriceBeforeFee();
+    BigDecimal exchange = order.getExchangeRate();
     BigDecimal total = purchaseTotal.add(purchaseRequest.getShipWeb());
     BigDecimal feePercent = purchaseRequest.getPurchaseFee()
         .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
     BigDecimal fee = total.multiply(feePercent);
-    
-                          
-    // CASE 1 — GIÁ TĂNG → KHÁCH TRẢ THÊM
+
     if (total.compareTo(priceBeforeFee) > 0) {
         BigDecimal diff = total.subtract(priceBeforeFee); 
         BigDecimal totalCNY = diff.add(fee);
@@ -268,13 +255,12 @@ public class PurchaseService {
         purchase.setPurchased(false);
     }
 
-    // CASE 2 — GIÁ GIẢM → KHÁCH ĐƯỢC HOÀN TIỀN
     else if (priceBeforeFee.compareTo(total) > 0) {
         BigDecimal leftoverCNY = priceBeforeFee.subtract(total);
         BigDecimal totalfee = fee;
         if(leftoverCNY.compareTo(totalfee) > 0){
         BigDecimal leftoverFinal = leftoverCNY.subtract(totalfee);
-        BigDecimal leftoverVND = leftoverFinal.multiply(exchange).negate(); // âm = hoàn tiền
+        BigDecimal leftoverVND = leftoverFinal.multiply(exchange).negate();
         leftoverVND = round1(leftoverVND);
         order.setPaymentAfterAuction(BigDecimal.ZERO);
         order.setLeftoverMoney(leftoverVND);
@@ -287,19 +273,16 @@ public class PurchaseService {
             leftoverVND = round1(leftoverVND);
             order.setPaymentAfterAuction(BigDecimal.ZERO);
             order.setLeftoverMoney(leftoverVND);
-//            order.setNote("Khách còn thiếu tiền phí mua hộ " + leftoverVND );
-             order.setStatus(OrderStatus.CHO_NHAP_KHO_NN);
+            order.setStatus(OrderStatus.CHO_NHAP_KHO_NN);
             purchase.setPurchased(false);
         }
     }
 
-    // CASE 3 — GIÁ BẰNG NHAU → CHỈ THU PHÍ VÀ SHIP
     else {
         BigDecimal totalCNY = fee.add(purchaseRequest.getShipWeb());
         System.out.println("totalCNY (fee + shipWeb): " + totalCNY);
         order.setPaymentAfterAuction(BigDecimal.ZERO);
         order.setLeftoverMoney(round1(totalCNY.multiply(exchange)));
-//        order.setNote("Khách còn thiếu tiền phí " + totalCNY.multiply(round1(totalCNY.multiply(exchange))));
         order.setStatus(OrderStatus.CHO_NHAP_KHO_NN);
         purchase.setPurchased(true);
     }
@@ -309,8 +292,6 @@ public class PurchaseService {
 }
     return purchase;
 }
-
-
 
     private String generatePurchaseCode() {
           String PurchaseCode;
@@ -381,7 +362,6 @@ public class PurchaseService {
         if (orderLinksRepository.existsByShipmentCode(shipmentCode)) {
             throw new IllegalArgumentException("Mã vận đơn '" + shipmentCode + "' đã tồn tại!");
         }
-        
 
         Purchases purchase = purchasesRepository.findById(purchaseId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giao dịch mua!"));
@@ -391,7 +371,6 @@ public class PurchaseService {
         }
 
         orderLinksRepository.saveAll(purchase.getOrderLinks());
-
         return purchase;
     }
 
@@ -418,7 +397,6 @@ public class PurchaseService {
         (order.getLeftoverMoney() == null ? BigDecimal.ZERO : order.getLeftoverMoney())
             .add(fee)
         );
-        
 
         for (OrderLinks link : purchase.getOrderLinks()) {
             link.setShipmentCode(shipmentCode);

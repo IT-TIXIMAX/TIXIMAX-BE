@@ -23,6 +23,8 @@ public class PurchaseRequest {
 
     private String shipmentCode;
 
+    private BigDecimal exchangeRate;
+
     private List<String> trackingCode;
 
 }
