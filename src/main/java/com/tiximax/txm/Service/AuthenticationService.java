@@ -187,7 +187,7 @@ public class AuthenticationService implements UserDetailsService {
     return null;
 }
 
-    public Staff registerStaff(RegisterStaffRequest registerRequest) {
+public Staff registerStaff(RegisterStaffRequest registerRequest) {
         if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
             throw new BadCredentialsException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
         }
