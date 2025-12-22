@@ -225,7 +225,7 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
           AND NOT EXISTS (
               SELECT 1 FROM OrderLinks ol
               WHERE ol.purchase = p
-                AND ol.status NOT IN (
+                AND ol.status IN (
                     'CHO_MUA',
                     'DA_MUA',
                     'DAU_GIA_THANH_CONG',
