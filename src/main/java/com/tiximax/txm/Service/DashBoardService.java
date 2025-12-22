@@ -322,6 +322,12 @@ public class DashBoardService {
         if (flightCode == null || flightCode.isBlank()) {
             throw new RuntimeException("Mã chuyến bay không được để trống");
         }
+        boolean flightExists = packingRepository.existsByFlightCode(flightCode);
+        if (!flightExists) {
+            throw new RuntimeException("Mã chuyến bay '" + flightCode + "' không tồn tại trong hệ thống!"
+            );
+        }
+
         if (inputCost == null || inputCost.compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("Chi phí nhập vào phải phải từ 0 trở lên!");
         }

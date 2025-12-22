@@ -32,37 +32,7 @@ public class DashBoardController {
     public DashboardResponse getDashboard(
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType
-    ) {
-//        LocalDate now = LocalDate.now();
-//
-//        switch (filterType) {
-//            case DAY -> {
-//                startDate = now;
-//                endDate = now;
-//            }
-//            case MONTH -> {
-//                startDate = now.withDayOfMonth(1);
-//                endDate = now.withDayOfMonth(now.lengthOfMonth());
-//            }
-//            case QUARTER -> {
-//                int currentQuarter = (now.getMonthValue() - 1) / 3 + 1;
-//                int startMonth = (currentQuarter - 1) * 3 + 1;
-//                startDate = LocalDate.of(now.getYear(), startMonth, 1);
-//                endDate = startDate.plusMonths(3).minusDays(1);
-//            }
-//            case HALF_YEAR -> {
-//                startDate = now.minusMonths(6).withDayOfMonth(1);
-//                endDate = now;
-//            }
-//            case CUSTOM -> {
-//                // nếu không nhập startDate / endDate thì mặc định 6 tháng gần nhất
-//                if (startDate == null || endDate == null) {
-//                    startDate = now.minusMonths(6).withDayOfMonth(1);
-//                    endDate = now;
-//                }
-//            }
-//        }
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType) {
         StartEndDate startEndDate = dashBoardService.getDateStartEnd(filterType);
         return dashBoardService.getDashboard(startEndDate.getStartDate(), startEndDate.getEndDate());
     }

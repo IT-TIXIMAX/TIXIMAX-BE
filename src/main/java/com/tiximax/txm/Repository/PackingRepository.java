@@ -51,4 +51,5 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
     @Query("SELECT p.packingList FROM Packing p WHERE p.packingCode = :packingCode")
     List<String> findPackingListByCode(@Param("packingCode") String packingCode);
 
+    boolean existsByFlightCode(String flightCode);
 }
