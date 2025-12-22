@@ -403,7 +403,7 @@ public class DashBoardService {
 //        return profit.setScale(0, RoundingMode.HALF_UP);
 //    }
 
-    public BigDecimal calculateEstimatedPurchaseProfit(
+    public PurchaseProfitResult calculateEstimatedPurchaseProfit(
             LocalDate startDate,
             LocalDate endDate,
             BigDecimal exchangeRate,
@@ -420,10 +420,10 @@ public class DashBoardService {
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
 
         BigDecimal profit = purchasesRepository.calculateEstimatedPurchaseProfitByRoute(exchangeRate, start, end, routeId);
-        return profit.setScale(0, RoundingMode.HALF_UP);
+        return new PurchaseProfitResult("EstimatedProfit", profit.setScale(0, RoundingMode.HALF_UP));
     }
 
-    public BigDecimal calculateActualPurchaseProfit(
+    public PurchaseProfitResult calculateActualPurchaseProfit(
             LocalDate startDate,
             LocalDate endDate,
             BigDecimal exchangeRate,
@@ -440,6 +440,6 @@ public class DashBoardService {
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
 
         BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(exchangeRate, start, end, routeId);
-        return profit.setScale(0, RoundingMode.HALF_UP);
+        return new PurchaseProfitResult("ActualProfit", profit.setScale(0, RoundingMode.HALF_UP));
     }
 }
