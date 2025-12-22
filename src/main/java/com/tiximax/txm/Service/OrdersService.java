@@ -142,7 +142,6 @@ public class OrdersService {
                 orderLink.setQuantity(linkRequest.getQuantity());
                 orderLink.setPriceWeb(linkRequest.getPriceWeb());
                 orderLink.setShipWeb(linkRequest.getShipWeb());
-//                orderLink.setTotalWeb((linkRequest.getPriceWeb().add(linkRequest.getShipWeb())).multiply(new BigDecimal(linkRequest.getQuantity())).setScale(2, RoundingMode.HALF_UP).add(linkRequest.getPurchaseFee()));
                 orderLink.setTotalWeb(linkRequest.getPriceWeb().multiply(new BigDecimal(linkRequest.getQuantity())).add(linkRequest.getShipWeb()).setScale(2, RoundingMode.HALF_UP));
                 orderLink.setPurchaseFee(linkRequest.getPurchaseFee());
                 orderLink.setProductName(linkRequest.getProductName());
