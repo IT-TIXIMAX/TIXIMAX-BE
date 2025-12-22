@@ -646,8 +646,6 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
     });
 }
 
-
-
     public OrderLinkWithStaff getOrderLinkById(Long orderLinkId) {
 //        OrderLinks orderLink = orderLinksRepository.findById(orderLinkId)
 //                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm này!"));
@@ -1446,7 +1444,7 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
 
     Route route = routeRepository.findById(routeId)
         .orElseThrow(() -> new RuntimeException("Route not found for ID: " + routeId));
-   Destination destination = destinationRepository.findById(17L)
+   Destination destination = destinationRepository.findById(1L)
         .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy điểm đến!"));
 
     if (ordersRequest.getExchangeRate().compareTo(route.getExchangeRate()) < 0) {

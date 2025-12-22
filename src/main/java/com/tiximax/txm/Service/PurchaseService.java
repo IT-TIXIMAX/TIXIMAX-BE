@@ -146,6 +146,35 @@ public class PurchaseService {
         return purchase;
     
     }
+
+    public Purchases createMoneyExchange(String orderCode, ExchangeRequest exchangeRequest) {
+         Orders order = ordersRepository.findByOrderCode(orderCode);
+    if (order == null) {
+        throw new IllegalArgumentException("Không tìm thấy đơn hàng!");
+    }
+      if (!order.getStatus().equals(OrderStatus.CHO_MUA)) {
+        throw new RuntimeException("Đơn hàng chưa đủ điều kiện để mua hàng!");
+    }
+    Purchases purchase = new Purchases();
+    purchase.setPurchaseCode(generatePurchaseCode());
+    purchase.setPurchaseTime(LocalDateTime.now());
+    purchase.setStaff((Staff) accountUtils.getAccountCurrent());
+    purchase.setOrders(order);
+    purchase.setPurchased(false);
+    purchase.setNote(exchangeRequest.getNote());
+    purchase.setPurchaseImage(exchangeRequest.getImage());
+    purchase = purchasesRepository.save(purchase);
+    List<OrderLinks> orderLinks = orderLinksRepository.findByOrdersOrderId(order.getOrderId());
+    for (OrderLinks orderLink : orderLinks) {
+        orderLink.setPurchase(purchase);
+        orderLink.setStatus(OrderLinkStatus.DA_GIAO);
+    }
+    orderLinksRepository.saveAll(orderLinks);
+    order.setStatus(OrderStatus.DA_GIAO);
+    ordersRepository.save(order);
+    ordersService.addProcessLog(order, purchase.getPurchaseCode(), ProcessLogAction.DA_GIAO);
+    return purchase;
+    }
     
   public Purchases createAuction(String orderCode, AuctionRequest purchaseRequest) {
 
