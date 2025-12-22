@@ -94,11 +94,11 @@ Page<Warehouse> findWarehousesForPacking(
     BigDecimal sumWeightedRevenueByFlightCode(@Param("flightCode") String flightCode);
 
     @Query("""
-    SELECT 
-        o.customer.id,              
-        COALESCE(SUM(w.weight), 0.0),   
+    SELECT
+        o.customer.id,
+        COALESCE(SUM(w.weight), 0.0),
         COALESCE(SUM(w.netWeight), 0.0),
-        o.priceShip                    
+        o.priceShip
     FROM Warehouse w
     JOIN w.orders o
     WHERE w.packing.flightCode = :flightCode
