@@ -1210,9 +1210,12 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
         List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCode(shipmentCode);
         InfoShipmentCode infoShipmentCode = new InfoShipmentCode();
         if (!orderLinks.isEmpty()){
+            Orders orders = orderLinks.get(0).getOrders();
+            String customerCode = orders.getStaff().getStaffCode() + "-" + orders.getCustomer().getCustomerCode();
             infoShipmentCode.setOrders(orderLinks.get(0).getOrders());
             infoShipmentCode.setPrice(orderLinks.get(0).getPurchase() != null ? orderLinks.get(0).getPurchase().getFinalPriceOrder() : BigDecimal.ZERO);
             infoShipmentCode.setDestinationName(infoShipmentCode.getOrders().getDestination().getDestinationName());
+            infoShipmentCode.setCustomerCode(customerCode);
         } else {
             throw new IllegalStateException("Không tìm thấy mã vận đơn này, vui lòng thử lại!");
         }

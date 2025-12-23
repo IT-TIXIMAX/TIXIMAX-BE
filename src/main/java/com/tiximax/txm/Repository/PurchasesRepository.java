@@ -210,31 +210,25 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
             @Param("routeId") Long routeId);
 
     @Query("""
-        SELECT COALESCE(
-            SUM(
-                (SELECT COALESCE(SUM(ol.totalWeb), 0) FROM OrderLinks ol WHERE ol.purchase = p) * o.exchangeRate
-                - p.finalPriceOrder * :exchangeRate
-            ),
-            0
-        )
-        FROM Purchases p
-        JOIN p.orders o
-        WHERE p.purchased = true
-          AND p.purchaseTime >= :start
-          AND p.purchaseTime < :end
-          AND (:routeId IS NULL OR o.route.routeId = :routeId)
-          AND NOT EXISTS (
-              SELECT 1 FROM OrderLinks ol
-              WHERE ol.purchase = p
-                AND ol.status IN (
-                    'CHO_MUA',
-                    'DA_MUA',
-                    'DAU_GIA_THANH_CONG',
-                    'MUA_SAU',
-                    'DA_HUY'
-                )
-          )
-        """)
+    SELECT COALESCE(
+        SUM(
+            (SELECT COALESCE(SUM(ol.totalWeb), 0) FROM OrderLinks ol WHERE ol.purchase = p) * o.exchangeRate
+            - p.finalPriceOrder * :exchangeRate
+        ),
+        0
+    )
+    FROM Purchases p
+    JOIN p.orders o
+    WHERE p.purchased = true
+      AND p.purchaseTime >= :start
+      AND p.purchaseTime < :end
+      AND (:routeId IS NULL OR o.route.routeId = :routeId)
+      AND NOT EXISTS (
+          SELECT 1 FROM OrderLinks ol
+          WHERE ol.purchase = p
+            AND ol.status IN ('CHO_MUA', 'DA_MUA', 'DAU_GIA_THANH_CONG', 'MUA_SAU', 'DA_HUY')
+      )
+    """)
     BigDecimal calculateActualPurchaseProfitByRoute(
             @Param("exchangeRate") BigDecimal exchangeRate,
             @Param("start") LocalDateTime start,

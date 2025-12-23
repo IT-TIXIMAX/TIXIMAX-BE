@@ -13,10 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import com.tiximax.txm.Enums.DashboardFilterType;
 import com.tiximax.txm.Service.DashBoardService;
-
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
@@ -133,6 +131,17 @@ public class DashBoardController {
             @RequestParam(required = false) Long routeId) {
 
         PurchaseProfitResult profit = dashBoardService.calculateActualPurchaseProfit(startDate, endDate, exchangeRate, routeId);
+
+        return ResponseEntity.ok(profit);
+    }
+
+    @GetMapping("/admin/actual-profit-test")
+    public ResponseEntity<PurchaseProfitResult> getActualProfitMode(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate,
+            @RequestParam(required = false) Long routeId) {
+
+        PurchaseProfitResult profit = dashBoardService.calculateActualPurchaseProfit(startDate, endDate, routeId);
 
         return ResponseEntity.ok(profit);
     }

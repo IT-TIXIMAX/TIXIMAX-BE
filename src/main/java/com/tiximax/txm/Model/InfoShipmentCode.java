@@ -21,4 +21,5 @@ public class InfoShipmentCode {
 
     BigDecimal price;
 
+    String customerCode;
 }

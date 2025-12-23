@@ -24,10 +24,6 @@ import java.util.stream.Collectors;
 
 public class PurchaseService {
 
-//    private final String bankName = "sacombank";
-//    private final String bankNumber = "070119787309";
-//    private final String bankOwner = "TRAN TAN PHAT";
-
     @Autowired
     private OrderLinksRepository orderLinksRepository;
 

@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
+import com.tiximax.txm.Entity.Route;
+import com.tiximax.txm.Entity.RouteExchangeRate;
 import com.tiximax.txm.Enums.DashboardFilterType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
@@ -17,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DashBoardService {
@@ -41,6 +44,12 @@ public class DashBoardService {
 
     @Autowired
     private PurchasesRepository purchasesRepository;
+
+    @Autowired
+    private RouteExchangeRateRepository routeExchangeRateRepository;
+
+    @Autowired
+    private RouteRepository routeRepository;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
@@ -447,5 +456,70 @@ public class DashBoardService {
 
         BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(exchangeRate, start, end, routeId);
         return new PurchaseProfitResult("ActualProfit", profit.setScale(0, RoundingMode.HALF_UP));
+    }
+
+    @Transactional(readOnly = true)
+    public PurchaseProfitResult calculateActualPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+            throw new RuntimeException("Ngày không hợp lệ!");
+        }
+
+        LocalDateTime fullStart = startDate.atStartOfDay();
+        LocalDateTime fullEnd = endDate.plusDays(1).atStartOfDay();
+
+        List<RouteExchangeRate> rates = routeExchangeRateRepository.findApplicableRates(routeId, startDate, endDate);
+
+        if (rates.isEmpty()) {
+            throw new RuntimeException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
+        }
+
+        BigDecimal totalProfit = BigDecimal.ZERO;
+        LocalDate cursor = startDate;
+
+        // === VALIDATE KHÔNG GAP Ở ĐẦU (startDate) ===
+        RouteExchangeRate firstRate = rates.get(0);
+        if (startDate.isBefore(firstRate.getStartDate())) {
+            throw new RuntimeException(
+                    "Ngày bắt đầu " + startDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc sớm nhất bắt đầu từ " + firstRate.getStartDate()
+            );
+        }
+
+        // === VALIDATE KHÔNG GAP Ở CUỐI (endDate) ===
+        RouteExchangeRate lastRate = rates.get(rates.size() - 1);
+        LocalDate lastEnd = (lastRate.getEndDate() == null) ? LocalDate.MAX : lastRate.getEndDate();
+        if (endDate.isAfter(lastEnd)) {
+            throw new RuntimeException(
+                    "Ngày kết thúc " + endDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc muộn nhất kết thúc vào " + lastEnd
+            );
+        }
+        // ===========================================
+
+        for (RouteExchangeRate rate : rates) {
+            LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
+            LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
+                    ? endDate : rate.getEndDate();
+
+            if (segStart.isAfter(segEnd)) continue;
+
+            LocalDateTime s = segStart.atStartOfDay();
+            LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
+
+            totalProfit = totalProfit.add(
+                    purchasesRepository.calculateActualPurchaseProfitByRoute(rate.getExchangeRate(), s, e, routeId)
+            );
+
+            cursor = segEnd.plusDays(1);
+        }
+
+        // Kiểm tra gap giữa các mốc (nếu có)
+        if (cursor.isBefore(endDate.plusDays(1))) {
+            throw new RuntimeException(
+                    "Có khoảng thời gian gap từ " + cursor + " đến " + endDate + " không được cover bởi RouteExchangeRate!"
+            );
+        }
+
+        return new PurchaseProfitResult("ActualProfit", totalProfit.setScale(0, RoundingMode.HALF_UP));
     }
 }
