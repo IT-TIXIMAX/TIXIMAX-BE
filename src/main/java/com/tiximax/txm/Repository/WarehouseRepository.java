@@ -20,26 +20,26 @@ import java.util.Optional;
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     boolean existsByTrackingCode(String trackingCode);
-@Query("""
-    SELECT DISTINCT w
-    FROM Warehouse w
-    JOIN w.orderLinks ol
-    WHERE w.status = :status
-      AND w.location.locationId = :locationId
-      AND ol.status IN :validStatuses
-      AND w.trackingCode = ol.shipmentCode
-      AND (
-    :trackingCode IS NULL
-    OR w.trackingCode LIKE CONCAT('%', CAST(:trackingCode AS string), '%')
-)
-""")
-Page<Warehouse> findWarehousesForPacking(
-        @Param("status") WarehouseStatus status,
-        @Param("locationId") Long locationId,
-        @Param("validStatuses") List<OrderLinkStatus> validStatuses,
-        @Param("trackingCode") String trackingCode,
-        Pageable pageable
-);
+    @Query("""
+        SELECT DISTINCT w
+        FROM Warehouse w
+        JOIN w.orderLinks ol
+        WHERE w.status = :status
+          AND w.location.locationId = :locationId
+          AND ol.status IN :validStatuses
+          AND w.trackingCode = ol.shipmentCode
+          AND (
+        :trackingCode IS NULL
+        OR w.trackingCode LIKE CONCAT('%', CAST(:trackingCode AS string), '%')
+    )
+    """)
+    Page<Warehouse> findWarehousesForPacking(
+            @Param("status") WarehouseStatus status,
+            @Param("locationId") Long locationId,
+            @Param("validStatuses") List<OrderLinkStatus> validStatuses,
+            @Param("trackingCode") String trackingCode,
+            Pageable pageable
+    );
 
     List<Warehouse> findAllByStatus(WarehouseStatus warehouseStatus);
 

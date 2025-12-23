@@ -49,4 +49,8 @@ public class Route {
     @JsonIgnore
     private Set<Voucher> vouchers = new HashSet<>();
 
+    @OneToMany(mappedBy = "route", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Set<RouteExchangeRate> routeExchangeRates = new HashSet<>();
+
 }
