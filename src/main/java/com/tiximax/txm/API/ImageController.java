@@ -31,11 +31,31 @@ public class ImageController {
         }
     }
 
+    @PostMapping("/upload-file")
+    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
+        try {
+            String fileUrl = imageStorageService.uploadFile(file);
+            return ResponseEntity.ok(fileUrl);
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body("Lỗi upload: " + e.getMessage());
+        }
+    }
+
     @DeleteMapping("/delete-image")
-    public ResponseEntity<String> testDeleteImage(@RequestParam("filePath") String filePath) {
+    public ResponseEntity<String> deleteImage(@RequestParam("filePath") String filePath) {
         try {
             boolean isDeleted = imageStorageService.deleteImage(filePath);
             return ResponseEntity.ok("Xóa ảnh " + (isDeleted ? "thành công!" : "thất bại!"));
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body("Lỗi xóa: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/delete-file")
+    public ResponseEntity<String> deleteFile(@RequestParam("filePath") String filePath) {
+        try {
+            boolean isDeleted = imageStorageService.deleteFile(filePath);
+            return ResponseEntity.ok("Xóa file " + (isDeleted ? "thành công!" : "thất bại!"));
         } catch (IOException e) {
             return ResponseEntity.badRequest().body("Lỗi xóa: " + e.getMessage());
         }
