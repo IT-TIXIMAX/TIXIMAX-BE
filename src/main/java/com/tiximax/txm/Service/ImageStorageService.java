@@ -17,18 +17,16 @@ public class ImageStorageService {
     private final String supabaseUrl;
     private final String supabaseKey;
     private final String bucketName;
-    private final String bucketFileName;
+    private final String bucketFileName = "files";
 
     public ImageStorageService(RestTemplate restTemplate,
                                @Value("${supabase.url}") String supabaseUrl,
                                @Value("${supabase.key}") String supabaseKey,
-                               @Value("${supabase.bucket}") String bucketName,
-                               @Value("${supabase.bucketFile}") String bucketFileName) {
+                               @Value("${supabase.bucket}") String bucketName) {
         this.restTemplate = restTemplate;
         this.supabaseUrl = supabaseUrl;
         this.supabaseKey = supabaseKey;
         this.bucketName = bucketName;
-        this.bucketFileName = bucketFileName;
     }
 
     public String uploadImage(MultipartFile file) throws IOException {

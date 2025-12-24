@@ -88,7 +88,7 @@ public class SecurityConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174", "https://tiximax-three.vercel.app", "http://127.0.0.1:5500", "http://localhost:5500", "https://tiximax.app", "http://tiximax.app","http://127.0.0.1:8080", "https://www.tiximax.net/","https://tiximax.net", "https://tiximax-fe.vercel.app"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174", "https://tiximax-three.vercel.app", "http://127.0.0.1:5500", "http://localhost:5500", "https://tiximax.app", "http://tiximax.app","http://127.0.0.1:8080", "https://www.tiximax.net","https://tiximax.net", "https://tiximax-fe.vercel.app"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*")); 
         configuration.setAllowCredentials(true);
