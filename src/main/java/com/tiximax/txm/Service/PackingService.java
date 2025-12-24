@@ -584,6 +584,7 @@ public void assignFlightCode(List<Long> packingIds, String flightCode) {
             dto.setLength(warehouse.getLength());
             dto.setWidth(warehouse.getWidth());
             dto.setDim(warehouse.getDim());
+            dto.setWeight(warehouse.getWeight());
             dto.setNetWeight(warehouse.getNetWeight());
             dto.setPrice(totalPurchasedPrice);
 
