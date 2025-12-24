@@ -418,54 +418,11 @@ public class DashBoardService {
 //        return profit.setScale(0, RoundingMode.HALF_UP);
 //    }
 
-    public PurchaseProfitResult calculateEstimatedPurchaseProfit(
-            LocalDate startDate,
-            LocalDate endDate,
-            BigDecimal exchangeRate,
-            Long routeId) {
-
-        if (startDate == null || endDate == null) {
-            throw new RuntimeException("Ngày bắt đầu và kết thúc không được để trống!");
-        }
-        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Tỷ giá phải lớn hơn 0");
-        }
-
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
-
-        BigDecimal profit = purchasesRepository.calculateEstimatedPurchaseProfitByRoute(exchangeRate, start, end, routeId);
-        return new PurchaseProfitResult("EstimatedProfit", profit.setScale(0, RoundingMode.HALF_UP));
-    }
-
-    public PurchaseProfitResult calculateActualPurchaseProfit(
-            LocalDate startDate,
-            LocalDate endDate,
-            BigDecimal exchangeRate,
-            Long routeId) {
-
-        if (startDate == null || endDate == null) {
-            throw new RuntimeException("Ngày bắt đầu và kết thúc không được để trống!");
-        }
-        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Tỷ giá phải lớn hơn 0");
-        }
-
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
-
-        BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(exchangeRate, start, end, routeId);
-        return new PurchaseProfitResult("ActualProfit", profit.setScale(0, RoundingMode.HALF_UP));
-    }
-
     @Transactional(readOnly = true)
-    public PurchaseProfitResult calculateActualPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
+    public PurchaseProfitResult calculateEstimatedPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new RuntimeException("Ngày không hợp lệ!");
         }
-
-        LocalDateTime fullStart = startDate.atStartOfDay();
-        LocalDateTime fullEnd = endDate.plusDays(1).atStartOfDay();
 
         List<RouteExchangeRate> rates = routeExchangeRateRepository.findApplicableRates(routeId, startDate, endDate);
 
@@ -476,7 +433,6 @@ public class DashBoardService {
         BigDecimal totalProfit = BigDecimal.ZERO;
         LocalDate cursor = startDate;
 
-        // === VALIDATE KHÔNG GAP Ở ĐẦU (startDate) ===
         RouteExchangeRate firstRate = rates.get(0);
         if (startDate.isBefore(firstRate.getStartDate())) {
             throw new RuntimeException(
@@ -485,7 +441,6 @@ public class DashBoardService {
             );
         }
 
-        // === VALIDATE KHÔNG GAP Ở CUỐI (endDate) ===
         RouteExchangeRate lastRate = rates.get(rates.size() - 1);
         LocalDate lastEnd = (lastRate.getEndDate() == null) ? LocalDate.MAX : lastRate.getEndDate();
         if (endDate.isAfter(lastEnd)) {
@@ -494,7 +449,6 @@ public class DashBoardService {
                             "Mốc muộn nhất kết thúc vào " + lastEnd
             );
         }
-        // ===========================================
 
         for (RouteExchangeRate rate : rates) {
             LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
@@ -507,13 +461,70 @@ public class DashBoardService {
             LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
 
             totalProfit = totalProfit.add(
-                    purchasesRepository.calculateActualPurchaseProfitByRoute(rate.getExchangeRate(), s, e, routeId)
+                    purchasesRepository.calculateEstimatedPurchaseProfitByRoute(s, e, routeId)
             );
 
             cursor = segEnd.plusDays(1);
         }
 
-        // Kiểm tra gap giữa các mốc (nếu có)
+        if (cursor.isBefore(endDate.plusDays(1))) {
+            throw new RuntimeException(
+                    "Có khoảng thời gian gap từ " + cursor + " đến " + endDate + " không được cover bởi RouteExchangeRate!"
+            );
+        }
+
+        return new PurchaseProfitResult("ActualProfit", totalProfit.setScale(0, RoundingMode.HALF_UP));
+    }
+
+    @Transactional(readOnly = true)
+    public PurchaseProfitResult calculateActualPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+            throw new RuntimeException("Ngày không hợp lệ!");
+        }
+
+        List<RouteExchangeRate> rates = routeExchangeRateRepository.findApplicableRates(routeId, startDate, endDate);
+
+        if (rates.isEmpty()) {
+            throw new RuntimeException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
+        }
+
+        BigDecimal totalProfit = BigDecimal.ZERO;
+        LocalDate cursor = startDate;
+
+        RouteExchangeRate firstRate = rates.get(0);
+        if (startDate.isBefore(firstRate.getStartDate())) {
+            throw new RuntimeException(
+                    "Ngày bắt đầu " + startDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc sớm nhất bắt đầu từ " + firstRate.getStartDate()
+            );
+        }
+
+        RouteExchangeRate lastRate = rates.get(rates.size() - 1);
+        LocalDate lastEnd = (lastRate.getEndDate() == null) ? LocalDate.MAX : lastRate.getEndDate();
+        if (endDate.isAfter(lastEnd)) {
+            throw new RuntimeException(
+                    "Ngày kết thúc " + endDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc muộn nhất kết thúc vào " + lastEnd
+            );
+        }
+
+        for (RouteExchangeRate rate : rates) {
+            LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
+            LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
+                    ? endDate : rate.getEndDate();
+
+            if (segStart.isAfter(segEnd)) continue;
+
+            LocalDateTime s = segStart.atStartOfDay();
+            LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
+
+            totalProfit = totalProfit.add(
+                    purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId)
+            );
+
+            cursor = segEnd.plusDays(1);
+        }
+
         if (cursor.isBefore(endDate.plusDays(1))) {
             throw new RuntimeException(
                     "Có khoảng thời gian gap từ " + cursor + " đến " + endDate + " không được cover bởi RouteExchangeRate!"

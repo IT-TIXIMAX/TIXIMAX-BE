@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -188,51 +189,86 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
         Pageable pageable
 );
 
-    @Query("""
-        SELECT COALESCE(
-            SUM(
-                (SELECT COALESCE(SUM(ol.totalWeb), 0) FROM OrderLinks ol WHERE ol.purchase = p) * o.exchangeRate
-                - p.finalPriceOrder * :exchangeRate
-            ),
-            0
-        )
-        FROM Purchases p
-        JOIN p.orders o
-        WHERE p.purchased = true
-          AND p.purchaseTime >= :start
-          AND p.purchaseTime < :end
-          AND (:routeId IS NULL OR o.route.routeId = :routeId)
-        """)
+    @Query(value = """
+    SELECT
+        SUM(net_profit_per_purchase) AS total_net_profit
+    FROM (
+        SELECT
+            (ol_sum.total_web_sum * COALESCE(o.exchange_rate,0)
+             - COALESCE(p.final_price_order,0) * COALESCE(rer.exchange_rate,0)
+            ) AS net_profit_per_purchase,
+            ol_sum.total_web_sum
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN route r ON r.route_id = o.route_id
+
+        LEFT JOIN LATERAL (
+            SELECT rer.exchange_rate
+            FROM route_exchange_rate rer
+            WHERE rer.route_id = r.route_id
+              AND DATE(p.purchase_time) >= rer.start_date
+              AND (rer.end_date IS NULL OR DATE(p.purchase_time) <= rer.end_date)
+            ORDER BY rer.start_date DESC
+            LIMIT 1
+        ) rer ON TRUE
+
+        LEFT JOIN LATERAL (
+            SELECT COALESCE(SUM(ol2.total_web),0) AS total_web_sum
+            FROM order_links ol2
+            WHERE ol2.purchase_id = p.purchase_id
+        ) ol_sum ON TRUE
+
+        WHERE p.purchase_time >= :start
+          AND p.purchase_time <  :endPlusOne
+          AND o.route_id = :routeId
+          AND ol_sum.total_web_sum > 0
+    ) t
+    """, nativeQuery = true)
     BigDecimal calculateEstimatedPurchaseProfitByRoute(
-            @Param("exchangeRate") BigDecimal exchangeRate,
             @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end,
+            @Param("endPlusOne") LocalDateTime endPlusOne,
             @Param("routeId") Long routeId);
 
-    @Query("""
-    SELECT COALESCE(
-        SUM(
-            (SELECT COALESCE(SUM(ol.totalWeb), 0) FROM OrderLinks ol WHERE ol.purchase = p) * o.exchangeRate
-            - p.finalPriceOrder * :exchangeRate
-        ),
-        0
-    )
-    FROM Purchases p
-    JOIN p.orders o
-    WHERE p.purchased = true
-      AND p.purchaseTime >= :start
-      AND p.purchaseTime < :end
-      AND (:routeId IS NULL OR o.route.routeId = :routeId)
-      AND NOT EXISTS (
-          SELECT 1 FROM OrderLinks ol
-          WHERE ol.purchase = p
-            AND ol.status IN ('CHO_MUA', 'DA_MUA', 'DAU_GIA_THANH_CONG', 'MUA_SAU', 'DA_HUY')
-      )
-    """)
+    @Query(value = """
+    SELECT
+        SUM(net_profit_per_purchase) AS total_net_profit
+    FROM (
+        SELECT
+            (ol_sum.total_web_sum * COALESCE(o.exchange_rate,0)
+             - COALESCE(p.final_price_order,0) * COALESCE(rer.exchange_rate,0)
+            ) AS net_profit_per_purchase,
+            ol_sum.total_web_sum
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN route r ON r.route_id = o.route_id
+
+        LEFT JOIN LATERAL (
+            SELECT rer.exchange_rate
+            FROM route_exchange_rate rer
+            WHERE rer.route_id = r.route_id
+              AND DATE(p.purchase_time) >= rer.start_date
+              AND (rer.end_date IS NULL OR DATE(p.purchase_time) <= rer.end_date)
+            ORDER BY rer.start_date DESC
+            LIMIT 1
+        ) rer ON TRUE
+
+        LEFT JOIN LATERAL (
+            SELECT COALESCE(SUM(ol2.total_web),0) AS total_web_sum
+            FROM order_links ol2
+            WHERE ol2.purchase_id = p.purchase_id
+              AND ol2.status NOT IN ('CHO_MUA','DA_MUA','DAU_GIA_THANH_CONG','MUA_SAU','DA_HUY')
+        ) ol_sum ON TRUE
+
+        WHERE p.purchase_time >= :start
+          AND p.purchase_time <  :endPlusOne
+          AND o.route_id = :routeId
+          AND ol_sum.total_web_sum > 0
+    ) t
+    """, nativeQuery = true)
     BigDecimal calculateActualPurchaseProfitByRoute(
-            @Param("exchangeRate") BigDecimal exchangeRate,
             @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end,
-            @Param("routeId") Long routeId);
+            @Param("endPlusOne") LocalDateTime endPlusOne,
+            @Param("routeId") Long routeId
+    );
 
 }
