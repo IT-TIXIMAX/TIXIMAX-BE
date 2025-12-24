@@ -12,5 +12,7 @@ public class MoneyExchangeRequest {
     private BigDecimal moneyExChange;
 
     private BigDecimal fee;
+
+    private String note;
     
 }

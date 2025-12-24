@@ -1486,8 +1486,8 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
     orderLink.setProductType(null);
     orderLink.setClassify("Money Exchange"); 
     orderLink.setStatus(OrderLinkStatus.CHO_MUA);
-    orderLink.setNote("Chuyển tiền cho khách hàng"); 
-    orderLink.setGroupTag("Money Exchange");
+    orderLink.setNote(ordersRequest.getNote());
+    orderLink.setGroupTag("ME");
     orderLink.setTrackingCode(generateOrderLinkCode()); 
     orderLink.setPurchaseImage(null);
     orderLink.setExtraCharge(BigDecimal.ZERO); 
