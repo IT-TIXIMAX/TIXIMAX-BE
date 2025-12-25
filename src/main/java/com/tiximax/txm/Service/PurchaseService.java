@@ -148,6 +148,7 @@ public class PurchaseService {
     purchase.setStaff((Staff) accountUtils.getAccountCurrent());
     purchase.setOrders(order);
     purchase.setPurchased(false);
+    purchase.setFinalPriceOrder(exchangeRequest.getTotal());
     purchase.setNote(exchangeRequest.getNote());
     purchase.setPurchaseImage(exchangeRequest.getImage());
     purchase = purchasesRepository.save(purchase);

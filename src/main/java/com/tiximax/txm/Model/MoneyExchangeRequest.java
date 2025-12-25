@@ -11,6 +11,8 @@ public class MoneyExchangeRequest {
 
     private BigDecimal moneyExChange;
 
+    private String image;
+
     private BigDecimal fee;
 
     private String note;
