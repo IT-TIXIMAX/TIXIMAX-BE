@@ -106,4 +106,20 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
     """)
     List<Object[]> sumNetWeightAndPriceShipByCustomer(@Param("flightCode") String flightCode);
 
+    @Query(value = """
+    SELECT 
+        r.name AS route_name,
+        COALESCE(SUM(w.weight), 0.0) AS total_weight,
+        COALESCE(SUM(w.net_weight), 0.0) AS total_net_weight
+    FROM route r
+    LEFT JOIN orders o ON o.route_id = r.route_id
+    LEFT JOIN warehouse w ON w.order_id = o.order_id
+        AND w.created_at >= :start
+        AND w.created_at < :end
+    GROUP BY r.route_id, r.name
+    ORDER BY total_weight DESC, total_net_weight DESC
+    """, nativeQuery = true)
+    List<Object[]> sumWeightByRouteNativeRaw(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

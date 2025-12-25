@@ -6,6 +6,8 @@ import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.RoutePaymentSummary;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,26 +35,27 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findMergedPaymentByOrderIdAndStatus(@Param("orderId") Long orderId, @Param("status") PaymentStatus status);
 
     @Query("""
-           SELECT p 
-           FROM Payment p 
-           JOIN p.orders o 
-           WHERE p.staff = :staff 
-             AND o.status = :orderStatus
-             AND p.status = :paymentStatus
-           ORDER BY p.actionAt DESC
-           """)
+            SELECT p 
+            FROM Payment p 
+            JOIN p.orders o 
+            WHERE p.staff = :staff 
+              AND o.status = :orderStatus
+              AND p.status = :paymentStatus
+            ORDER BY p.actionAt DESC
+            """)
     List<Payment> findAllByStaffAndOrderStatusAndPaymentStatusOrderByActionAtDesc(
             @Param("staff") Staff staff,
             @Param("orderStatus") OrderStatus orderStatus,
             @Param("paymentStatus") PaymentStatus paymentStatus
     );
-     @Query("""
-        SELECT DISTINCT p
-        FROM Payment p
-        JOIN p.partialShipments ps
-        WHERE p.staff.id = :staffId
-          AND ps.status = :status
-    """)
+
+    @Query("""
+                SELECT DISTINCT p
+                FROM Payment p
+                JOIN p.partialShipments ps
+                WHERE p.staff.id = :staffId
+                  AND ps.status = :status
+            """)
     List<Payment> findPaymentsByStaffAndPartialStatus(
             @Param("staffId") Long staffId,
             @Param("status") OrderStatus status
@@ -66,45 +69,46 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             LocalDateTime start,
             LocalDateTime end
     );
-    @Query("""
-    SELECT COALESCE(SUM(p.collectedAmount), 0)
-    FROM Payment p
-    WHERE p.status IN (
-        com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN,
-        com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN_SHIP
-    )
-      AND p.actionAt BETWEEN :start AND :end """)
-        BigDecimal sumCollectedAmountBetween(@Param("start") LocalDateTime start,
-                                     @Param("end") LocalDateTime end);
-     @Query("""
-    SELECT COALESCE(SUM(p.collectedAmount), 0)
-    FROM Payment p
-    WHERE p.status = com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN_SHIP
-      AND p.actionAt BETWEEN :start AND :end """)
-        BigDecimal sumShipRevenueBetween(@Param("start") LocalDateTime start,
-                                        @Param("end") LocalDateTime end);
 
-        @Query("""
-    SELECT COALESCE(SUM(p.collectedAmount), 0)
-    FROM Payment p
-    WHERE p.status = com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN
-      AND p.actionAt BETWEEN :start AND :end """)
-        BigDecimal sumPurchaseBetween(@Param("start") LocalDateTime start,
-                                        @Param("end") LocalDateTime end);
+    @Query("""
+            SELECT COALESCE(SUM(p.collectedAmount), 0)
+            FROM Payment p
+            WHERE p.status IN (
+                com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN,
+                com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN_SHIP
+            )
+              AND p.actionAt BETWEEN :start AND :end """)
+    BigDecimal sumCollectedAmountBetween(@Param("start") LocalDateTime start,
+                                         @Param("end") LocalDateTime end);
+
+    @Query("""
+            SELECT COALESCE(SUM(p.collectedAmount), 0)
+            FROM Payment p
+            WHERE p.status = com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN_SHIP
+              AND p.actionAt BETWEEN :start AND :end """)
+    BigDecimal sumShipRevenueBetween(@Param("start") LocalDateTime start,
+                                     @Param("end") LocalDateTime end);
+
+    @Query("""
+            SELECT COALESCE(SUM(p.collectedAmount), 0)
+            FROM Payment p
+            WHERE p.status = com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN
+              AND p.actionAt BETWEEN :start AND :end """)
+    BigDecimal sumPurchaseBetween(@Param("start") LocalDateTime start,
+                                  @Param("end") LocalDateTime end);
 
     List<Payment> findByRelatedOrdersContaining(Orders order);
 
     @Query(value = "SELECT p.* FROM payment p " +
-               "JOIN payment_orders po ON p.payment_id = po.payment_id " +
-               "WHERE po.order_id = :orderId " +
-               "AND p.status = :status", 
-       nativeQuery = true)
+            "JOIN payment_orders po ON p.payment_id = po.payment_id " +
+            "WHERE po.order_id = :orderId " +
+            "AND p.status = :status",
+            nativeQuery = true)
     Optional<Payment> findPaymentForOrder(@Param("orderId") Long orderId,
-                                      @Param("status") String status);
+                                          @Param("status") String status);
 
 
-
-//    BigDecimal sumCollectedAmountByStatusAndActionAtBetween(PaymentStatus paymentStatus, LocalDateTime start, LocalDateTime end);
+    //    BigDecimal sumCollectedAmountByStatusAndActionAtBetween(PaymentStatus paymentStatus, LocalDateTime start, LocalDateTime end);
     @Query("SELECT COALESCE(SUM(p.collectedAmount), 0) " +
             "FROM Payment p " +
             "WHERE p.status = :status " +
@@ -117,42 +121,47 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("SELECT MONTH(p.actionAt), SUM(p.collectedAmount) FROM Payment p WHERE YEAR(p.actionAt) = :year AND p.status = 'DA_THANH_TOAN' GROUP BY MONTH(p.actionAt)")
     List<Object[]> sumRevenueByMonth(@Param("year") int year);
 
-    @Query("SELECT MONTH(p.actionAt), SUM(p.amount) FROM Payment p WHERE YEAR(p.actionAt) = :year AND p.paymentType = 'PURCHASE' GROUP BY MONTH(p.actionAt)")  // Adjust based on actual purchase logic
+    @Query("SELECT MONTH(p.actionAt), SUM(p.amount) FROM Payment p WHERE YEAR(p.actionAt) = :year AND p.paymentType = 'PURCHASE' GROUP BY MONTH(p.actionAt)")
+        // Adjust based on actual purchase logic
     List<Object[]> sumPurchaseByMonth(@Param("year") int year);
 
     @Query("SELECT MONTH(p.actionAt), SUM(p.collectedAmount) FROM Payment p WHERE YEAR(p.actionAt) = :year AND p.status = 'DA_THANH_TOAN_SHIP' GROUP BY MONTH(p.actionAt)")
     List<Object[]> sumShipByMonth(@Param("year") int year);
 
-//    @Query("""
-//    SELECT o.route.id    AS routeName,
-//           COALESCE(SUM(p.collectedAmount), 0) AS totalAmount
-//    FROM Payment p
-//    JOIN p.orders o
-//    WHERE p.status = :status
-//      AND p.actionAt BETWEEN :start AND :end
-//    GROUP BY o.route.id
-//    ORDER BY totalAmount DESC
-//    """)
-//    List<RoutePaymentSummary> sumRevenueByRoute(
-//            @Param("status") PaymentStatus status,
-//            @Param("start") LocalDateTime start,
-//            @Param("end") LocalDateTime end);
-
-    @Query("""
-    SELECT new com.tiximax.txm.Model.RoutePaymentSummary(
-        o.route.routeId,
-        COALESCE(SUM(p.collectedAmount), 0)
-    )
-    FROM Payment p
-    JOIN p.orders o
-    WHERE p.status = :status
-      AND p.actionAt BETWEEN :start AND :end
-    GROUP BY o.route.routeId
-    ORDER BY SUM(p.collectedAmount) DESC
-    """)
-    List<RoutePaymentSummary> sumRevenueByRoute(
-            @Param("status") PaymentStatus status,
+    @Query(value = """
+    SELECT 
+        r.name AS route_name,
+        COALESCE(SUM(combined.revenue), 0) AS total_revenue
+    FROM route r
+    LEFT JOIN (
+        SELECT 
+            o.route_id, 
+            p.collected_amount AS revenue
+        FROM payment p
+        INNER JOIN orders o ON p.order_id = o.order_id
+        WHERE p.status = :status 
+          AND p.action_at BETWEEN :start AND :end
+        UNION ALL
+        SELECT 
+            o.route_id, 
+            p.collected_amount / cnt.num_orders AS revenue
+        FROM payment p
+        INNER JOIN payment_orders po ON p.payment_id = po.payment_id
+        INNER JOIN orders o ON po.order_id = o.order_id
+        INNER JOIN (
+            SELECT payment_id, COUNT(*) AS num_orders
+            FROM payment_orders
+            GROUP BY payment_id
+        ) cnt ON p.payment_id = cnt.payment_id
+        WHERE p.order_id IS NULL
+          AND p.status = :status 
+          AND p.action_at BETWEEN :start AND :end
+    ) combined ON combined.route_id = r.route_id
+    GROUP BY r.route_id, r.name
+    ORDER BY total_revenue DESC
+    """, nativeQuery = true)
+    List<Object[]> sumCollectedAmountByRouteNativeRaw(
+            @Param("status") String status,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 }
-

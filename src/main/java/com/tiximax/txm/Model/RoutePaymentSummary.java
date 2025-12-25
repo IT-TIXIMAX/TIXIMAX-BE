@@ -10,11 +10,11 @@ import java.math.BigDecimal;
 @Setter
 
 public class RoutePaymentSummary {
-    private Long routeId;
-    private BigDecimal totalPaidAmount;
+    private String routeName;
+    private BigDecimal totalRevenue;
 
-    public RoutePaymentSummary(Long routeId, BigDecimal totalPaidAmount) {
-        this.routeId = routeId;
-        this.totalPaidAmount = totalPaidAmount;
+    public RoutePaymentSummary(String routeName, BigDecimal totalRevenue) {
+        this.routeName = routeName;
+        this.totalRevenue = totalRevenue;
     }
 }
