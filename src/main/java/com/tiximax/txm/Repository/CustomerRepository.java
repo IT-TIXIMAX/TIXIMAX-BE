@@ -63,4 +63,24 @@ Page<Customer> searchByStaff(
 
     @Query("SELECT MONTH(c.createdAt), COUNT(c) FROM Customer c WHERE YEAR(c.createdAt) = :year GROUP BY MONTH(c.createdAt)")
     List<Object[]> countNewCustomersByMonth(@Param("year") int year);
+
+    @Query(value = """
+    SELECT 
+        COALESCE(s.name, 'Khách tự đăng ký') AS staff_name,
+        COUNT(*) AS new_customer_count
+    FROM customer c
+    LEFT JOIN account s ON s.account_id = c.staff_id
+    WHERE EXISTS (
+        SELECT 1 
+        FROM account a 
+        WHERE a.account_id = c.account_id 
+          AND a.created_at BETWEEN :start AND :end
+    )
+    GROUP BY s.account_id, s.name
+    HAVING COUNT(*) > 0
+    ORDER BY new_customer_count DESC, staff_name
+    """, nativeQuery = true)
+    List<Object[]> sumNewCustomersByStaffNativeRaw(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

@@ -339,5 +339,21 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
 
     @Query("SELECT SUM(ABS(o.leftoverMoney)) FROM Orders o WHERE o.leftoverMoney < 0")
     BigDecimal sumLeftoverMoneyNegativeAll();
+
+    @Query(value = """
+    SELECT 
+        r.name AS route_name,
+        COALESCE(COUNT(DISTINCT o.order_id), 0) AS total_orders,
+        COALESCE(COUNT(DISTINCT ol.link_id), 0) AS total_links
+    FROM route r
+    LEFT JOIN orders o ON o.route_id = r.route_id 
+        AND o.created_at BETWEEN :start AND :end
+    LEFT JOIN order_links ol ON ol.order_id = o.order_id 
+    GROUP BY r.route_id, r.name
+    ORDER BY total_orders DESC, total_links DESC
+    """, nativeQuery = true)
+    List<Object[]> sumOrdersAndLinksByRouteNativeRaw(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }
 
