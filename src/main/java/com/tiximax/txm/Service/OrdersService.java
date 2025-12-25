@@ -1481,7 +1481,7 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
     orderLink.setTotalWeb(ordersRequest.getMoneyExChange()); 
     orderLink.setPurchaseFee(ordersRequest.getFee()); 
     orderLink.setProductName("Money Exchange"); 
-   
+    orderLink.setPurchaseImage(ordersRequest.getImage());
     orderLink.setWebsite(null);
     orderLink.setProductType(null);
     orderLink.setClassify("Money Exchange"); 
