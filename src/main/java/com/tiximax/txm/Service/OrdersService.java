@@ -1210,9 +1210,12 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
         List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCode(shipmentCode);
         InfoShipmentCode infoShipmentCode = new InfoShipmentCode();
         if (!orderLinks.isEmpty()){
+            Orders orders = orderLinks.get(0).getOrders();
+            String customerCode = orders.getStaff().getStaffCode() + "-" + orders.getCustomer().getCustomerCode();
             infoShipmentCode.setOrders(orderLinks.get(0).getOrders());
             infoShipmentCode.setPrice(orderLinks.get(0).getPurchase() != null ? orderLinks.get(0).getPurchase().getFinalPriceOrder() : BigDecimal.ZERO);
             infoShipmentCode.setDestinationName(infoShipmentCode.getOrders().getDestination().getDestinationName());
+            infoShipmentCode.setCustomerCode(customerCode);
         } else {
             throw new IllegalStateException("Không tìm thấy mã vận đơn này, vui lòng thử lại!");
         }
@@ -1451,7 +1454,6 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
         throw new IllegalArgumentException("Tỉ giá không được nhỏ hơn giá cố định, liên hệ quản lý để được hỗ trợ thay đổi tỉ giá!");
     }
 
-    // Tạo đối tượng Orders mới
     Orders order = new Orders();
     order.setCustomer(customer);
     order.setOrderCode(generateOrderCode(OrderType.CHUYEN_TIEN)); 
@@ -1463,36 +1465,36 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
     order.setCheckRequired(false);
     order.setPriceShip(BigDecimal.ZERO);
     order.setRoute(route);
+    order.setAddress(null);
     order.setStaff((Staff) accountUtils.getAccountCurrent());
 
     // Khởi tạo các giá trị tính toán
     BigDecimal totalPriceVnd = BigDecimal.ZERO;
     BigDecimal priceBeforeFee = BigDecimal.ZERO;
 
-
     OrderLinks orderLink = new OrderLinks();
     orderLink.setOrders(order);
-    orderLink.setProductLink("N/A"); 
+    orderLink.setProductLink(null);
     orderLink.setQuantity(1); 
     orderLink.setPriceWeb(BigDecimal.ZERO); 
     orderLink.setShipWeb(BigDecimal.ZERO); 
     orderLink.setTotalWeb(ordersRequest.getMoneyExChange()); 
     orderLink.setPurchaseFee(ordersRequest.getFee()); 
     orderLink.setProductName("Money Exchange"); 
-   
-    orderLink.setWebsite("N/A"); 
+    orderLink.setPurchaseImage(ordersRequest.getImage());
+    orderLink.setWebsite(null);
     orderLink.setProductType(null);
     orderLink.setClassify("Money Exchange"); 
     orderLink.setStatus(OrderLinkStatus.CHO_MUA);
-    orderLink.setNote("Chuyển tiền cho khách hàng"); 
-    orderLink.setGroupTag("Chuyển tiền"); 
+    orderLink.setNote(ordersRequest.getNote());
+    orderLink.setGroupTag("ME");
     orderLink.setTrackingCode(generateOrderLinkCode()); 
     orderLink.setPurchaseImage(null);
     orderLink.setExtraCharge(BigDecimal.ZERO); 
     orderLink.setFinalPriceVnd(
         orderLink.getTotalWeb().add(orderLink.getPurchaseFee()).multiply(order.getExchangeRate()) 
     );
-    totalPriceVnd =   orderLink.getTotalWeb().add(orderLink.getPurchaseFee()).multiply(order.getExchangeRate()); 
+    totalPriceVnd = orderLink.getTotalWeb().add(orderLink.getPurchaseFee()).multiply(order.getExchangeRate());
     priceBeforeFee = orderLink.getTotalWeb();
 
     Set<OrderLinks> orderLinksList = new HashSet<>();

@@ -8,15 +8,14 @@ import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import com.tiximax.txm.Enums.DashboardFilterType;
 import com.tiximax.txm.Service.DashBoardService;
-
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
@@ -84,18 +83,18 @@ public class DashBoardController {
         return ResponseEntity.ok(dashBoardService.getYearlyStatsWarehouse(year));
     }
 
-    @GetMapping("/routes/revenue-summary")
-    public ResponseEntity<List<RoutePaymentSummary>> getRevenueByRoute(
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
-            @RequestParam(required = false) PaymentStatus status) {
-
-        List<RoutePaymentSummary> result = dashBoardService.getRevenueByRoute(
-                startDate, endDate, filterType, status);
-
-        return ResponseEntity.ok(result);
-    }
+//    @GetMapping("/routes/revenue-summary")
+//    public ResponseEntity<List<RoutePaymentSummary>> getRevenueByRoute(
+//            @RequestParam(required = false) LocalDate startDate,
+//            @RequestParam(required = false) LocalDate endDate,
+//            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+//            @RequestParam(required = false) PaymentStatus status) {
+//
+//        List<RoutePaymentSummary> result = dashBoardService.getRevenueByRoute(
+//                startDate, endDate, filterType, status);
+//
+//        return ResponseEntity.ok(result);
+//    }
 
     @GetMapping("admin/debts-total")
     public Map<String, BigDecimal> getAdminDebtsTotal() {
@@ -117,10 +116,9 @@ public class DashBoardController {
     public ResponseEntity<PurchaseProfitResult> getEstimatedProfit(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate,
-            @RequestParam BigDecimal exchangeRate,
             @RequestParam(required = false) Long routeId) {
 
-        PurchaseProfitResult profit = dashBoardService.calculateEstimatedPurchaseProfit(startDate, endDate, exchangeRate, routeId);
+        PurchaseProfitResult profit = dashBoardService.calculateEstimatedPurchaseProfit(startDate, endDate, routeId);
 
         return ResponseEntity.ok(profit);
     }
@@ -129,11 +127,55 @@ public class DashBoardController {
     public ResponseEntity<PurchaseProfitResult> getActualProfit(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate,
-            @RequestParam BigDecimal exchangeRate,
             @RequestParam(required = false) Long routeId) {
 
-        PurchaseProfitResult profit = dashBoardService.calculateActualPurchaseProfit(startDate, endDate, exchangeRate, routeId);
-
+        PurchaseProfitResult profit = dashBoardService.calculateActualPurchaseProfit(startDate, endDate, routeId);
         return ResponseEntity.ok(profit);
+    }
+
+    @GetMapping("/routes/revenue-summary")
+    public ResponseEntity<List<RoutePaymentSummary>> getRevenueByRoute(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) PaymentStatus status) {
+
+        List<RoutePaymentSummary> result = dashBoardService.getRevenueByRoute(
+                startDate, endDate, filterType, status);
+
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/routes/orders-summary")
+    public ResponseEntity<List<RouteOrderSummary>> getOrdersByRoute(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType) {
+
+        List<RouteOrderSummary> result = dashBoardService.getOrdersAndLinksByRoute(startDate, endDate, filterType);
+
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/staff/customers-summary")
+    public ResponseEntity<List<StaffNewCustomerSummary>> getNewCustomersByStaff(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType) {
+
+        List<StaffNewCustomerSummary> result = dashBoardService.getNewCustomersByStaff(startDate, endDate, filterType);
+
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/routes/weight-summary")
+    public ResponseEntity<List<RouteWeightSummary>> getWeightByRoute(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType) {
+
+        List<RouteWeightSummary> result = dashBoardService.getWeightByRoute(startDate, endDate, filterType);
+
+        return ResponseEntity.ok(result);
     }
 }

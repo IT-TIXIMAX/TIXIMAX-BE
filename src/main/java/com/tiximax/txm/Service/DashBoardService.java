@@ -4,19 +4,23 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import com.tiximax.txm.Entity.Customer;
+import com.tiximax.txm.Entity.Payment;
+import com.tiximax.txm.Entity.Route;
+import com.tiximax.txm.Entity.RouteExchangeRate;
 import com.tiximax.txm.Enums.DashboardFilterType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DashBoardService {
@@ -41,6 +45,12 @@ public class DashBoardService {
 
     @Autowired
     private PurchasesRepository purchasesRepository;
+
+    @Autowired
+    private RouteExchangeRateRepository routeExchangeRateRepository;
+
+    @Autowired
+    private RouteRepository routeRepository;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
@@ -220,24 +230,6 @@ public class DashBoardService {
         return new StartEndDate(startDate, endDate);
     }
 
-    public List<RoutePaymentSummary> getRevenueByRoute(
-            LocalDate startDate,
-            LocalDate endDate,
-            DashboardFilterType filterType,
-            PaymentStatus status) {
-
-        StartEndDate startEndDate = getDateStartEnd(filterType);
-
-        LocalDateTime start = startEndDate.getStartDate().atStartOfDay();
-        LocalDateTime end = startEndDate.getEndDate().plusDays(1).atStartOfDay();
-
-        if (status == null) {
-            throw new RuntimeException("Hãy chọn một loại thanh toán mà bạn muốn xem!");
-        }
-
-        return paymentRepository.sumRevenueByRoute(status, start, end);
-    }
-
     public Map<String, BigDecimal> getDebtSummary(LocalDate startDate, LocalDate endDate) {
         BigDecimal totalReceivable;
         BigDecimal totalPayable;
@@ -261,58 +253,6 @@ public class DashBoardService {
         summary.put("totalPayable", totalPayable.setScale(0, RoundingMode.HALF_UP));
         return summary;
     }
-
-//    public Map<String, BigDecimal> calculateFlightRevenueWithMinWeight(
-//            String flightCode,
-//            BigDecimal inputCost,
-//            Double minWeight) {
-//
-//        if (flightCode == null || flightCode.isBlank()) {
-//            throw new RuntimeException("flightCode không được để trống");
-//        }
-//        if (inputCost == null || inputCost.compareTo(BigDecimal.ZERO) < 0) {
-//            throw new RuntimeException("Chi phí nhập vào phải >= 0");
-//        }
-//        if (minWeight == null || minWeight < 0) {
-//            minWeight = 0.0;
-//        }
-//
-//        List<Object[]> customerData = warehouseRepository.sumNetWeightAndPriceShipByCustomer(flightCode);
-//
-//        BigDecimal totalRevenue = BigDecimal.ZERO;
-//        BigDecimal totalChargeableWeight = BigDecimal.ZERO;
-//
-//        for (Object[] row : customerData) {
-//            Double actualWeightDouble = (Double) row[1];
-//            BigDecimal actualWeight = BigDecimal.valueOf(actualWeightDouble != null ? actualWeightDouble : 0.0)
-//                    .setScale(1, RoundingMode.HALF_UP);
-//
-//            BigDecimal priceShip = (BigDecimal) row[2];
-//            if (priceShip == null) priceShip = BigDecimal.ZERO;
-//
-//            BigDecimal chargeableWeight = actualWeight.max(BigDecimal.valueOf(minWeight))
-//                    .setScale(1, RoundingMode.HALF_UP);
-//
-//            BigDecimal customerRevenue = chargeableWeight.multiply(priceShip)
-//                    .setScale(0, RoundingMode.HALF_UP);
-//
-//            totalRevenue = totalRevenue.add(customerRevenue);
-//            totalChargeableWeight = totalChargeableWeight.add(chargeableWeight);
-//        }
-//
-//        BigDecimal netProfit = totalRevenue.subtract(inputCost).setScale(0, RoundingMode.HALF_UP);
-//
-//        Map<String, BigDecimal> result = new HashMap<>();
-//        result.put("totalActualWeight", BigDecimal.valueOf(
-//                        customerData.stream().mapToDouble(row -> (Double) row[1]).sum())
-//                .setScale(1, RoundingMode.HALF_UP));
-//        result.put("totalChargeableWeight", totalChargeableWeight.setScale(1, RoundingMode.HALF_UP));
-//        result.put("totalRevenue", totalRevenue);
-//        result.put("inputCost", inputCost.setScale(0, RoundingMode.HALF_UP));
-//        result.put("netProfit", netProfit);
-//
-//        return result;
-//    }
 
     public Map<String, BigDecimal> calculateFlightRevenueWithMinWeight(
             String flightCode,
@@ -388,64 +328,214 @@ public class DashBoardService {
         return result;
     }
 
-
-//    public BigDecimal calculatePurchaseProfit(
-//            LocalDate startDate,
-//            LocalDate endDate,
-//            BigDecimal exchangeRate,
-//            Long routeId) {
-//
-//        if (startDate == null || endDate == null) {
-//            throw new RuntimeException("startDate và endDate không được để trống");
-//        }
-//        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-//            throw new RuntimeException("Tỷ giá phải lớn hơn 0");
-//        }
-//
-//        LocalDateTime start = startDate.atStartOfDay();
-//        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
-//
-//        BigDecimal profit = purchasesRepository.calculatePurchaseProfitByRoute(exchangeRate, start, end, routeId);
-//        return profit.setScale(0, RoundingMode.HALF_UP);
-//    }
-
-    public PurchaseProfitResult calculateEstimatedPurchaseProfit(
-            LocalDate startDate,
-            LocalDate endDate,
-            BigDecimal exchangeRate,
-            Long routeId) {
-
-        if (startDate == null || endDate == null) {
-            throw new RuntimeException("Ngày bắt đầu và kết thúc không được để trống!");
-        }
-        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Tỷ giá phải lớn hơn 0");
+    @Transactional(readOnly = true)
+    public PurchaseProfitResult calculateEstimatedPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+            throw new RuntimeException("Ngày không hợp lệ!");
         }
 
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+        List<RouteExchangeRate> rates = routeExchangeRateRepository.findApplicableRates(routeId, startDate, endDate);
 
-        BigDecimal profit = purchasesRepository.calculateEstimatedPurchaseProfitByRoute(exchangeRate, start, end, routeId);
-        return new PurchaseProfitResult("EstimatedProfit", profit.setScale(0, RoundingMode.HALF_UP));
+        if (rates.isEmpty()) {
+            throw new RuntimeException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
+        }
+
+        BigDecimal totalProfit = BigDecimal.ZERO;
+        LocalDate cursor = startDate;
+
+        RouteExchangeRate firstRate = rates.get(0);
+        if (startDate.isBefore(firstRate.getStartDate())) {
+            throw new RuntimeException(
+                    "Ngày bắt đầu " + startDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc sớm nhất bắt đầu từ " + firstRate.getStartDate()
+            );
+        }
+
+        RouteExchangeRate lastRate = rates.get(rates.size() - 1);
+        LocalDate lastEnd = (lastRate.getEndDate() == null) ? LocalDate.MAX : lastRate.getEndDate();
+        if (endDate.isAfter(lastEnd)) {
+            throw new RuntimeException(
+                    "Ngày kết thúc " + endDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc muộn nhất kết thúc vào " + lastEnd
+            );
+        }
+
+        for (RouteExchangeRate rate : rates) {
+            LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
+            LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
+                    ? endDate : rate.getEndDate();
+
+            if (segStart.isAfter(segEnd)) continue;
+
+            LocalDateTime s = segStart.atStartOfDay();
+            LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
+
+            totalProfit = totalProfit.add(
+                    purchasesRepository.calculateEstimatedPurchaseProfitByRoute(s, e, routeId)
+            );
+
+            cursor = segEnd.plusDays(1);
+        }
+
+        if (cursor.isBefore(endDate.plusDays(1))) {
+            throw new RuntimeException(
+                    "Có khoảng thời gian gap từ " + cursor + " đến " + endDate + " không được cover bởi RouteExchangeRate!"
+            );
+        }
+
+        return new PurchaseProfitResult("ActualProfit", totalProfit.setScale(0, RoundingMode.HALF_UP));
     }
 
-    public PurchaseProfitResult calculateActualPurchaseProfit(
+    @Transactional(readOnly = true)
+    public PurchaseProfitResult calculateActualPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+            throw new RuntimeException("Ngày không hợp lệ!");
+        }
+
+        List<RouteExchangeRate> rates = routeExchangeRateRepository.findApplicableRates(routeId, startDate, endDate);
+
+        if (rates.isEmpty()) {
+            throw new RuntimeException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
+        }
+
+        BigDecimal totalProfit = BigDecimal.ZERO;
+        LocalDate cursor = startDate;
+
+        RouteExchangeRate firstRate = rates.get(0);
+        if (startDate.isBefore(firstRate.getStartDate())) {
+            throw new RuntimeException(
+                    "Ngày bắt đầu " + startDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc sớm nhất bắt đầu từ " + firstRate.getStartDate()
+            );
+        }
+
+        RouteExchangeRate lastRate = rates.get(rates.size() - 1);
+        LocalDate lastEnd = (lastRate.getEndDate() == null) ? LocalDate.MAX : lastRate.getEndDate();
+        if (endDate.isAfter(lastEnd)) {
+            throw new RuntimeException(
+                    "Ngày kết thúc " + endDate + " nằm ngoài phạm vi mốc tỷ giá! " +
+                            "Mốc muộn nhất kết thúc vào " + lastEnd
+            );
+        }
+
+        for (RouteExchangeRate rate : rates) {
+            LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
+            LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
+                    ? endDate : rate.getEndDate();
+
+            if (segStart.isAfter(segEnd)) continue;
+
+            LocalDateTime s = segStart.atStartOfDay();
+            LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
+
+            totalProfit = totalProfit.add(
+                    purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId)
+            );
+
+            cursor = segEnd.plusDays(1);
+        }
+
+        if (cursor.isBefore(endDate.plusDays(1))) {
+            throw new RuntimeException(
+                    "Có khoảng thời gian gap từ " + cursor + " đến " + endDate + " không được cover bởi RouteExchangeRate!"
+            );
+        }
+
+        return new PurchaseProfitResult("ActualProfit", totalProfit.setScale(0, RoundingMode.HALF_UP));
+    }
+
+    public List<RoutePaymentSummary> getRevenueByRoute(
             LocalDate startDate,
             LocalDate endDate,
-            BigDecimal exchangeRate,
-            Long routeId) {
+            DashboardFilterType filterType,
+            PaymentStatus status) {
 
-        if (startDate == null || endDate == null) {
-            throw new RuntimeException("Ngày bắt đầu và kết thúc không được để trống!");
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (startDate != null) ? startDate : dateRange.getStartDate();
+        LocalDate finalEnd = (endDate != null) ? endDate : dateRange.getEndDate();
+
+        LocalDateTime start = finalStart.atStartOfDay();
+        LocalDateTime end = finalEnd.plusDays(1).atStartOfDay();
+
+        if (status == null) {
+            throw new RuntimeException("Hãy chọn một loại thanh toán!");
         }
-        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Tỷ giá phải lớn hơn 0");
-        }
 
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+        List<Object[]> rawResults = paymentRepository.sumCollectedAmountByRouteNativeRaw(status.name(), start, end);
 
-        BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(exchangeRate, start, end, routeId);
-        return new PurchaseProfitResult("ActualProfit", profit.setScale(0, RoundingMode.HALF_UP));
+        return rawResults.stream()
+                .map(row -> new RoutePaymentSummary(
+                        (String) row[0],
+                        (BigDecimal) row[1]
+                ))
+                .collect(Collectors.toList());
+    }
+
+    public List<RouteOrderSummary> getOrdersAndLinksByRoute(
+            LocalDate startDate,
+            LocalDate endDate,
+            DashboardFilterType filterType) {
+
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (startDate != null) ? startDate : dateRange.getStartDate();
+        LocalDate finalEnd = (endDate != null) ? endDate : dateRange.getEndDate();
+
+        LocalDateTime start = finalStart.atStartOfDay();
+        LocalDateTime end = finalEnd.plusDays(1).atStartOfDay();
+
+        List<Object[]> rawResults = ordersRepository.sumOrdersAndLinksByRouteNativeRaw(start, end);
+
+        return rawResults.stream()
+                .map(row -> new RouteOrderSummary(
+                        (String) row[0],
+                        (Long) row[1],
+                        (Long) row[2]
+                ))
+                .collect(Collectors.toList());
+    }
+
+    public List<StaffNewCustomerSummary> getNewCustomersByStaff(
+            LocalDate startDate,
+            LocalDate endDate,
+            DashboardFilterType filterType) {
+
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (startDate != null) ? startDate : dateRange.getStartDate();
+        LocalDate finalEnd = (endDate != null) ? endDate : dateRange.getEndDate();
+
+        LocalDateTime start = finalStart.atStartOfDay();
+        LocalDateTime end = finalEnd.plusDays(1).atStartOfDay();
+
+        List<Object[]> rawResults = customerRepository.sumNewCustomersByStaffNativeRaw(start, end);
+
+        return rawResults.stream()
+                .map(row -> new StaffNewCustomerSummary(
+                        (String) row[0],
+                        ((Number) row[1]).longValue()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    public List<RouteWeightSummary> getWeightByRoute(
+            LocalDate startDate,
+            LocalDate endDate,
+            DashboardFilterType filterType) {
+
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (startDate != null) ? startDate : dateRange.getStartDate();
+        LocalDate finalEnd = (endDate != null) ? endDate : dateRange.getEndDate();
+
+        LocalDateTime start = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime end = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        List<Object[]> rawResults = warehouseRepository.sumWeightByRouteNativeRaw(start, end);
+
+        return rawResults.stream()
+                .map(row -> new RouteWeightSummary(
+                        (String) row[0],
+                        new BigDecimal(((Number) row[1]).doubleValue()).setScale(1, RoundingMode.HALF_UP),
+                        new BigDecimal(((Number) row[2]).doubleValue()).setScale(1, RoundingMode.HALF_UP)
+                ))
+                .collect(Collectors.toList());
     }
 }

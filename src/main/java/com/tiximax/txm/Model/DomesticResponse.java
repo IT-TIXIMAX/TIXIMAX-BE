@@ -24,7 +24,6 @@ public class DomesticResponse {
 
     private List<String> shippingList;
 
-    // ✅ Constructor tiện lợi để map từ entity
     public static DomesticResponse fromEntity(Domestic domestic) {
         DomesticResponse response = new DomesticResponse();
         response.setDomesticId(domestic.getDomesticId());

@@ -20,26 +20,26 @@ import java.util.Optional;
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     boolean existsByTrackingCode(String trackingCode);
-@Query("""
-    SELECT DISTINCT w
-    FROM Warehouse w
-    JOIN w.orderLinks ol
-    WHERE w.status = :status
-      AND w.location.locationId = :locationId
-      AND ol.status IN :validStatuses
-      AND w.trackingCode = ol.shipmentCode
-      AND (
-    :trackingCode IS NULL
-    OR w.trackingCode LIKE CONCAT('%', CAST(:trackingCode AS string), '%')
-)
-""")
-Page<Warehouse> findWarehousesForPacking(
-        @Param("status") WarehouseStatus status,
-        @Param("locationId") Long locationId,
-        @Param("validStatuses") List<OrderLinkStatus> validStatuses,
-        @Param("trackingCode") String trackingCode,
-        Pageable pageable
-);
+    @Query("""
+        SELECT DISTINCT w
+        FROM Warehouse w
+        JOIN w.orderLinks ol
+        WHERE w.status = :status
+          AND w.location.locationId = :locationId
+          AND ol.status IN :validStatuses
+          AND w.trackingCode = ol.shipmentCode
+          AND (
+        :trackingCode IS NULL
+        OR w.trackingCode LIKE CONCAT('%', CAST(:trackingCode AS string), '%')
+    )
+    """)
+    Page<Warehouse> findWarehousesForPacking(
+            @Param("status") WarehouseStatus status,
+            @Param("locationId") Long locationId,
+            @Param("validStatuses") List<OrderLinkStatus> validStatuses,
+            @Param("trackingCode") String trackingCode,
+            Pageable pageable
+    );
 
     List<Warehouse> findAllByStatus(WarehouseStatus warehouseStatus);
 
@@ -106,4 +106,20 @@ Page<Warehouse> findWarehousesForPacking(
     """)
     List<Object[]> sumNetWeightAndPriceShipByCustomer(@Param("flightCode") String flightCode);
 
+    @Query(value = """
+    SELECT 
+        r.name AS route_name,
+        COALESCE(SUM(w.weight), 0.0) AS total_weight,
+        COALESCE(SUM(w.net_weight), 0.0) AS total_net_weight
+    FROM route r
+    LEFT JOIN orders o ON o.route_id = r.route_id
+    LEFT JOIN warehouse w ON w.order_id = o.order_id
+        AND w.created_at >= :start
+        AND w.created_at < :end
+    GROUP BY r.route_id, r.name
+    ORDER BY total_weight DESC, total_net_weight DESC
+    """, nativeQuery = true)
+    List<Object[]> sumWeightByRouteNativeRaw(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

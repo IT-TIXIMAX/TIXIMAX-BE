@@ -24,10 +24,6 @@ import java.util.stream.Collectors;
 
 public class PurchaseService {
 
-//    private final String bankName = "sacombank";
-//    private final String bankNumber = "070119787309";
-//    private final String bankOwner = "TRAN TAN PHAT";
-
     @Autowired
     private OrderLinksRepository orderLinksRepository;
 
@@ -152,6 +148,7 @@ public class PurchaseService {
     purchase.setStaff((Staff) accountUtils.getAccountCurrent());
     purchase.setOrders(order);
     purchase.setPurchased(false);
+    purchase.setFinalPriceOrder(exchangeRequest.getTotal());
     purchase.setNote(exchangeRequest.getNote());
     purchase.setPurchaseImage(exchangeRequest.getImage());
     purchase = purchasesRepository.save(purchase);
