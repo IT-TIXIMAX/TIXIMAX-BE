@@ -510,7 +510,7 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
 
                 orderPayment.setTotalNetWeight(totalNetWeight);
                 if (order.getExchangeRate() != null) {
-                    BigDecimal calculatedPrice = totalNetWeight.multiply(order.getRoute().getUnitBuyingPrice()).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal calculatedPrice = totalNetWeight.multiply(order.getPriceShip()).setScale(2, RoundingMode.HALF_UP);
                     orderPayment.setFinalPriceOrder(calculatedPrice);
                 } else {
                     orderPayment.setFinalPriceOrder(null);
@@ -522,20 +522,20 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
                         .findFirst();
 
                 
-                if (payment.isPresent()) {
-                    orderPayment.setPaymentCode(payment.get().getPaymentCode());
-                } else {
-                    Optional<Payment> mergedPayment = paymentRepository.findMergedPaymentByOrderIdAndStatus(order.getOrderId(), PaymentStatus.CHO_THANH_TOAN);
-                    if (!mergedPayment.isPresent()) {
-                        mergedPayment = paymentRepository.findMergedPaymentByOrderIdAndStatus(order.getOrderId(), PaymentStatus.CHO_THANH_TOAN_SHIP);
-                    }
-                    orderPayment.setPaymentCode(mergedPayment.map(Payment::getPaymentCode).orElse(null));
-                }
+                 if (payment.isPresent()) {
+                orderPayment.setPaymentCode(payment.get().getPaymentCode());
             } else {
-                orderPayment.setPaymentCode(null);
+                // ⭐ CHỈ THÊM DÒNG NÀY
+                orderPayment.setPaymentCode(
+                        resolvePaymentCode(order)
+                );
             }
-            return orderPayment;
-        });
+        } else {
+            orderPayment.setPaymentCode(null);
+        }
+
+        return orderPayment;
+    });
     }
 
     @Transactional(readOnly = true)
@@ -1539,5 +1539,49 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
 
         return new ArrayList<>(groups.values());
     }
+    private String resolvePaymentCode(Orders order) {
 
+    // 1️⃣ Payment gắn trực tiếp Order
+    Optional<Payment> directPayment = order.getPayments().stream()
+            .filter(p ->
+                    p.getStatus() == PaymentStatus.CHO_THANH_TOAN
+                            || p.getStatus() == PaymentStatus.CHO_THANH_TOAN_SHIP
+            )
+            .findFirst();
+
+    if (directPayment.isPresent()) {
+        return directPayment.get().getPaymentCode();
+    }
+
+    // 2️⃣ ⭐ Payment gắn qua PartialShipment
+    Optional<Payment> partialPayment =
+            paymentRepository.findPaymentByPartialShipment(
+                    order.getOrderId(),
+                    List.of(
+                            PaymentStatus.CHO_THANH_TOAN,
+                            PaymentStatus.CHO_THANH_TOAN_SHIP
+                    )
+            );
+
+    if (partialPayment.isPresent()) {
+        return partialPayment.get().getPaymentCode();
+    }
+
+    // 3️⃣ Merged payment (fallback)
+    Optional<Payment> mergedPayment =
+            paymentRepository.findMergedPaymentByOrderIdAndStatus(
+                    order.getOrderId(),
+                    PaymentStatus.CHO_THANH_TOAN
+            );
+
+    if (mergedPayment.isEmpty()) {
+        mergedPayment =
+                paymentRepository.findMergedPaymentByOrderIdAndStatus(
+                        order.getOrderId(),
+                        PaymentStatus.CHO_THANH_TOAN_SHIP
+                );
+    }
+
+    return mergedPayment.map(Payment::getPaymentCode).orElse(null);
+}
 }

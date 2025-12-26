@@ -17,6 +17,9 @@ import com.tiximax.txm.Repository.PaymentRepository;
 import com.tiximax.txm.Repository.RouteRepository;
 import com.tiximax.txm.Repository.WarehouseRepository;
 import com.tiximax.txm.Utils.AccountUtils;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -163,6 +166,7 @@ public class PartialShipmentService {
 //     return createdPartials;
 // }
 
+@Transactional
 public List<PartialShipment> createPartialShipment(ShipmentCodesRequest trackingCodesRequest,
                                                    boolean isUseBalance,
                                                    long bankId,
