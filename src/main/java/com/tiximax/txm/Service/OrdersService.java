@@ -1516,7 +1516,6 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
     orderLink.setNote(ordersRequest.getNote());
     orderLink.setGroupTag("ME");
     orderLink.setTrackingCode(generateOrderLinkCode()); 
-    orderLink.setPurchaseImage(null);
     orderLink.setExtraCharge(BigDecimal.ZERO); 
     orderLink.setFinalPriceVnd(
         orderLink.getTotalWeb().add(orderLink.getPurchaseFee()).multiply(order.getExchangeRate()) 
