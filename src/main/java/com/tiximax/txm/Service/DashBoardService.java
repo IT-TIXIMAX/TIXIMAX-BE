@@ -361,6 +361,13 @@ public class DashBoardService {
         }
 
         for (RouteExchangeRate rate : rates) {
+            if (cursor.isBefore(rate.getStartDate())) {
+                throw new RuntimeException(
+                        "Phát hiện khoảng thời gian bị gián đoạn từ " + cursor +
+                                " đến " + rate.getStartDate().minusDays(1) +
+                                " không được cover bởi bất kỳ mốc tỷ giá nào!"
+                );
+            }
             LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
             LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
                     ? endDate : rate.getEndDate();
@@ -370,9 +377,12 @@ public class DashBoardService {
             LocalDateTime s = segStart.atStartOfDay();
             LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
 
-            totalProfit = totalProfit.add(
-                    purchasesRepository.calculateEstimatedPurchaseProfitByRoute(s, e, routeId)
-            );
+//            totalProfit = totalProfit.add(
+//                    purchasesRepository.calculateEstimatedPurchaseProfitByRoute(s, e, routeId)
+//            );
+
+            BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId);
+            totalProfit = totalProfit.add(profit != null ? profit : BigDecimal.ZERO);
 
             cursor = segEnd.plusDays(1);
         }
@@ -419,6 +429,13 @@ public class DashBoardService {
         }
 
         for (RouteExchangeRate rate : rates) {
+            if (cursor.isBefore(rate.getStartDate())) {
+                throw new RuntimeException(
+                        "Phát hiện khoảng thời gian bị gián đoạn từ " + cursor +
+                                " đến " + rate.getStartDate().minusDays(1) +
+                                " không được cover bởi bất kỳ mốc tỷ giá nào!"
+                );
+            }
             LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
             LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
                     ? endDate : rate.getEndDate();
@@ -428,9 +445,12 @@ public class DashBoardService {
             LocalDateTime s = segStart.atStartOfDay();
             LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
 
-            totalProfit = totalProfit.add(
-                    purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId)
-            );
+//            totalProfit = totalProfit.add(
+//                    purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId)
+//            );
+
+            BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId);
+            totalProfit = totalProfit.add(profit != null ? profit : BigDecimal.ZERO);
 
             cursor = segEnd.plusDays(1);
         }
