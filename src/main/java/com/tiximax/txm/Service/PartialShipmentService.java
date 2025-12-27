@@ -22,6 +22,7 @@ import jakarta.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,7 +55,9 @@ public class PartialShipmentService {
 
     @Autowired
     private OrdersRepository ordersRepository;
+    
     @Autowired
+    @Lazy
     private PaymentService paymentService;
     @Autowired
     private OrderLinksRepository orderLinksRepository;
