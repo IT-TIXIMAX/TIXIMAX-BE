@@ -70,6 +70,9 @@ public class OrdersService {
     private ImageStorageService imageStorageService;
 
     @Autowired
+    private PartialShipmentService partialShipmentService;
+
+    @Autowired
     private AccountRouteRepository accountRouteRepository;
 
     @Autowired
@@ -731,74 +734,98 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
                 .collect(Collectors.toList());
     }
 
-    public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCode) {
+   public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCode) {
 
-         Customer customer = authenticationRepository.findByCustomerCode(customerCode);
-        if (customer == null) {
-            throw new IllegalArgumentException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
-        }
-
-        if (!customer.getStaffId().equals(accountUtils.getAccountCurrent().getAccountId())) {
-            throw new IllegalStateException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
-        }
-        
-        var orderLinks =  orderLinksRepository.findLinksInWarehouseWithoutPartialShipment(
-                customerCode,
-                OrderLinkStatus.DA_NHAP_KHO_VN
-        );
-             for (OrderLinks link : orderLinks) {
-            Hibernate.initialize(link.getWarehouse()); // Ensures the warehouse is fetched
-        }
-
-        return orderLinks.stream()
-    .map(link -> {
-        WareHouseOrderLink warehouseOrderLink = new WareHouseOrderLink();
-        warehouseOrderLink.setWarehouseId(link.getWarehouse().getWarehouseId());
-        warehouseOrderLink.setLength(link.getWarehouse().getLength());
-        warehouseOrderLink.setWidth(link.getWarehouse().getWidth());
-        warehouseOrderLink.setHeight(link.getWarehouse().getHeight());
-        warehouseOrderLink.setWeight(link.getWarehouse().getWeight());
-        warehouseOrderLink.setDim(link.getWarehouse().getDim());
-        warehouseOrderLink.setNetWeight(link.getWarehouse().getNetWeight());
-        warehouseOrderLink.setLinkId(link.getLinkId());
-        warehouseOrderLink.setProductLink(link.getProductLink());
-        warehouseOrderLink.setProductName(link.getProductName());
-        warehouseOrderLink.setQuantity(link.getQuantity());
-        warehouseOrderLink.setPriceWeb(link.getPriceWeb());
-        warehouseOrderLink.setShipWeb(link.getShipWeb());
-        warehouseOrderLink.setTotalWeb(link.getTotalWeb());
-        warehouseOrderLink.setPurchaseFee(link.getPurchaseFee());
-        warehouseOrderLink.setExtraCharge(link.getExtraCharge());
-        warehouseOrderLink.setFinalPriceVnd(link.getFinalPriceVnd());
-
-        if (link.getWarehouse().getLength() != null && link.getWarehouse().getWidth() != null && link.getWarehouse().getHeight() != null) {
-            BigDecimal volume = BigDecimal.valueOf(link.getWarehouse().getLength())
-                .multiply(BigDecimal.valueOf(link.getWarehouse().getWidth()))
-                .multiply(BigDecimal.valueOf(link.getWarehouse().getHeight()));
-
-            BigDecimal finalPriceShip = volume.divide(BigDecimal.valueOf(6000), 2, RoundingMode.HALF_UP);
-            BigDecimal intPart = finalPriceShip.setScale(0, RoundingMode.FLOOR); 
-            BigDecimal decimalPart = finalPriceShip.subtract(intPart); 
-
-        if (decimalPart.compareTo(BigDecimal.valueOf(0.5)) >= 0) {
-            finalPriceShip = intPart.add(BigDecimal.valueOf(0.5)); 
-        } else {
-            finalPriceShip = intPart.add(decimalPart.setScale(1, RoundingMode.FLOOR)); 
-        }
-        warehouseOrderLink.setFinalPriceShip(finalPriceShip.multiply(orderLinks.get(0).getOrders().getPriceShip()));
-        }
-        warehouseOrderLink.setTrackingCode(link.getTrackingCode());
-        warehouseOrderLink.setClassify(link.getClassify());
-        warehouseOrderLink.setPurchaseImage(link.getPurchaseImage());
-        warehouseOrderLink.setWebsite(link.getWebsite());
-        warehouseOrderLink.setShipmentCode(link.getShipmentCode());
-        warehouseOrderLink.setStatus(link.getStatus());
-        warehouseOrderLink.setNote(link.getNote());
-        warehouseOrderLink.setGroupTag(link.getGroupTag());
-        return warehouseOrderLink;
-    })
-    .collect(Collectors.toList());
+    Customer customer = authenticationRepository.findByCustomerCode(customerCode);
+    if (customer == null) {
+        throw new IllegalArgumentException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
     }
+
+    if (!customer.getStaffId().equals(accountUtils.getAccountCurrent().getAccountId())) {
+        throw new IllegalStateException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
+    }
+
+    List<OrderLinks> orderLinks =
+            orderLinksRepository.findLinksInWarehouseWithoutPartialShipment(
+                    customerCode,
+                    OrderLinkStatus.DA_NHAP_KHO_VN
+        );
+
+    if (orderLinks.isEmpty()) {
+        return Collections.emptyList();
+    }
+
+    orderLinks.forEach(link -> Hibernate.initialize(link.getWarehouse()));
+
+    List<String> trackingCodes = orderLinks.stream()
+            .map(OrderLinks::getShipmentCode)
+            .filter(Objects::nonNull)
+            .distinct()
+            .collect(Collectors.toList());
+
+    // 3️⃣ Tính tổng phí ship (LOGIC CHUẨN)
+    BigDecimal totalShippingFee = partialShipmentService.calculateTotalShippingFee(trackingCodes);
+
+    // 4️⃣ Tổng netWeight
+    BigDecimal totalNetWeight = orderLinks.stream()
+            .map(l -> {
+                if (l.getWarehouse().getNetWeight() == null) {
+                    throw new IllegalArgumentException(
+                            "Thiếu netWeight cho kiện " + l.getTrackingCode()
+                    );
+                }
+                return BigDecimal.valueOf(l.getWarehouse().getNetWeight());
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    // 5️⃣ Map sang DTO + phân bổ phí ship
+    return orderLinks.stream()
+            .map(link -> {
+
+                Warehouse wh = link.getWarehouse();
+
+                WareHouseOrderLink dto = new WareHouseOrderLink();
+                dto.setWarehouseId(wh.getWarehouseId());
+                dto.setLength(wh.getLength());
+                dto.setWidth(wh.getWidth());
+                dto.setHeight(wh.getHeight());
+                dto.setWeight(wh.getWeight());
+                dto.setDim(wh.getDim());
+                dto.setNetWeight(wh.getNetWeight());
+                dto.setLinkId(link.getLinkId());
+                dto.setProductLink(link.getProductLink());
+                dto.setProductName(link.getProductName());
+                dto.setQuantity(link.getQuantity());
+                dto.setPriceWeb(link.getPriceWeb());
+                dto.setShipWeb(link.getShipWeb());
+                dto.setTotalWeb(link.getTotalWeb());
+                dto.setPurchaseFee(link.getPurchaseFee());
+                dto.setExtraCharge(link.getExtraCharge());
+                dto.setFinalPriceVnd(link.getFinalPriceVnd());
+
+                // ✅ Phân bổ ship theo netWeight
+                BigDecimal allocatedShipFee = BigDecimal.ZERO;
+                if (totalNetWeight.compareTo(BigDecimal.ZERO) > 0) {
+                    allocatedShipFee = totalShippingFee
+                            .multiply(BigDecimal.valueOf(wh.getNetWeight()))
+                            .divide(totalNetWeight, 2, RoundingMode.HALF_UP);
+
+                    allocatedShipFee = roundUp(allocatedShipFee);
+                }
+                dto.setFinalPriceShip(allocatedShipFee);
+                dto.setTrackingCode(link.getTrackingCode());
+                dto.setClassify(link.getClassify());
+                dto.setPurchaseImage(link.getPurchaseImage());
+                dto.setWebsite(link.getWebsite());
+                dto.setShipmentCode(link.getShipmentCode());
+                dto.setStatus(link.getStatus());
+                dto.setNote(link.getNote());
+                dto.setGroupTag(link.getGroupTag());
+
+                return dto;
+            })
+            .collect(Collectors.toList());
+}
 
     public List<OrderPayment> getOrdersShippingByCustomerCode(String customerCode) {
         Customer customer = authenticationRepository.findByCustomerCode(customerCode);
@@ -1584,4 +1611,11 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
 
     return mergedPayment.map(Payment::getPaymentCode).orElse(null);
 }
+
+private BigDecimal roundUp(BigDecimal value) {
+    return value
+            .divide(BigDecimal.valueOf(500), 0, RoundingMode.CEILING)  
+            .multiply(BigDecimal.valueOf(500));  
+}
+
 }
