@@ -33,7 +33,7 @@ public class CustomerResponseDTO {
         dto.setStaffId(customer.getStaffId());
         dto.setTotalWeight(customer.getTotalWeight());
         dto.setBalance(customer.getBalance());
-        dto.setStatus(customer.getStatus()); // ✅ Map thêm status
+        dto.setStatus(customer.getStatus());
 
         dto.setAddresses(
             customer.getAddresses().stream()

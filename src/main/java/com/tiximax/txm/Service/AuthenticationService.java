@@ -102,6 +102,9 @@ public class AuthenticationService implements UserDetailsService {
     @Autowired
     private PaymentRepository paymentRepository;
 
+    @Autowired
+    private WarehouseLocationRepository warehouseLocationRepository;
+
     @Value("${supabase.url}")
     private String supabaseUrl;
 
@@ -768,4 +771,47 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
         return customerRepository.getCustomerById(customerId);
     }
 
+    public Customer partialUpdateCustomer(Long customerId, CustomerPatchRequest request) {
+        Account account = accountUtils.getAccountCurrent();
+        if (account.getRole() != AccountRoles.MANAGER || account.getRole() != AccountRoles.ADMIN){
+            throw new IllegalArgumentException("Chỉ admin hoặc manager mới được phép chỉnh sửa!");
+        }
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Khách hàng này không tồn tại!"));
+        if (request.getUsername() != null) customer.setUsername(request.getUsername());
+        if (request.getPassword() != null) customer.setPassword(passwordEncoder.encode(request.getPassword()));
+        if (request.getEmail() != null) customer.setEmail(request.getEmail());
+        if (request.getPhone() != null) customer.setPhone(request.getPhone());
+        if (request.getName() != null) customer.setName(request.getName());
+        if (request.getCustomerCode() != null) customer.setCustomerCode(request.getCustomerCode());
+        if (request.getSource() != null) customer.setSource(request.getSource());
+        if (request.getTotalWeight() != null) customer.setTotalWeight(request.getTotalWeight());
+        if (request.getBalance() != null) customer.setBalance(request.getBalance());
+        return customerRepository.save(customer);
+    }
+
+    public Staff partialUpdateStaff(Long staffId, StaffPatchRequest request) {
+        Account account = accountUtils.getAccountCurrent();
+        if (account.getRole() != AccountRoles.MANAGER || account.getRole() != AccountRoles.ADMIN){
+            throw new IllegalArgumentException("Chỉ admin hoặc manager mới được phép chỉnh sửa!");
+        }
+        Staff staff = staffRepository.findById(staffId)
+                .orElseThrow(() -> new IllegalArgumentException("Nhân viên này không tồn tại!"));
+        if (request.getUsername() != null) staff.setUsername(request.getUsername());
+        if (request.getPassword() != null) staff.setPassword(passwordEncoder.encode(request.getPassword()));
+        if (request.getEmail() != null) staff.setEmail(request.getEmail());
+        if (request.getPhone() != null) staff.setPhone(request.getPhone());
+        if (request.getName() != null) staff.setName(request.getName());
+        if (request.getStaffCode() != null) staff.setStaffCode(request.getStaffCode());
+        if (request.getDepartment() != null) staff.setDepartment(request.getDepartment());
+        if (request.getLocation() != null) staff.setLocation(request.getLocation());
+        if (request.getWarehouseLocationId() != null) {
+            WarehouseLocation location = warehouseLocationRepository
+                    .findById(request.getWarehouseLocationId())
+                    .orElseThrow(() -> new IllegalArgumentException("Địa điểm kho không tồn tại!"));
+            staff.setWarehouseLocation(location);
+        }
+
+        return staffRepository.save(staff);
+    }
 }
