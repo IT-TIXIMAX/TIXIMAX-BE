@@ -17,8 +17,12 @@ import com.tiximax.txm.Repository.PaymentRepository;
 import com.tiximax.txm.Repository.RouteRepository;
 import com.tiximax.txm.Repository.WarehouseRepository;
 import com.tiximax.txm.Utils.AccountUtils;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,7 +55,9 @@ public class PartialShipmentService {
 
     @Autowired
     private OrdersRepository ordersRepository;
+    
     @Autowired
+    @Lazy
     private PaymentService paymentService;
     @Autowired
     private OrderLinksRepository orderLinksRepository;
@@ -163,6 +169,7 @@ public class PartialShipmentService {
 //     return createdPartials;
 // }
 
+@Transactional
 public List<PartialShipment> createPartialShipment(ShipmentCodesRequest trackingCodesRequest,
                                                    boolean isUseBalance,
                                                    long bankId,
@@ -240,7 +247,7 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
     // === Xử lý Voucher ===
     BigDecimal discount = BigDecimal.ZERO;
     CustomerVoucher customerVoucher = null;
-    BigDecimal finalAmount = totalShippingFee;
+    BigDecimal finalAmount = roundUp(totalShippingFee);
 
     if (customerVoucherId != null) {
         customerVoucher = customerVoucherRepository.findById(customerVoucherId)
@@ -362,32 +369,74 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
  public Optional<PartialShipment> getById(Long id) {
         return partialShipmentRepository.findById(id);
     }
-    private BigDecimal calculateTotalShippingFee( List<String> selectedTrackingCodes) {
-    List<Warehouse> warehouses = warehousereRepository.findByTrackingCodeIn(selectedTrackingCodes);
+    public BigDecimal calculateTotalShippingFee(List<String> selectedTrackingCodes) {
 
-    System.out.println("Tracking codes: " + selectedTrackingCodes);
-    System.out.println("Warehouses found: " + warehouses.size());
+    List<Warehouse> warehouses =
+            warehousereRepository.findByTrackingCodeIn(selectedTrackingCodes);
+
     if (warehouses.isEmpty()) {
-        throw new IllegalArgumentException("Không tìm thấy kiện hàng tương ứng với tracking codes");
+        throw new IllegalArgumentException("Không tìm thấy kiện hàng");
     }
 
-    BigDecimal ratePerKg = warehouses.get(0).getOrders().getPriceShip();
+    Route baseRoute = warehouses.get(0).getOrders().getRoute();
+    boolean sameRoute = warehouses.stream()
+        .allMatch(w ->
+            w.getOrders() != null &&
+            w.getOrders().getRoute() != null &&
+            w.getOrders().getRoute().getRouteId()
+                .equals(baseRoute.getRouteId())
+        );
 
-    BigDecimal totalFee = warehouses.stream()
-    .map(w -> {
-        Double net = w.getNetWeight();
-        if (net == null) {
-            throw new IllegalArgumentException(
-                "Thiếu netWeight cho kiện " + w.getTrackingCode()
-            );
-        }
-        BigDecimal roundedNetWeight = BigDecimal.valueOf(net).setScale(1, RoundingMode.HALF_UP);
+    if (!sameRoute) {
+        throw new IllegalArgumentException("Các order thuộc tuyến khác nhau");
+    }
 
-        return roundedNetWeight.multiply(ratePerKg);
-    })
-    .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal basePriceShip = warehouses.get(0).getOrders().getPriceShip();
 
-    return totalFee;
+    boolean samePrice = warehouses.stream()
+        .allMatch(w ->
+            w.getOrders().getPriceShip() != null &&
+            w.getOrders().getPriceShip().compareTo(basePriceShip) == 0
+        );
+
+    if (!samePrice) {
+        throw new IllegalArgumentException(
+            "Không thể gộp: các order có priceShip khác nhau"
+        );
+    }
+
+    BigDecimal totalNetWeight = warehouses.stream()
+        .map(w -> {
+            if (w.getNetWeight() == null) {
+                throw new IllegalArgumentException(
+                    "Thiếu netWeight cho kiện " + w.getTrackingCode()
+                );
+            }
+            return BigDecimal.valueOf(w.getNetWeight());
+        })
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    // 4️⃣ Áp min theo route
+    BigDecimal chargeableWeight;
+
+    if ("Tuyến Nhật".equals(baseRoute.getNote())) {
+        chargeableWeight =
+            totalNetWeight.compareTo(BigDecimal.valueOf(0.5)) < 0
+                ? BigDecimal.valueOf(0.5)
+                : totalNetWeight;
+    } else {
+        chargeableWeight =
+            totalNetWeight.compareTo(BigDecimal.ONE) < 0
+                ? BigDecimal.ONE
+                : totalNetWeight;
+    }
+
+    return chargeableWeight.multiply(basePriceShip);
+}
+private BigDecimal roundUp(BigDecimal value) {
+    return value
+            .divide(BigDecimal.valueOf(500), 0, RoundingMode.CEILING)  
+            .multiply(BigDecimal.valueOf(500));  
 }
 
 }

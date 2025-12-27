@@ -193,6 +193,9 @@ public class AuthenticationService implements UserDetailsService {
 public Staff registerStaff(RegisterStaffRequest registerRequest) {
         if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
             throw new BadCredentialsException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
+        } 
+        if (authenticationRepository.findByPhone(registerRequest.getPhone()) != null){
+            throw new BadCredentialsException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
         }
         Staff staff = new Staff();
         staff.setUsername(registerRequest.getUsername());
