@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,4 +53,14 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
     List<String> findPackingListByCode(@Param("packingCode") String packingCode);
 
     boolean existsByFlightCode(String flightCode);
+
+    @Query("""
+    SELECT COALESCE(MAX(r.minWeight), 0)
+    FROM Packing p
+    JOIN p.warehouses w
+    JOIN w.orders o
+    JOIN o.route r
+    WHERE p.flightCode = :flightCode
+    """)
+    BigDecimal findRouteMinWeightViaWarehouse(@Param("flightCode") String flightCode);
 }

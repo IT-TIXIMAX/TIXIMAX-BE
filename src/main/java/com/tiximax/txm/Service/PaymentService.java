@@ -184,7 +184,16 @@ public class PaymentService {
 
         BigDecimal totalWeight;
         if (rawTotalWeight.compareTo(BigDecimal.ONE) < 0) {
-            if (ordersList.get(0).getRoute().getName().equals("JPY")){
+//            if (ordersList.get(0).getRoute().getName().equals("JPY")){
+//                if (rawTotalWeight.compareTo(new BigDecimal("0.5")) <= 0) {
+//                    totalWeight = new BigDecimal("0.5");
+//                } else {
+//                    totalWeight = BigDecimal.ONE;
+//                }
+//            } else {
+//                totalWeight = BigDecimal.ONE;
+//            }
+            if (ordersList.get(0).getRoute().getMinWeight().compareTo(new BigDecimal("0.50")) == 0){
                 if (rawTotalWeight.compareTo(new BigDecimal("0.5")) <= 0) {
                     totalWeight = new BigDecimal("0.5");
                 } else {

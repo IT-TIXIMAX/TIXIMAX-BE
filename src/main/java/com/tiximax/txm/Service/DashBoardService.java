@@ -7,10 +7,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import com.tiximax.txm.Entity.Customer;
-import com.tiximax.txm.Entity.Payment;
-import com.tiximax.txm.Entity.Route;
-import com.tiximax.txm.Entity.RouteExchangeRate;
+import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.DashboardFilterType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
@@ -256,8 +253,7 @@ public class DashBoardService {
 
     public Map<String, BigDecimal> calculateFlightRevenueWithMinWeight(
             String flightCode,
-            BigDecimal inputCost,
-            Double minWeight) {
+            BigDecimal inputCost) {
 
         if (flightCode == null || flightCode.isBlank()) {
             throw new RuntimeException("Mã chuyến bay không được để trống");
@@ -271,7 +267,8 @@ public class DashBoardService {
         if (inputCost == null || inputCost.compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("Chi phí nhập vào phải phải từ 0 trở lên!");
         }
-        double effectiveMinWeight = (minWeight == null || minWeight < 0) ? 0.0 : minWeight;
+
+        BigDecimal effectiveMinWeight = packingRepository.findRouteMinWeightViaWarehouse(flightCode);
 
         List<Object[]> rawData = warehouseRepository.sumNetWeightAndPriceShipByCustomer(flightCode);
 
@@ -305,7 +302,15 @@ public class DashBoardService {
             BigDecimal netWeight = customerNetWeight.getOrDefault(customerId, BigDecimal.ZERO);
             BigDecimal priceShip = customerPriceShip.getOrDefault(customerId, BigDecimal.ZERO);
 
-            BigDecimal chargeableWeight = netWeight.max(BigDecimal.valueOf(effectiveMinWeight))
+            System.out.println(
+                    "CustomerId=" + customerId +
+                            " | Gross=" + grossWeight +
+                            " | Net=" + netWeight +
+                            " | MinWeight=" + effectiveMinWeight +
+                            " | PriceShip=" + priceShip
+            );
+
+            BigDecimal chargeableWeight = netWeight.max(effectiveMinWeight)
                     .setScale(1, RoundingMode.HALF_UP);
 
             BigDecimal customerRevenue = chargeableWeight.multiply(priceShip)

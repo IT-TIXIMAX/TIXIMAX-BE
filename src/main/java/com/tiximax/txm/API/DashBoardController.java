@@ -104,11 +104,10 @@ public class DashBoardController {
     @GetMapping("/admin/flight-revenue")
     public ResponseEntity<Map<String, BigDecimal>> getFlightRevenue(
             @RequestParam String flightCode,
-            @RequestParam BigDecimal inputCost,
-            @RequestParam(required = false, defaultValue = "0.0") Double minWeight) {
+            @RequestParam BigDecimal inputCost) {
 
         Map<String, BigDecimal> result = dashBoardService
-                .calculateFlightRevenueWithMinWeight(flightCode, inputCost, minWeight);
+                .calculateFlightRevenueWithMinWeight(flightCode, inputCost);
         return ResponseEntity.ok(result);
     }
 

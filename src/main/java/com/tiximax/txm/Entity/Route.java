@@ -35,6 +35,8 @@ public class Route {
     @Column(nullable = false)
     private boolean isUpdateAuto;
 
+    private BigDecimal minWeight = BigDecimal.valueOf(0);
+
     private String note;
 
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL)
