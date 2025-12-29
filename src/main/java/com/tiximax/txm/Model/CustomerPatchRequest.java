@@ -17,6 +17,4 @@ public class CustomerPatchRequest {
     private String name;
     private String customerCode;
     private String source;
-    private Double totalWeight;
-    private BigDecimal balance;
 }

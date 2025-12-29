@@ -368,7 +368,6 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
     return customerRepository.searchByStaff(staffId, keyword, pageable);
 }
 
-
     public Page<Staff> getSaleAndLeadSaleStaff(Pageable pageable) {
         List<AccountRoles> roles = Arrays.asList(AccountRoles.STAFF_SALE, AccountRoles.LEAD_SALE);
         Page<Account> accounts = authenticationRepository.findByRoleIn(roles, pageable);
@@ -776,8 +775,8 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
 
     public Customer partialUpdateCustomer(Long customerId, CustomerPatchRequest request) {
         Account account = accountUtils.getAccountCurrent();
-        if (account.getRole() != AccountRoles.MANAGER || account.getRole() != AccountRoles.ADMIN){
-            throw new IllegalArgumentException("Chỉ admin hoặc manager mới được phép chỉnh sửa!");
+        if (!account.getRole().equals(AccountRoles.MANAGER)){
+            throw new IllegalArgumentException("Chỉ manager mới được phép chỉnh sửa!");
         }
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("Khách hàng này không tồn tại!"));
@@ -788,15 +787,13 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
         if (request.getName() != null) customer.setName(request.getName());
         if (request.getCustomerCode() != null) customer.setCustomerCode(request.getCustomerCode());
         if (request.getSource() != null) customer.setSource(request.getSource());
-        if (request.getTotalWeight() != null) customer.setTotalWeight(request.getTotalWeight());
-        if (request.getBalance() != null) customer.setBalance(request.getBalance());
         return customerRepository.save(customer);
     }
 
     public Staff partialUpdateStaff(Long staffId, StaffPatchRequest request) {
         Account account = accountUtils.getAccountCurrent();
-        if (account.getRole() != AccountRoles.MANAGER || account.getRole() != AccountRoles.ADMIN){
-            throw new IllegalArgumentException("Chỉ admin hoặc manager mới được phép chỉnh sửa!");
+        if (!account.getRole().equals(AccountRoles.MANAGER)){
+            throw new IllegalArgumentException("Chỉ manager mới được phép chỉnh sửa!");
         }
         Staff staff = staffRepository.findById(staffId)
                 .orElseThrow(() -> new IllegalArgumentException("Nhân viên này không tồn tại!"));
