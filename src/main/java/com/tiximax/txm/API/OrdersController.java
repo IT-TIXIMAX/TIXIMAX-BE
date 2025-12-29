@@ -100,19 +100,19 @@ public class OrdersController {
         return ResponseEntity.ok(orderType);
     }
 
-   @GetMapping("/{page}/{size}")
-public ResponseEntity<Page<Orders>> getAllOrders(
-        @PathVariable int page,
-        @PathVariable int size,
-        @RequestParam(required = false) String shipmentCode,
-        @RequestParam(required = false) String customerCode, 
-        @RequestParam(required = false) String orderCode
-) {
-    Sort sort = Sort.by("createdAt").descending();
-    Pageable pageable = PageRequest.of(page, size, sort);
-    Page<Orders> ordersPage = ordersService.getAllOrdersPaging(pageable, shipmentCode, customerCode, orderCode); // Pass filter params
-    return ResponseEntity.ok(ordersPage);
-}
+    @GetMapping("/{page}/{size}")
+    public ResponseEntity<Page<Orders>> getAllOrders(
+            @PathVariable int page,
+            @PathVariable int size,
+            @RequestParam(required = false) String shipmentCode,
+            @RequestParam(required = false) String customerCode,
+            @RequestParam(required = false) String orderCode
+    ) {
+        Sort sort = Sort.by("createdAt").descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Orders> ordersPage = ordersService.getAllOrdersPaging(pageable, shipmentCode, customerCode, orderCode); // Pass filter params
+        return ResponseEntity.ok(ordersPage);
+    }
 
 
     @GetMapping("/{page}/{size}/{status}/paging")
@@ -149,26 +149,26 @@ public ResponseEntity<Page<Orders>> getAllOrders(
         return ResponseEntity.ok(orderDetail);
     }
 
-@GetMapping("/with-links/{page}/{size}")
-public ResponseEntity<Page<OrderWithLinks>> getOrdersWithLinksForPurchaser(
-        @PathVariable int page,
-        @PathVariable int size,
-        @RequestParam OrderType orderType,
-        @RequestParam(required = false) String orderCode,
-        @RequestParam(required = false) String customerCode
-) {
-    Pageable pageable = PageRequest.of(page, size);
+    @GetMapping("/with-links/{page}/{size}")
+    public ResponseEntity<Page<OrderWithLinks>> getOrdersWithLinksForPurchaser(
+            @PathVariable int page,
+            @PathVariable int size,
+            @RequestParam OrderType orderType,
+            @RequestParam(required = false) String orderCode,
+            @RequestParam(required = false) String customerCode
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
 
-    Page<OrderWithLinks> ordersPage =
-            ordersService.getOrdersWithLinksForPurchaser(
-                    pageable,
-                    orderType,
-                    orderCode,
-                    customerCode
-            );
+        Page<OrderWithLinks> ordersPage =
+                ordersService.getOrdersWithLinksForPurchaser(
+                        pageable,
+                        orderType,
+                        orderCode,
+                        customerCode
+                );
 
-    return ResponseEntity.ok(ordersPage);
-}
+        return ResponseEntity.ok(ordersPage);
+    }
 
 
     @GetMapping("/orderLink/{orderLinkId}")
@@ -213,17 +213,17 @@ public ResponseEntity<Page<OrderWithLinks>> getOrdersWithLinksForPurchaser(
         @RequestParam(required = false) ShipStatus status,
         @RequestParam(required = false) String shipmentCode,
         @RequestParam(required = false) String customerCode
-) {
-    Pageable pageable = PageRequest.of(page, size);
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
 
-    Page<ShipLinks> result  = ordersService.getOrderLinksForWarehouse(
-            pageable,
-            status,
-            shipmentCode,
-            customerCode
-    );
-      return ResponseEntity.ok(result);
-}
+        Page<ShipLinks> result  = ordersService.getOrderLinksForWarehouse(
+                pageable,
+                status,
+                shipmentCode,
+                customerCode
+        );
+          return ResponseEntity.ok(result);
+    }
 
  @GetMapping("/warehouse-foreign-links/{page}/{size}")
 public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
