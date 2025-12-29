@@ -13,7 +13,6 @@ import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -381,10 +380,6 @@ public class DashBoardService {
 
             LocalDateTime s = segStart.atStartOfDay();
             LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
-
-//            totalProfit = totalProfit.add(
-//                    purchasesRepository.calculateEstimatedPurchaseProfitByRoute(s, e, routeId)
-//            );
 
             BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId);
             totalProfit = totalProfit.add(profit != null ? profit : BigDecimal.ZERO);
