@@ -546,7 +546,6 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
         Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng này!"));
 
-        // 1. Load tất cả cần thiết để tránh Lazy
         Hibernate.initialize(order.getOrderLinks());
         order.getOrderLinks().forEach(link -> {
             if (link.getWarehouse() != null) {
@@ -561,22 +560,17 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
         Hibernate.initialize(order.getOrderProcessLogs());
         Hibernate.initialize(order.getShipmentTrackings());
 
-        // 2. LẤY ĐỦ 2 LOẠI PAYMENT
         Set<Payment> allPayments = new HashSet<>();
 
-        // Payment trực tiếp (order_id không null)
         if (order.getPayments() != null) {
             allPayments.addAll(order.getPayments());
         }
 
-        // Payment gộp (qua bảng payment_orders)
         List<Payment> mergedPayments = paymentRepository.findByRelatedOrdersContaining(order);
         allPayments.addAll(mergedPayments);
 
-
-        // 3. Tạo OrderDetail và truyền thêm allPayments nếu cần
         OrderDetail detail = new OrderDetail(order);
-        detail.setPayments(allPayments); // ← Quan trọng!
+        detail.setPayments(allPayments);
 
         return detail;
     }

@@ -651,7 +651,7 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
         }
 
         LocalDateTime startDateTime = start.atStartOfDay();
-        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay(); // Bao gồm cả ngày end
+        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
 
         StaffPerformance perf = new StaffPerformance();
         perf.setStaffCode(staff.getStaffCode());
@@ -664,11 +664,26 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
         long totalOrders = orders.size();
         perf.setTotalOrders(totalOrders);
 
+        Set<OrderStatus> excludedStatuses = Set.of(
+                OrderStatus.CHO_XAC_NHAN,
+                OrderStatus.DA_XAC_NHAN,
+                OrderStatus.CHO_THANH_TOAN,
+                OrderStatus.DA_HUY
+        );
+
         BigDecimal totalGoods = orders.stream()
+                .filter(order -> !excludedStatuses.contains(order.getStatus()))
                 .map(Orders::getFinalPriceOrder)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         perf.setTotalGoods(totalGoods);
+
+//        BigDecimal totalGoods = orders.stream()
+//                .map(Orders::getFinalPriceOrder)
+//                .filter(Objects::nonNull)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//        perf.setTotalGoods(totalGoods);
 
         BigDecimal totalShip = paymentRepository.findByStaff_AccountIdAndStatusAndActionAtBetween(
                         staff.getAccountId(),
