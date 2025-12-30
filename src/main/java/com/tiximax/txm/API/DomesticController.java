@@ -1,7 +1,9 @@
 package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Domestic;
+import com.tiximax.txm.Model.CheckInDomestic;
 import com.tiximax.txm.Model.CreateDomesticRequest;
+import com.tiximax.txm.Model.DomesticRecieve;
 import com.tiximax.txm.Model.DomesticResponse;
 import com.tiximax.txm.Service.DomesticService;
 
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+
 @RestController
 @CrossOrigin
 @RequestMapping("/domestics")
@@ -28,11 +31,11 @@ public class DomesticController {
     private DomesticService domesticService;
 
     @PostMapping("/received")
-    public ResponseEntity<Domestic> createDomesticForWarehousing(@RequestBody CreateDomesticRequest request) {
+    public ResponseEntity<DomesticRecieve> createDomesticForWarehousing(@RequestBody CreateDomesticRequest request) {
         if (request == null || request.getPackingCode().isEmpty()) {
             return ResponseEntity.badRequest().body(null);
         }
-        Domestic domestic = domesticService.createDomesticForWarehousing(request.getPackingCode(), request.getNote());
+        DomesticRecieve domestic = domesticService.createDomesticForWarehousing(request.getPackingCode(), request.getNote());
         return ResponseEntity.ok(domestic);
     }
       @GetMapping("/ready-for-delivery-to-ship")
@@ -41,6 +44,11 @@ public class DomesticController {
         List<Map<String, Object>> result = domesticService.getReadyForDeliveryOrdersToShip(shipmentCodes);
       
         return ResponseEntity.ok(result);
+    } 
+    @GetMapping("/check-in-domestic/{shipmentCode}")
+    public ResponseEntity<CheckInDomestic>  checkInDomestic(@RequestParam String shipmentCode) {
+        CheckInDomestic checkInDomestic = domesticService.getCheckInDomestic(shipmentCode);
+        return ResponseEntity.ok(checkInDomestic);
     }
 
     @GetMapping("/ready-for-delivery/{page}/{size}")
@@ -126,5 +134,23 @@ public ResponseEntity<Domestic> receivedPackingFromWarehouse(@PathVariable Long 
         }
         return ResponseEntity.ok(domesticResponses);  
     }
+    @PostMapping("/scan-import/{shipmentCode}")
+public ResponseEntity<Map<String, Object>> scanImportToDomestic(
+        @PathVariable String shipmentCode) {
+
+    if (shipmentCode == null || shipmentCode.trim().isEmpty()) {
+        throw new IllegalArgumentException("ShipmentCode không được để trống!");
+    }
+
+    Boolean result = domesticService.scanImportToDomestic(shipmentCode.trim());
+
+    return ResponseEntity.ok(
+            Map.of(
+                    "success", result,
+                    "message", "Scan nhập kho nội địa thành công",
+                    "shipmentCode", shipmentCode
+            )
+    );
+}
 
 }
