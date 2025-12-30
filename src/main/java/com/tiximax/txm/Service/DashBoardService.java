@@ -7,16 +7,12 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import com.tiximax.txm.Entity.Customer;
-import com.tiximax.txm.Entity.Payment;
-import com.tiximax.txm.Entity.Route;
-import com.tiximax.txm.Entity.RouteExchangeRate;
+import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.DashboardFilterType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -256,8 +252,7 @@ public class DashBoardService {
 
     public Map<String, BigDecimal> calculateFlightRevenueWithMinWeight(
             String flightCode,
-            BigDecimal inputCost,
-            Double minWeight) {
+            BigDecimal inputCost) {
 
         if (flightCode == null || flightCode.isBlank()) {
             throw new RuntimeException("Mã chuyến bay không được để trống");
@@ -271,7 +266,8 @@ public class DashBoardService {
         if (inputCost == null || inputCost.compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("Chi phí nhập vào phải phải từ 0 trở lên!");
         }
-        double effectiveMinWeight = (minWeight == null || minWeight < 0) ? 0.0 : minWeight;
+
+        BigDecimal effectiveMinWeight = packingRepository.findRouteMinWeightViaWarehouse(flightCode);
 
         List<Object[]> rawData = warehouseRepository.sumNetWeightAndPriceShipByCustomer(flightCode);
 
@@ -305,7 +301,15 @@ public class DashBoardService {
             BigDecimal netWeight = customerNetWeight.getOrDefault(customerId, BigDecimal.ZERO);
             BigDecimal priceShip = customerPriceShip.getOrDefault(customerId, BigDecimal.ZERO);
 
-            BigDecimal chargeableWeight = netWeight.max(BigDecimal.valueOf(effectiveMinWeight))
+            System.out.println(
+                    "CustomerId=" + customerId +
+                            " | Gross=" + grossWeight +
+                            " | Net=" + netWeight +
+                            " | MinWeight=" + effectiveMinWeight +
+                            " | PriceShip=" + priceShip
+            );
+
+            BigDecimal chargeableWeight = netWeight.max(effectiveMinWeight)
                     .setScale(1, RoundingMode.HALF_UP);
 
             BigDecimal customerRevenue = chargeableWeight.multiply(priceShip)
@@ -361,6 +365,13 @@ public class DashBoardService {
         }
 
         for (RouteExchangeRate rate : rates) {
+            if (cursor.isBefore(rate.getStartDate())) {
+                throw new RuntimeException(
+                        "Phát hiện khoảng thời gian bị gián đoạn từ " + cursor +
+                                " đến " + rate.getStartDate().minusDays(1) +
+                                " không được cover bởi bất kỳ mốc tỷ giá nào!"
+                );
+            }
             LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
             LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
                     ? endDate : rate.getEndDate();
@@ -370,9 +381,8 @@ public class DashBoardService {
             LocalDateTime s = segStart.atStartOfDay();
             LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
 
-            totalProfit = totalProfit.add(
-                    purchasesRepository.calculateEstimatedPurchaseProfitByRoute(s, e, routeId)
-            );
+            BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId);
+            totalProfit = totalProfit.add(profit != null ? profit : BigDecimal.ZERO);
 
             cursor = segEnd.plusDays(1);
         }
@@ -419,6 +429,13 @@ public class DashBoardService {
         }
 
         for (RouteExchangeRate rate : rates) {
+            if (cursor.isBefore(rate.getStartDate())) {
+                throw new RuntimeException(
+                        "Phát hiện khoảng thời gian bị gián đoạn từ " + cursor +
+                                " đến " + rate.getStartDate().minusDays(1) +
+                                " không được cover bởi bất kỳ mốc tỷ giá nào!"
+                );
+            }
             LocalDate segStart = cursor.isBefore(rate.getStartDate()) ? rate.getStartDate() : cursor;
             LocalDate segEnd = (rate.getEndDate() == null || rate.getEndDate().isAfter(endDate))
                     ? endDate : rate.getEndDate();
@@ -428,9 +445,12 @@ public class DashBoardService {
             LocalDateTime s = segStart.atStartOfDay();
             LocalDateTime e = segEnd.plusDays(1).atStartOfDay();
 
-            totalProfit = totalProfit.add(
-                    purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId)
-            );
+//            totalProfit = totalProfit.add(
+//                    purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId)
+//            );
+
+            BigDecimal profit = purchasesRepository.calculateActualPurchaseProfitByRoute(s, e, routeId);
+            totalProfit = totalProfit.add(profit != null ? profit : BigDecimal.ZERO);
 
             cursor = segEnd.plusDays(1);
         }

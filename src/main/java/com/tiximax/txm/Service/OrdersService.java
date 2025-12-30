@@ -346,7 +346,7 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
             order.setStatus(OrderStatus.DA_HUY);
             ordersRepository.save(order);
         }
-//        addProcessLog(order, order.getOrderCode(), ProcessLogAction.DA_HUY_LINK);
+        addProcessLog(order, orderLink.getTrackingCode(), ProcessLogAction.DA_HUY);
         return order; 
     }
   

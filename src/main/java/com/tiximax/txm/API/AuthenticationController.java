@@ -367,5 +367,21 @@ public ResponseEntity<Page<CustomerResponseDTO>> getCustomersByStaff(
     public ResponseEntity<Customer> getCustomerById(@PathVariable Long customerId) {
         return ResponseEntity.ok(authenticationService.getCustomerById(customerId));
     }
+
+    @PatchMapping("/customer/{customerId}")
+    public ResponseEntity<Customer> partialUpdateCustomer(
+            @PathVariable Long customerId,
+            @RequestBody CustomerPatchRequest request) {
+        Customer updated = authenticationService.partialUpdateCustomer(customerId, request);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PatchMapping("/staff/{staffId}")
+    public ResponseEntity<Staff> partialUpdateStaff(
+            @PathVariable Long staffId,
+            @RequestBody StaffPatchRequest request) {
+        Staff updated = authenticationService.partialUpdateStaff(staffId, request);
+        return ResponseEntity.ok(updated);
+    }
    
 }
