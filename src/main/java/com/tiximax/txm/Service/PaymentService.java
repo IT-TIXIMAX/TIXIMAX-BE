@@ -95,7 +95,7 @@ public class PaymentService {
         } while (paymentRepository.existsByPaymentCode(paymentCode));
         return paymentCode;
     }
-
+    @Transactional
     public Payment confirmedPayment(String paymentCode) {
         Optional<Payment> paymentOptional = paymentRepository.findByPaymentCode(paymentCode);
         if (paymentOptional.isEmpty()) {

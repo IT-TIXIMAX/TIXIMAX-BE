@@ -8,6 +8,7 @@ public enum OrderLinkStatus {
     DA_NHAP_KHO_NN,
     DA_DONG_GOI,
     DANG_CHUYEN_VN,
+    CHO_NHAP_KHO_VN,
     DA_NHAP_KHO_VN,
     CHO_TRUNG_CHUYEN,
     CHO_GIAO,
