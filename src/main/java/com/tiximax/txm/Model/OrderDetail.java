@@ -95,10 +95,9 @@ public class OrderDetail {
     private Set<OrderLinks> orderLinks;
     private Customer customer;
     private Staff staff;
-    // WAREHOUSE CHỈ HIỆN Ở ĐÂY MỘT LẦN DUY NHẤT
     private Set<Warehouse> warehouses;
     private Set<Payment> payments;
-    private Set<Purchases> purchases; // Trong purchases SẼ KHÔNG CÓ warehouses nữa
+    private Set<Purchases> purchases;
     private Set<OrderProcessLog> orderProcessLogs;
     private Set<ShipmentTracking> shipmentTrackings;
     private Route route;
@@ -117,7 +116,6 @@ public class OrderDetail {
         this.orderLinks = order.getOrderLinks();
         this.customer = order.getCustomer();
         this.staff = order.getStaff();
-        // WAREHOUSE CHỈ LẤY TỪ ORDERLINKS → KHÔNG TRÙNG, CHUẨN NHẤT
         this.warehouses = order.getOrderLinks().stream()
                 .map(OrderLinks::getWarehouse)
                 .filter(Objects::nonNull)
@@ -128,7 +126,6 @@ public class OrderDetail {
         this.route = order.getRoute();
         this.destination = order.getDestination();
         this.feedback = order.getFeedback();
-        // PURCHASES: loại bỏ hoàn toàn warehouses bên trong để tránh trùng
         this.purchases = order.getPurchases().stream()
                 .map(p -> {
                     Purchases copy = new Purchases();
@@ -139,7 +136,6 @@ public class OrderDetail {
                     copy.setFinalPriceOrder(p.getFinalPriceOrder());
                     copy.setNote(p.getNote());
                     copy.setOrderLinks(p.getOrderLinks());
-                    // Không set warehouses → để trống
                     return copy;
                 })
                 .collect(Collectors.toSet());
