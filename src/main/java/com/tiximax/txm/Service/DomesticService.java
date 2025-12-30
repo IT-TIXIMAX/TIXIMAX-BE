@@ -2,6 +2,8 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
+import com.tiximax.txm.Model.CheckInDomestic;
+import com.tiximax.txm.Model.DomesticRecieve;
 import com.tiximax.txm.Model.DomesticResponse;
 import com.tiximax.txm.Repository.AddressRepository;
 import com.tiximax.txm.Repository.DomesticRepository;
@@ -13,6 +15,7 @@ import com.tiximax.txm.Repository.WarehouseLocationRepository;
 import com.tiximax.txm.Utils.AccountUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -57,12 +60,12 @@ public class DomesticService {
     @Autowired
     private AccountUtils accountUtils;
 
-    public Domestic createDomesticForWarehousing(List<String> packingCodes, String note) {
+    @Transactional
+    public DomesticRecieve createDomesticForWarehousing(List<String> packingCodes, String note) {
     Staff staff = (Staff) accountUtils.getAccountCurrent();
     if (staff == null || staff.getWarehouseLocation() == null) {
         throw new IllegalArgumentException("Nhân viên hiện tại chưa được gán địa điểm kho!");
     }
-
     List<Packing> packings = packingRepository.findAllByPackingCodeIn(packingCodes);
     if (packings.isEmpty()) {
         throw new IllegalArgumentException("Không tìm thấy packing nào trong danh sách cung cấp!");
@@ -73,48 +76,33 @@ public class DomesticService {
             throw new IllegalArgumentException("Packing " + packing.getPackingCode() + " chưa đúng trạng thái nhập kho!");
         }
     }
-
     Packing firstPacking = packings.get(0);
     Set<Warehouse> warehouses = firstPacking.getWarehouses();
     if (warehouses.isEmpty()) {
         throw new IllegalArgumentException("Packing " + firstPacking.getPackingCode() + " không được liên kết với kho nước ngoài!");
     }
-
     Warehouse firstWarehouse = warehouses.iterator().next();
     WarehouseLocation fromLocation = firstWarehouse.getLocation();
     if (fromLocation == null) {
         throw new IllegalArgumentException("Kho nước ngoài của packing " + firstPacking.getPackingCode() + " không được tìm thấy!");
     }
-
-//    List<String> shipmentCodes = packings.stream()
-//            .flatMap(p -> p.getPackingList().stream())
-//            .distinct()
-//            .collect(Collectors.toList());
-
         List<String> shipmentCodes = packings.stream()
                 .flatMap(p -> p.getPackingList().stream())
                 .filter(code -> code != null && !code.trim().isEmpty())
                 .distinct()
                 .collect(Collectors.toList());
-
     List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCodeIn(shipmentCodes);
     for (OrderLinks orderLink : orderLinks) {
         if (orderLink.getStatus() == OrderLinkStatus.DANG_CHUYEN_VN) {
-            if (orderLink.getOrders()
-        .getDestination()
-        .getDestinationName()
-        .toLowerCase()
-        .contains(staff.getWarehouseLocation().getName().toLowerCase())) {
-            orderLink.setStatus(OrderLinkStatus.CHO_TRUNG_CHUYEN);
-        }
-            orderLink.setStatus(OrderLinkStatus.DA_NHAP_KHO_VN);
-        }
+           orderLink.setStatus(OrderLinkStatus.CHO_NHAP_KHO_VN);
     }
+}
     orderLinksRepository.saveAll(orderLinks);
     updateOrderStatusIfAllLinksReady(orderLinks);
 
     for (Packing packing : packings) {
         packing.setStatus(PackingStatus.DA_NHAP_KHO_VN);
+
     }
     packingRepository.saveAll(packings);
 
@@ -132,13 +120,10 @@ public class DomesticService {
             .map(Packing::getPackingCode)
             .collect(Collectors.toList()));
     domestic = domesticRepository.save(domestic);
-
     ordersService.addProcessLog(null, domestic.getDomesticId().toString(), ProcessLogAction.DA_NHAP_KHO_HN);
-
-    return domestic;
+    DomesticRecieve domesticRecieve = new DomesticRecieve(packings);
+    return domesticRecieve;
 }
-
-
     public Domestic TranferPackingToWarehouse(List<String> packingCodes, Long toLocationId, String note) {
      Staff staff = (Staff) accountUtils.getAccountCurrent();
     if (staff == null || staff.getWarehouseLocation() == null) {
@@ -152,7 +137,6 @@ public class DomesticService {
         throw new IllegalArgumentException("Không tìm thấy packing nào trong danh sách cung cấp!");
     }
 
-  
     Packing firstPacking = packings.get(0);
     Set<Warehouse> warehouses = firstPacking.getWarehouses();
     if (warehouses.isEmpty()) {
@@ -801,4 +785,69 @@ private boolean isCustomerMatching(Map<String, Object> data) {
             .map(code -> code.equalsIgnoreCase(customerCode))
             .orElse(false);
 }
+
+    public Boolean scanImportToDomestic(String shipmentCode) {
+        List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCode(shipmentCode);
+
+        if (orderLinks.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy đơn hàng trong danh sách cung cấp!");
+        }
+
+        boolean updated = false;
+
+        for (OrderLinks orderLink : orderLinks) {
+            if (orderLink.getStatus() == OrderLinkStatus.CHO_NHAP_KHO_VN) {
+                orderLink.setStatus(OrderLinkStatus.DA_NHAP_KHO_VN);
+                updated = true;
+            }
+        }
+        if (updated) {
+            orderLinksRepository.saveAll(orderLinks);
+        }
+        return true;
+}
+
+ public CheckInDomestic getCheckInDomestic(String shipmentCode) {
+
+    List<OrderLinks> orderLinks =
+            orderLinksRepository.findByShipmentCode(shipmentCode);
+
+    if (orderLinks.isEmpty()) {
+        throw new IllegalArgumentException(
+                "Không tìm thấy đơn hàng trong danh sách cung cấp!"
+        );
+    }
+
+    OrderLinks orderLink = orderLinks.get(0);
+
+    if (orderLink.getStatus() == OrderLinkStatus.DA_NHAP_KHO_VN) {
+        throw new IllegalStateException(
+                "Đơn hàng đã được nhập kho Việt Nam!"
+        );
+    }
+
+    Orders order = orderLink.getOrders();
+    Staff staff = order.getStaff();
+    Customer customer = order.getCustomer();
+
+    CheckInDomestic checkInDomestic = new CheckInDomestic();
+    checkInDomestic.setOrderCode(order.getOrderCode());
+    checkInDomestic.setShipmentCode(orderLink.getShipmentCode());
+    checkInDomestic.setCustomerCode(
+            staff.getStaffCode() + "-" + customer.getCustomerCode()
+    );
+    checkInDomestic.setDestinationName(
+            order.getDestination().getDestinationName()
+    );
+    checkInDomestic.setWaitImport(
+            ordersRepository.countNotImported(order.getOrderId())
+    );
+    checkInDomestic.setInventory(
+            ordersRepository.countImported(order.getOrderId())
+    );
+
+    return checkInDomestic;
+}
+
+
 }

@@ -355,5 +355,21 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     List<Object[]> sumOrdersAndLinksByRouteNativeRaw(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    @Query("""
+    SELECT COUNT(ol)
+    FROM OrderLinks ol
+    WHERE ol.orders.orderId = :orderId
+      AND ol.status = 'CHO_NHAP_KHO_VN'
+        """)
+     int countNotImported(@Param("orderId") Long orderId);
+
+      @Query("""
+    SELECT COUNT(ol)
+    FROM OrderLinks ol
+    WHERE ol.orders.orderId = :orderId
+      AND ol.status = 'DA_NHAP_KHO_VN'
+        """)
+     int countImported(@Param("orderId") Long orderId);
 }
 
