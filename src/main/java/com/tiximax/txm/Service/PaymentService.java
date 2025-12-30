@@ -311,95 +311,93 @@ public class PaymentService {
         );
         return savedPayment;
     }
+  @Transactional
+  public Payment confirmedPaymentShipment(String paymentCode) {
 
-    public Payment confirmedPaymentShipment(String paymentCode) {
-        Optional<Payment> paymentOptional = paymentRepository.findByPaymentCode(paymentCode);
+    Payment payment = paymentRepository.findByPaymentCode(paymentCode)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy giao dịch này!"));
 
-        if (paymentOptional.isEmpty()) {
-            System.out.println("[STOP] Không tìm thấy giao dịch!");
-            throw new RuntimeException("Không tìm thấy giao dịch này!");
-        }
-
-        Payment payment = paymentOptional.get();
-
-        if (!payment.getStatus().equals(PaymentStatus.CHO_THANH_TOAN_SHIP)) {
-            System.out.println("[STOP] Trạng thái payment KHÔNG PHẢI CHỜ THANH TOÁN SHIP => DỪNG");
-            throw new RuntimeException("Trạng thái đơn hàng không phải chờ thanh toán!");
-        }
-
-        payment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
-        payment.setCollectedAmount(payment.getAmount());
-        payment.setActionAt(LocalDateTime.now());
-
-        if (payment.getIsMergedPayment()) {
-            System.out.println("==> Chạy nhánh [MERGED PAYMENT]");
-            Set<Orders> orders = payment.getRelatedOrders();
-            System.out.println("Số đơn liên quan: " + orders.size());
-
-            for (Orders order : orders) {
-                order.setStatus(OrderStatus.CHO_GIAO);
-                for (OrderLinks orderLink : order.getOrderLinks()) {
-                    orderLink.setStatus(OrderLinkStatus.CHO_GIAO);
-                }
-                ordersRepository.save(order);
-                ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
-            }
-        }
-
-        else {
-
-            if (payment.getOrders() != null) {
-
-                Orders order = payment.getOrders();
-                order.setStatus(OrderStatus.CHO_GIAO);
-                for (OrderLinks orderLink : order.getOrderLinks()) {
-                    orderLink.setStatus(OrderLinkStatus.CHO_GIAO);
-                }
-
-                ordersRepository.save(order);
-                ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
-            }
-
-            else {
-                List<PartialShipment> partialShipments = partialShipmentRepository.findByPayment(payment);
-
-                for (PartialShipment shipment : partialShipments) {
-                    shipment.setStatus(OrderStatus.CHO_GIAO);
-                    shipment.setShipmentDate(LocalDateTime.now());
-
-                    Set<OrderLinks> readyLinks = shipment.getReadyLinks();
-
-                    for (OrderLinks link : readyLinks) {
-                        link.setStatus(OrderLinkStatus.CHO_GIAO);
-                        link.setPartialShipment(shipment);
-                        orderLinksRepository.save(link);
-
-
-                    partialShipmentRepository.save(shipment);
-
-                    Orders order = shipment.getOrders();
-                    boolean allLinksDone = order.getOrderLinks().stream()
-                        .allMatch(l -> l.getStatus() == OrderLinkStatus.CHO_GIAO || l.getStatus() == OrderLinkStatus.DA_HUY || l.getStatus() == OrderLinkStatus.DA_GIAO);
-
-                    if (allLinksDone) {
-                        order.setStatus(OrderStatus.CHO_GIAO);
-                    }
-                    ordersRepository.save(order);
-                    ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
-                }
-            }
-            }
-        }
-        messagingTemplate.convertAndSend(
-                "/topic/Tiximax",
-                Map.of(
-                        "event", "UPDATE",
-                        "paymentCode", paymentCode,
-                        "message", "Đã xác nhận thanh toán ship!"
-                )
-        );
-    return paymentRepository.save(payment);
+    if (!payment.getStatus().equals(PaymentStatus.CHO_THANH_TOAN_SHIP)) {
+        throw new RuntimeException("Trạng thái đơn hàng không phải chờ thanh toán!");
     }
+
+    payment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
+    payment.setCollectedAmount(payment.getAmount());
+    payment.setActionAt(LocalDateTime.now());
+
+    if (payment.getIsMergedPayment()) {
+
+        for (Orders order : payment.getRelatedOrders()) {
+            order.setStatus(OrderStatus.CHO_GIAO);
+
+            for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
+                link.setStatus(OrderLinkStatus.CHO_GIAO);
+            }
+
+            ordersRepository.save(order);
+            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
+        }
+
+    } else if (payment.getOrders() != null) {
+
+        Orders order = payment.getOrders();
+        order.setStatus(OrderStatus.CHO_GIAO);
+
+        for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
+            link.setStatus(OrderLinkStatus.CHO_GIAO);
+        }
+
+        ordersRepository.save(order);
+        ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
+
+    } else {
+
+        List<PartialShipment> partialShipments = partialShipmentRepository.findByPayment(payment);
+
+        for (PartialShipment shipment : partialShipments) {
+
+            shipment.setStatus(OrderStatus.CHO_GIAO);
+            shipment.setShipmentDate(LocalDateTime.now());
+
+            List<OrderLinks> safeLinks = new ArrayList<>(shipment.getReadyLinks());
+
+            for (OrderLinks link : safeLinks) {
+                link.setStatus(OrderLinkStatus.CHO_GIAO);
+                link.setPartialShipment(shipment);
+                orderLinksRepository.save(link);
+            }
+
+            partialShipmentRepository.save(shipment);
+
+            Orders order = shipment.getOrders();
+            boolean allLinksDone = order.getOrderLinks().stream()
+                    .allMatch(l ->
+                            l.getStatus() == OrderLinkStatus.CHO_GIAO ||
+                            l.getStatus() == OrderLinkStatus.DA_HUY ||
+                            l.getStatus() == OrderLinkStatus.DA_GIAO
+                    );
+
+            if (allLinksDone) {
+                order.setStatus(OrderStatus.CHO_GIAO);
+            }
+
+            ordersRepository.save(order);
+            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
+        }
+    }
+
+    messagingTemplate.convertAndSend(
+            "/topic/Tiximax",
+            Map.of(
+                    "event", "UPDATE",
+                    "paymentCode", paymentCode,
+                    "message", "Đã xác nhận thanh toán ship!"
+            )
+    );
+
+    return paymentRepository.save(payment);
+}
+
 
     public Optional<Payment> getPaymentsById(Long paymentId) {
         return paymentRepository.findById(paymentId);
