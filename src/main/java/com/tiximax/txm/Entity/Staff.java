@@ -57,4 +57,8 @@ public class Staff extends Account {
     @JsonIgnore
     private Set<PartialShipment> partialShipments;
 
+    @OneToMany(mappedBy = "staff", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Set<MarketingMedia> marketingMedia;
+
 }

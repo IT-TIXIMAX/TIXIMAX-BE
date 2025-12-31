@@ -70,7 +70,8 @@ public class SecurityConfig {
                                 "/accounts/userinfo",
                                 "/ws/**",
                                 "/websocket/**",
-                                "/orders/shipments-by-phone/{phone}"
+                                "/orders/shipments-by-phone/{phone}",
+                                "/google7e5ab6dc49fef2d8.html"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -88,7 +89,7 @@ public class SecurityConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:4173", "https://tiximax-three.vercel.app", "http://127.0.0.1:5500", "http://localhost:5500", "https://tiximax.app", "http://tiximax.app","http://127.0.0.1:8080", "https://www.tiximax.net/","https://tiximax.net", "http://localhost:3000"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:4173", "https://tiximax-three.vercel.app", "http://127.0.0.1:5500", "http://localhost:5500", "https://tiximax.app", "http://tiximax.app","http://127.0.0.1:8080", "https://www.tiximax.net","https://tiximax.net", "http://localhost:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*")); 
         configuration.setAllowCredentials(true);
