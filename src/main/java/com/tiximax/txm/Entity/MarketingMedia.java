@@ -1,5 +1,6 @@
 package com.tiximax.txm.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tiximax.txm.Enums.MediaPosition;
 import com.tiximax.txm.Enums.MediaStatus;
 import jakarta.persistence.*;
@@ -34,12 +35,13 @@ public class MarketingMedia {
 
     private LocalDateTime createdDate;
 
-    private LocalDateTime updatedDate;
-
     private String description;
 
     @Enumerated(EnumType.STRING)
     private MediaPosition position;
 
-    private String createdBy;
+    @ManyToOne
+    @JoinColumn(name="staff_id", nullable = false)
+    @JsonIgnore
+    Staff staff;
 }
