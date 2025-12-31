@@ -285,7 +285,6 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
     }
 }
 
-
     public String generateStaffCode() {
         String customerCode;
         do {
@@ -303,10 +302,6 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
     }
 
     public Customer registerCustomerByStaff(RegisterCustomerRequest registerRequest) {
-//        if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
-//            throw new BadCredentialsException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
-//        }
-
         if (authenticationRepository.findByPhone(registerRequest.getPhone()) != null && !registerRequest.getPhone().isEmpty()){
             throw new BadCredentialsException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
         }
@@ -678,12 +673,6 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         perf.setTotalGoods(totalGoods);
-
-//        BigDecimal totalGoods = orders.stream()
-//                .map(Orders::getFinalPriceOrder)
-//                .filter(Objects::nonNull)
-//                .reduce(BigDecimal.ZERO, BigDecimal::add);
-//        perf.setTotalGoods(totalGoods);
 
         BigDecimal totalShip = paymentRepository.findByStaff_AccountIdAndStatusAndActionAtBetween(
                         staff.getAccountId(),

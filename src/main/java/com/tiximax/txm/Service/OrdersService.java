@@ -1328,8 +1328,6 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
         return OrderLinkStatus.valueOf(s.name());
     }
 
-
-
     public Page<OrdersPendingShipment> getMyOrdersWithoutShipmentCode(Pageable pageable) {
         Staff staff = (Staff) accountUtils.getAccountCurrent();
 
