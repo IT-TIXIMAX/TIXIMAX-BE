@@ -5,6 +5,8 @@ import com.tiximax.txm.Model.CheckInDomestic;
 import com.tiximax.txm.Model.CreateDomesticRequest;
 import com.tiximax.txm.Model.DomesticRecieve;
 import com.tiximax.txm.Model.DomesticResponse;
+import com.tiximax.txm.Model.DomesticSend;
+import com.tiximax.txm.Model.VNPostTrackingCode;
 import com.tiximax.txm.Service.DomesticService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -82,14 +84,12 @@ public class DomesticController {
         return ResponseEntity.ok(result);
     }
     @PostMapping("/transfer-by-customer/{customerCode}")
-    public ResponseEntity<List<DomesticResponse>> transferByCustomerCode(@PathVariable String customerCode) {
+    public ResponseEntity<List<DomesticResponse>> transferByCustomerCode(@PathVariable String customerCode, @RequestBody VNPostTrackingCode vNPostTrackingCode) {
     if (customerCode == null || customerCode.trim().isEmpty()) {
         return ResponseEntity.badRequest().build();
     }
-
     String code = customerCode.trim().toUpperCase();
-    List<DomesticResponse> result = domesticService.transferByCustomerCode(code);
-
+    List<DomesticResponse> result = domesticService.transferByCustomerCode(code,vNPostTrackingCode.getVNPostTrackingCode());
     return ResponseEntity.ok(result);
 }
 @PostMapping("/transfer-to-warehouse")
@@ -151,6 +151,20 @@ public ResponseEntity<Map<String, Object>> scanImportToDomestic(
                     "shipmentCode", shipmentCode
             )
     );
+}
+@GetMapping("/preview-transfer-by-customer/{customerCode}")
+public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(
+        @PathVariable String customerCode) {
+
+    if (customerCode == null || customerCode.trim().isEmpty()) {
+        return ResponseEntity.badRequest().build();
+    }
+    String code = customerCode.trim().toUpperCase();
+
+    List<DomesticSend> result =
+            domesticService.previewTransferByCustomerCode(code);
+
+    return ResponseEntity.ok(result);
 }
 
 }

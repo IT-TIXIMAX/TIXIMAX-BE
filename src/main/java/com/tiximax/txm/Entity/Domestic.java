@@ -48,6 +48,9 @@ public class Domestic {
     @Column(nullable = false)
     private List<String> shippingList = new ArrayList<>();
 
+    @Column(nullable = true)
+    private String VNPostTrackingCode;
+
     @ManyToOne
     @JoinColumn(name="staff_id", nullable = false)
     @JsonIgnore

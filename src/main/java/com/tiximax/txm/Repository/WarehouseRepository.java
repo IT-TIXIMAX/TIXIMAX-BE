@@ -122,4 +122,18 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
     List<Object[]> sumWeightByRouteNativeRaw(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+        @Query("""
+        SELECT DISTINCT w
+        FROM Warehouse w
+        JOIN w.orderLinks ol
+        JOIN w.orders o
+        JOIN o.customer c
+        WHERE ol.status = :status
+        AND (:customerCode IS NULL OR c.customerCode = :customerCode)
+        """)
+        List<Warehouse> findWarehousesByOrderLinkStatus(
+        @Param("status") OrderLinkStatus status,
+        @Param("customerCode") String customerCode
+);
 }
