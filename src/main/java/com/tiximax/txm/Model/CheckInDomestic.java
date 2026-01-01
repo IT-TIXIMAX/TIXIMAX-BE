@@ -9,5 +9,7 @@ public class CheckInDomestic {
     public String customerCode;
     public String destinationName;
     public int waitImport;
+    public int imported;
     public int inventory;
+    public int totalWarehouseInFlight;
 }

@@ -3,10 +3,16 @@ package com.tiximax.txm.API;
 import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.PartialShipment;
 import com.tiximax.txm.Entity.Payment;
+import com.tiximax.txm.Enums.OrderStatus;
+import com.tiximax.txm.Model.PartialPayment;
 import com.tiximax.txm.Model.ShipmentCodesRequest;
 import com.tiximax.txm.Service.PartialShipmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,5 +46,23 @@ public class PartialShipmentController {
     Optional<PartialShipment> partialShipment = partialShipmentService.getById(id);
     return partialShipment.map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
+}
+@GetMapping("/{page}/{size}")
+public ResponseEntity<Page<PartialPayment>> getPartialPayments(
+        @PathVariable int page,
+        @PathVariable int size,
+        @RequestParam(required = false) OrderStatus status,
+        @RequestParam(required = false) String orderCode
+) {
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<PartialPayment> result =
+            partialShipmentService.getPartialPayments(
+                    pageable,
+                    status,
+                    orderCode
+            );
+
+    return ResponseEntity.ok(result);
 }
 }

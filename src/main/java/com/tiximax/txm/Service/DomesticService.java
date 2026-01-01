@@ -15,18 +15,11 @@ import com.tiximax.txm.Repository.PartialShipmentRepository;
 import com.tiximax.txm.Repository.WarehouseLocationRepository;
 import com.tiximax.txm.Repository.WarehouseRepository;
 import com.tiximax.txm.Utils.AccountUtils;
-
-import io.swagger.v3.oas.annotations.Operation;
 import jakarta.transaction.Transactional;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -840,7 +833,6 @@ private boolean isCustomerMatching(Map<String, Object> data) {
                 "Không tìm thấy đơn hàng trong danh sách cung cấp!"
         );
     }
-
     OrderLinks orderLink = orderLinks.get(0);
     if (orderLink.getStatus() == OrderLinkStatus.DA_NHAP_KHO_VN) {
         throw new IllegalStateException(
@@ -852,6 +844,20 @@ private boolean isCustomerMatching(Map<String, Object> data) {
                 "Đơn hàng đã đến Việt Nam nhưng bạn chưa nhận thùng hàng vào kho!"
         );
     }
+    Warehouse warehouse = orderLink.getWarehouse();
+    if (warehouse == null) {
+        throw new IllegalStateException("OrderLink chưa được gán kho!");
+    }
+    Packing packing = warehouse.getPacking();
+    if (packing == null) {
+        throw new IllegalStateException("Warehouse chưa thuộc packing nào!");
+    }
+    String flightCode = packing.getFlightCode();
+
+    int totalWarehouseInFlight =
+            warehouseRepository.countByFlightCode(flightCode);
+
+
 
     Orders order = orderLink.getOrders();
     Staff staff = order.getStaff();
@@ -861,17 +867,33 @@ private boolean isCustomerMatching(Map<String, Object> data) {
     checkInDomestic.setOrderCode(order.getOrderCode());
     checkInDomestic.setShipmentCode(orderLink.getShipmentCode());
     checkInDomestic.setCustomerCode(
-            staff.getStaffCode() + "-" + customer.getCustomerCode()
+            staff.getStaffCode() + " - " + customer.getCustomerCode()
     );
     checkInDomestic.setDestinationName(
             order.getDestination().getDestinationName()
     );
     checkInDomestic.setWaitImport(
-            ordersRepository.countNotImported(order.getOrderId())
+             warehouseRepository.countNotImportedByCustomerAndFlight(
+                customer.getAccountId(),
+                flightCode,
+                OrderLinkStatus.CHO_NHAP_KHO_VN
+            )
     );
+    checkInDomestic.setImported(
+            warehouseRepository.countImportedByCustomerAndFlight(
+                customer.getAccountId(),
+                flightCode,
+                OrderLinkStatus.DA_NHAP_KHO_VN
+            )
+    );
+
     checkInDomestic.setInventory(
-            ordersRepository.countImported(order.getOrderId())
+            warehouseRepository.countInventoryByCustomer(
+                    customer.getAccountId(),
+                    OrderLinkStatus.DA_NHAP_KHO_VN
+            )
     );
+    checkInDomestic.setTotalWarehouseInFlight(totalWarehouseInFlight);
      updateOrderStatusIfAllLinksReady(orderLinks);
 
     return checkInDomestic;

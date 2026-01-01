@@ -136,4 +136,61 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
         @Param("status") OrderLinkStatus status,
         @Param("customerCode") String customerCode
 );
+
+ @Query("""
+    SELECT COUNT(ol)
+    FROM OrderLinks ol
+    JOIN ol.warehouse w
+    JOIN w.packing p
+    JOIN ol.orders o
+    JOIN o.customer c
+    WHERE p.flightCode = :flightCode
+      AND c.accountId = :customerId
+      AND ol.status = :importedStatus
+""")
+int countNotImportedByCustomerAndFlight(
+        @Param("customerId") Long customerId,
+        @Param("flightCode") String flightCode,
+        @Param("importedStatus") OrderLinkStatus importedStatus
+);
+
+
+  @Query("""
+    SELECT COUNT(ol)
+    FROM OrderLinks ol
+    JOIN ol.warehouse w
+    JOIN w.packing p
+    JOIN ol.orders o
+    JOIN o.customer c
+    WHERE p.flightCode = :flightCode
+      AND c.accountId = :customerId
+      AND ol.status = :importedStatus
+""")
+int countImportedByCustomerAndFlight(
+        @Param("customerId") Long customerId,
+        @Param("flightCode") String flightCode,
+        @Param("importedStatus") OrderLinkStatus importedStatus
+);
+
+   @Query("""
+    SELECT COUNT(ol)
+    FROM OrderLinks ol
+    JOIN ol.orders o
+    JOIN o.customer c
+    WHERE c.accountId = :customerId
+      AND ol.status = :importedStatus
+        """)
+        int countInventoryByCustomer(
+                @Param("customerId") Long customerId,
+                @Param("importedStatus") OrderLinkStatus importedStatus
+        );
+
+
+
+    @Query("""
+        SELECT COUNT(w)
+        FROM Warehouse w
+        WHERE w.packing.flightCode = :flightCode
+    """)
+    int countByFlightCode(@Param("flightCode") String flightCode);
 }

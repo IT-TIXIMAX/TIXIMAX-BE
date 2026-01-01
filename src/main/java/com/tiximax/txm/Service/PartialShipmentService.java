@@ -1,12 +1,14 @@
 package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.*;
+import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Enums.PaymentType;
 import com.tiximax.txm.Enums.ProcessLogAction;
 import com.tiximax.txm.Enums.VoucherType;
+import com.tiximax.txm.Model.PartialPayment;
 import com.tiximax.txm.Model.ShipmentCodesRequest;
 import com.tiximax.txm.Repository.AuthenticationRepository;
 import com.tiximax.txm.Repository.CustomerVoucherRepository;
@@ -20,12 +22,14 @@ import com.tiximax.txm.Utils.AccountUtils;
 
 import jakarta.transaction.Transactional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.data.domain.Page;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -438,5 +442,36 @@ private BigDecimal roundUp(BigDecimal value) {
             .divide(BigDecimal.valueOf(500), 0, RoundingMode.CEILING)  
             .multiply(BigDecimal.valueOf(500));  
 }
+    public Page<PartialPayment> getPartialPayments(
+        Pageable pageable,
+        OrderStatus status,
+        String orderCode
+) {
+    Account current = accountUtils.getAccountCurrent();
+    Long staffId = current.getAccountId();
+    AccountRoles role = current.getRole();
+
+    if (orderCode != null && orderCode.trim().isEmpty()) {
+        orderCode = null;
+    }
+
+    Page<PartialShipment> page;
+
+    if (role == AccountRoles.MANAGER) {
+        page = partialShipmentRepository.findForPartialPayment(
+                status,
+                orderCode,
+                pageable
+        );
+    } else {
+        page = partialShipmentRepository.findForPartialPaymentByStaff(
+                staffId,
+                status,
+                pageable
+        );
+    }
+    return page.map(PartialPayment::new);
+}
+
 
 }
