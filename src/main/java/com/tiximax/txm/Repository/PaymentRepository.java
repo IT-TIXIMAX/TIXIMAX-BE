@@ -140,9 +140,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                 @Param("statuses") List<PaymentStatus> statuses
         );
 
-   
-
-
     @Query(value = """
     SELECT 
         r.name AS route_name,
@@ -179,4 +176,5 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("status") String status,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
 }
