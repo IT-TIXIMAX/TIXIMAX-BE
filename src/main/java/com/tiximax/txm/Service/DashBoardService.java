@@ -8,10 +8,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.tiximax.txm.Entity.*;
-import com.tiximax.txm.Enums.DashboardFilterType;
-import com.tiximax.txm.Enums.PaymentStatus;
+import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Repository.*;
+import com.tiximax.txm.Utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -47,6 +47,9 @@ public class DashBoardService {
 
     @Autowired
     private RouteRepository routeRepository;
+
+    @Autowired
+    private AccountUtils accountUtils;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
@@ -557,5 +560,65 @@ public class DashBoardService {
                         new BigDecimal(((Number) row[2]).doubleValue()).setScale(1, RoundingMode.HALF_UP)
                 ))
                 .collect(Collectors.toList());
+    }
+
+    public Map<String, RouteStaffPerformance> getStaffPerformanceByRouteGrouped(
+            LocalDate start, LocalDate end) {
+
+        Account currentAccount = accountUtils.getAccountCurrent();
+        if (currentAccount.getRole() != AccountRoles.ADMIN &&
+                currentAccount.getRole() != AccountRoles.MANAGER) {
+            throw new SecurityException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
+        }
+
+        LocalDateTime startDateTime = start.atStartOfDay();
+        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+
+        List<Object[]> aggregates = ordersRepository.aggregateStaffKPIByRoute(
+                startDateTime, endDateTime);
+
+        Map<String, Map<String, StaffPerformanceKPI>> tempMap = new HashMap<>();
+
+        for (Object[] row : aggregates) {
+            String routeName = (String) row[0];
+            if (routeName == null) routeName = "Không xác định";
+            String staffCode = (String) row[1];
+            String staffName = (String) row[2];
+//            BigDecimal totalGoods = (BigDecimal) row[4];
+            BigDecimal totalGoods = row[3] == null ? BigDecimal.ZERO
+                            : BigDecimal.valueOf(((Number) row[3]).doubleValue());
+
+            Double totalNetWeight = row[4] == null ? 0.0 : ((Number) row[4]).doubleValue();
+
+            StaffPerformanceKPI kpi = tempMap
+                    .computeIfAbsent(routeName, k -> new HashMap<>())
+                    .computeIfAbsent(staffCode, k -> {
+                        StaffPerformanceKPI newKpi = new StaffPerformanceKPI();
+                        newKpi.setStaffCode(staffCode);
+                        newKpi.setName(staffName);
+                        newKpi.setTotalGoods(BigDecimal.ZERO);
+                        newKpi.setTotalNetWeight(0.0);
+                        return newKpi;
+                    });
+
+            kpi.setTotalGoods(totalGoods != null ? totalGoods : BigDecimal.ZERO);
+            kpi.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
+        }
+
+        // 2. Xây dựng kết quả + sắp xếp nhân viên theo totalGoods giảm dần
+        Map<String, RouteStaffPerformance> result = new TreeMap<>();
+
+        tempMap.forEach((routeName, staffMap) -> {
+            RouteStaffPerformance routePerf = new RouteStaffPerformance();
+            routePerf.setRouteName(routeName);
+
+            List<StaffPerformanceKPI> staffList = new ArrayList<>(staffMap.values());
+            staffList.sort(Comparator.comparing(StaffPerformanceKPI::getTotalGoods).reversed());
+
+            routePerf.setStaffPerformances(staffList);
+            result.put(routeName, routePerf);
+        });
+
+        return result;
     }
 }

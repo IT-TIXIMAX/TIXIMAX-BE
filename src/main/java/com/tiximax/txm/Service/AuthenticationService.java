@@ -2,10 +2,7 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Config.SecurityConfig;
 import com.tiximax.txm.Entity.*;
-import com.tiximax.txm.Enums.AccountRoles;
-import com.tiximax.txm.Enums.AccountStatus;
-import com.tiximax.txm.Enums.OrderStatus;
-import com.tiximax.txm.Enums.PaymentStatus;
+import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
@@ -190,40 +187,40 @@ public class AuthenticationService implements UserDetailsService {
     return null;
 }
 
-public Staff registerStaff(RegisterStaffRequest registerRequest) {
-        if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
-            throw new BadCredentialsException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
-        } 
-        if (authenticationRepository.findByPhone(registerRequest.getPhone()) != null){
-            throw new BadCredentialsException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
-        }
-        Staff staff = new Staff();
-        staff.setUsername(registerRequest.getUsername());
-        staff.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        staff.setEmail(registerRequest.getEmail());
-        staff.setPhone(registerRequest.getPhone());
-        staff.setName(registerRequest.getName());
-        staff.setRole(registerRequest.getRole());
-        staff.setStatus(AccountStatus.HOAT_DONG);
-        staff.setCreatedAt(LocalDateTime.now());
-        staff.setStaffCode(generateStaffCode());
-        staff.setDepartment(registerRequest.getDepartment());
-        staff.setLocation(registerRequest.getLocation());
-        staff.setVerify(true);
-        List<Long> routeIds = registerRequest.getRouteIds();
-        if (routeIds != null && !routeIds.isEmpty()) {
-            for (Long routeId : routeIds) {
-                Route route = routeRepository.findById(routeId)
-                        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tuyến hàng này!"));
-                AccountRoute accountRoute = new AccountRoute();
-                accountRoute.setAccount(staff);
-                accountRoute.setRoute(route);
-                staff = authenticationRepository.save(staff);
-                accountRouteRepository.save(accountRoute);
+    public Staff registerStaff(RegisterStaffRequest registerRequest) {
+            if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
+                throw new BadCredentialsException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
             }
+            if (authenticationRepository.findByPhone(registerRequest.getPhone()) != null){
+                throw new BadCredentialsException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
+            }
+            Staff staff = new Staff();
+            staff.setUsername(registerRequest.getUsername());
+            staff.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+            staff.setEmail(registerRequest.getEmail());
+            staff.setPhone(registerRequest.getPhone());
+            staff.setName(registerRequest.getName());
+            staff.setRole(registerRequest.getRole());
+            staff.setStatus(AccountStatus.HOAT_DONG);
+            staff.setCreatedAt(LocalDateTime.now());
+            staff.setStaffCode(generateStaffCode());
+            staff.setDepartment(registerRequest.getDepartment());
+            staff.setLocation(registerRequest.getLocation());
+            staff.setVerify(true);
+            List<Long> routeIds = registerRequest.getRouteIds();
+            if (routeIds != null && !routeIds.isEmpty()) {
+                for (Long routeId : routeIds) {
+                    Route route = routeRepository.findById(routeId)
+                            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tuyến hàng này!"));
+                    AccountRoute accountRoute = new AccountRoute();
+                    accountRoute.setAccount(staff);
+                    accountRoute.setRoute(route);
+                    staff = authenticationRepository.save(staff);
+                    accountRouteRepository.save(accountRoute);
+                }
+            }
+            return staff;
         }
-        return staff;
-    }
 
     public Customer registerCustomer(RegisterCustomerRequest registerRequest) throws Exception {
         if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
@@ -638,6 +635,99 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
         return result;
     }
 
+//    public Map<String, StaffPerformance> getMyPerformanceByDateRange(LocalDate start, LocalDate end) {
+//        Account currentAccount = accountUtils.getAccountCurrent();
+//        if (!(currentAccount instanceof Staff staff) ||
+//                (staff.getRole() != AccountRoles.STAFF_SALE && staff.getRole() != AccountRoles.LEAD_SALE)) {
+//            throw new SecurityException("Bạn không có quyền xem hiệu suất cá nhân!");
+//        }
+//
+//        LocalDateTime startDateTime = start.atStartOfDay();
+//        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+//
+//        StaffPerformance perf = new StaffPerformance();
+//        perf.setStaffCode(staff.getStaffCode());
+//        perf.setName(staff.getName());
+//        perf.setDepartment(staff.getDepartment());
+//
+//        List<Orders> orders = ordersRepository.findByStaff_AccountIdAndCreatedAtBetween(
+//                staff.getAccountId(), startDateTime, endDateTime);
+//
+//        long totalOrders = orders.size();
+//        perf.setTotalOrders(totalOrders);
+//
+//        Set<OrderStatus> excludedStatuses = Set.of(
+//                OrderStatus.CHO_XAC_NHAN,
+//                OrderStatus.DA_XAC_NHAN,
+//                OrderStatus.CHO_THANH_TOAN,
+//                OrderStatus.DA_HUY
+//        );
+//
+//        BigDecimal totalGoods = orders.stream()
+//                .filter(order -> !excludedStatuses.contains(order.getStatus()))
+//                .flatMap(order -> order.getOrderLinks().stream())
+//                .filter(link -> link.getStatus() != OrderLinkStatus.DA_HUY)
+//                .map(OrderLinks::getFinalPriceVnd)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+////        String orderLinkString = orders.stream()
+////                .filter(order -> !excludedStatuses.contains(order.getStatus()))
+////                .filter(order -> order.getOrderLinks() != null && !order.getOrderLinks().isEmpty())
+////                .flatMap(order -> order.getOrderLinks().stream())
+////                .filter(link -> link.getStatus() != null
+////                        && link.getStatus() == OrderLinkStatus.DA_HUY)
+////                .map(link -> String.valueOf(link.getLinkId()))
+////                .collect(Collectors.joining(","));
+//
+//        perf.setTotalGoods(totalGoods);
+//
+//        BigDecimal totalShip = paymentRepository.findByStaff_AccountIdAndStatusAndActionAtBetween(
+//                        staff.getAccountId(),
+//                        PaymentStatus.DA_THANH_TOAN_SHIP,
+//                        startDateTime,
+//                        endDateTime)
+//                .stream()
+//                .map(Payment::getAmount)
+//                .filter(Objects::nonNull)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//        perf.setTotalShip(totalShip);
+//
+//        long totalParcels = orders.stream()
+//                .flatMap(o -> o.getOrderLinks().stream())
+//                .count();
+//        perf.setTotalParcels(totalParcels);
+//
+//        Double totalNetWeight = orders.stream()
+//                .flatMap(o -> o.getWarehouses().stream())
+//                .map(Warehouse::getNetWeight)
+//                .filter(Objects::nonNull)
+//                .mapToDouble(Double::doubleValue)
+//                .sum();
+//        perf.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
+//
+//        long completedOrders = orders.stream()
+//                .filter(o -> o.getStatus() == OrderStatus.DA_GIAO)
+//                .count();
+//        double completionRate = totalOrders > 0 ? (completedOrders * 100.0 / totalOrders) : 0.0;
+//        perf.setCompletionRate(Math.round(completionRate * 100.0) / 100.0);
+//
+//        long newCustomersInPeriod = customerRepository.countByStaffIdAndCreatedAtBetween(
+//                currentAccount.getAccountId(), startDateTime, endDateTime);
+//        perf.setNewCustomersInPeriod(newCustomersInPeriod);
+//
+//        long badFeedback = orders.stream()
+//                .map(Orders::getFeedback)
+//                .filter(Objects::nonNull)
+//                .filter(f -> f.getRating() < 3)
+//                .count();
+//        perf.setBadFeedbackCount(badFeedback);
+//
+//        Map<String, StaffPerformance> result = new HashMap<>();
+//        result.put(staff.getStaffCode(), perf);
+//
+//        return result;
+//    }
+
     public Map<String, StaffPerformance> getMyPerformanceByDateRange(LocalDate start, LocalDate end) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff staff) ||
@@ -648,16 +738,10 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
         LocalDateTime startDateTime = start.atStartOfDay();
         LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
 
-        StaffPerformance perf = new StaffPerformance();
-        perf.setStaffCode(staff.getStaffCode());
-        perf.setName(staff.getName());
-        perf.setDepartment(staff.getDepartment());
-
-        List<Orders> orders = ordersRepository.findByStaff_AccountIdAndCreatedAtBetween(
+        List<Orders> orders = ordersRepository.findByStaffIdWithDetailsForPerformance(
                 staff.getAccountId(), startDateTime, endDateTime);
 
         long totalOrders = orders.size();
-        perf.setTotalOrders(totalOrders);
 
         Set<OrderStatus> excludedStatuses = Set.of(
                 OrderStatus.CHO_XAC_NHAN,
@@ -666,13 +750,39 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
                 OrderStatus.DA_HUY
         );
 
-        BigDecimal totalGoods = orders.stream()
-                .filter(order -> !excludedStatuses.contains(order.getStatus()))
-                .map(Orders::getFinalPriceOrder)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalGoods = BigDecimal.ZERO;
+        long totalParcels = 0;
+        double totalNetWeight = 0.0;
+        long completedOrders = 0;
+        long badFeedback = 0;
 
-        perf.setTotalGoods(totalGoods);
+        for (Orders order : orders) {
+            if (order.getOrderLinks() != null) {
+                totalParcels += order.getOrderLinks().size();
+            }
+            if (order.getWarehouses() != null) {
+                for (Warehouse w : order.getWarehouses()) {
+                    if (w.getNetWeight() != null) {
+                        totalNetWeight += w.getNetWeight();
+                    }
+                }
+            }
+
+            if (order.getStatus() == OrderStatus.DA_GIAO) {
+                completedOrders++;
+            }
+            if (order.getFeedback() != null && order.getFeedback().getRating() < 3) {
+                badFeedback++;
+            }
+
+            if (!excludedStatuses.contains(order.getStatus()) && order.getOrderLinks() != null) {
+                for (OrderLinks link : order.getOrderLinks()) {
+                    if (link.getStatus() != OrderLinkStatus.DA_HUY && link.getFinalPriceVnd() != null) {
+                        totalGoods = totalGoods.add(link.getFinalPriceVnd());
+                    }
+                }
+            }
+        }
 
         BigDecimal totalShip = paymentRepository.findByStaff_AccountIdAndStatusAndActionAtBetween(
                         staff.getAccountId(),
@@ -683,36 +793,23 @@ public Staff registerStaff(RegisterStaffRequest registerRequest) {
                 .map(Payment::getAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        perf.setTotalShip(totalShip);
-
-        long totalParcels = orders.stream()
-                .flatMap(o -> o.getOrderLinks().stream())
-                .count();
-        perf.setTotalParcels(totalParcels);
-
-        Double totalNetWeight = orders.stream()
-                .flatMap(o -> o.getWarehouses().stream())
-                .map(Warehouse::getNetWeight)
-                .filter(Objects::nonNull)
-                .mapToDouble(Double::doubleValue)
-                .sum();
-        perf.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
-
-        long completedOrders = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.DA_GIAO)
-                .count();
-        double completionRate = totalOrders > 0 ? (completedOrders * 100.0 / totalOrders) : 0.0;
-        perf.setCompletionRate(Math.round(completionRate * 100.0) / 100.0);
 
         long newCustomersInPeriod = customerRepository.countByStaffIdAndCreatedAtBetween(
-                currentAccount.getAccountId(), startDateTime, endDateTime);
-        perf.setNewCustomersInPeriod(newCustomersInPeriod);
+                staff.getAccountId(), startDateTime, endDateTime);
 
-        long badFeedback = orders.stream()
-                .map(Orders::getFeedback)
-                .filter(Objects::nonNull)
-                .filter(f -> f.getRating() < 3)
-                .count();
+        double completionRate = totalOrders > 0 ? (completedOrders * 100.0 / totalOrders) : 0.0;
+
+        StaffPerformance perf = new StaffPerformance();
+        perf.setStaffCode(staff.getStaffCode());
+        perf.setName(staff.getName());
+        perf.setDepartment(staff.getDepartment());
+        perf.setTotalOrders(totalOrders);
+        perf.setTotalGoods(totalGoods);
+        perf.setTotalShip(totalShip);
+        perf.setTotalParcels(totalParcels);
+        perf.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
+        perf.setCompletionRate(Math.round(completionRate * 100.0) / 100.0);
+        perf.setNewCustomersInPeriod(newCustomersInPeriod);
         perf.setBadFeedbackCount(badFeedback);
 
         Map<String, StaffPerformance> result = new HashMap<>();
