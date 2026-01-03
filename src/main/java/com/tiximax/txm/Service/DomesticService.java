@@ -821,6 +821,7 @@ private boolean isCustomerMatching(Map<String, Object> data) {
         }
         if (updated) {
             orderLinksRepository.saveAll(orderLinks);
+            updateOrderStatusIfAllLinksReady(orderLinks);
         }
         return true;
 }
