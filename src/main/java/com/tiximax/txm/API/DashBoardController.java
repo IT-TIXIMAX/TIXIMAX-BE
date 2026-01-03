@@ -177,4 +177,15 @@ public class DashBoardController {
 
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/routes/kpi")
+    public ResponseEntity<Map<String, RouteStaffPerformance>> getWeightByRouteKpi(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+
+        Map<String, RouteStaffPerformance> result = dashBoardService.getStaffPerformanceByRouteGrouped(startDate, endDate);
+
+        return ResponseEntity.ok(result);
+    }
+
 }

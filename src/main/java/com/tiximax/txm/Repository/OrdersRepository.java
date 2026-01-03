@@ -371,5 +371,77 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
       AND ol.status = 'DA_NHAP_KHO_VN'
         """)
      int countImported(@Param("orderId") Long orderId);
+
+    @Query("SELECT o FROM Orders o " +
+            "LEFT JOIN FETCH o.orderLinks ol " +
+            "LEFT JOIN FETCH o.warehouses w " +
+            "LEFT JOIN FETCH o.feedback f " +
+            "WHERE o.staff.accountId = :staffId " +
+            "AND o.createdAt BETWEEN :start AND :end")
+    List<Orders> findByStaffIdWithDetailsForPerformance(
+            @Param("staffId") Long staffId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
+
+    @Query(value = """
+            WITH weight_by_staff_route AS (
+                SELECT
+                    o.route_id,
+                    o.staff_id,
+                    SUM(w.net_weight) AS total_net_weight
+                FROM warehouse w
+                JOIN orders o ON w.order_id = o.order_id
+                WHERE w.created_at >= :start
+                  AND w.created_at < :end
+                GROUP BY
+                    o.route_id,
+                    o.staff_id
+            ),
+            goods_by_staff_route AS (
+                SELECT
+                    o.route_id,
+                    o.staff_id,
+                    SUM(ol.final_price_vnd) AS total_goods
+                FROM order_links ol
+                JOIN orders o ON ol.order_id = o.order_id
+                WHERE ol.status NOT IN ('DA_HUY', 'MUA_SAU')
+                  AND o.status NOT IN ('CHO_XAC_NHAN', 'DA_XAC_NHAN', 'CHO_THANH_TOAN', 'DA_HUY')
+                  AND o.created_at >= :start
+                  AND o.created_at < :end
+                GROUP BY
+                    o.route_id,
+                    o.staff_id
+            )
+            SELECT
+                COALESCE(r.name, 'Không xác định') AS route_name,
+                s.staff_code,
+                a.name AS staff_name,
+                COALESCE(g.total_goods, 0) AS total_goods,
+                COALESCE(w.total_net_weight, 0) AS total_net_weight
+            FROM orders o
+            JOIN staff s ON o.staff_id = s.account_id
+            JOIN account a ON s.account_id = a.account_id
+            LEFT JOIN route r ON o.route_id = r.route_id
+            LEFT JOIN weight_by_staff_route w
+                   ON w.route_id = o.route_id
+                  AND w.staff_id = o.staff_id
+            LEFT JOIN goods_by_staff_route g
+                   ON g.route_id = o.route_id
+                  AND g.staff_id = o.staff_id
+            WHERE
+                a.role IN ('STAFF_SALE', 'LEAD_SALE')
+            GROUP BY
+                r.name,
+                s.staff_code,
+                a.name,
+                w.total_net_weight,
+                g.total_goods
+            ORDER BY
+                route_name ASC,
+                total_goods DESC;
+    """, nativeQuery = true)
+    List<Object[]> aggregateStaffKPIByRoute(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }
 
