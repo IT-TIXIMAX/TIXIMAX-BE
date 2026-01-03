@@ -3,9 +3,11 @@ package com.tiximax.txm.Service;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Model.CheckInDomestic;
+import com.tiximax.txm.Model.DomesticDelivery;
 import com.tiximax.txm.Model.DomesticRecieve;
 import com.tiximax.txm.Model.DomesticResponse;
 import com.tiximax.txm.Model.DomesticSend;
+import com.tiximax.txm.Model.EnumFilter.DeliveryStatus;
 import com.tiximax.txm.Repository.AddressRepository;
 import com.tiximax.txm.Repository.DomesticRepository;
 import com.tiximax.txm.Repository.OrderLinksRepository;
@@ -857,8 +859,6 @@ private boolean isCustomerMatching(Map<String, Object> data) {
     int totalWarehouseInFlight =
             warehouseRepository.countByFlightCode(flightCode);
 
-
-
     Orders order = orderLink.getOrders();
     Staff staff = order.getStaff();
     Customer customer = order.getCustomer();
@@ -895,9 +895,74 @@ private boolean isCustomerMatching(Map<String, Object> data) {
     );
     checkInDomestic.setTotalWarehouseInFlight(totalWarehouseInFlight);
      updateOrderStatusIfAllLinksReady(orderLinks);
-
     return checkInDomestic;
 }
+ public List<DomesticDelivery> getDomesticDelivery(DeliveryStatus status, String customerCode) {
+    
+    OrderLinkStatus orderLinkStatus;
+    if(status == DeliveryStatus.CHUA_DU_DIEU_KIEN){
+        orderLinkStatus = OrderLinkStatus.DA_NHAP_KHO_VN;
+    } else {
+        orderLinkStatus = OrderLinkStatus.CHO_GIAO;
+    }
 
+        String filterCustomerCode = null;
+    if (customerCode != null && !customerCode.trim().isEmpty()) {
+        filterCustomerCode = customerCode.trim().toUpperCase();
+    }
 
+     List<Warehouse> warehouses =
+            warehouseRepository.findWarehousesByOrderLinkStatus(
+                    orderLinkStatus,
+                    filterCustomerCode
+            );
+
+            
+    if (warehouses.isEmpty()) {
+        return List.of();
+    }
+
+    // 🔑 group theo customerCode
+    Map<String, DomesticDelivery> map = new LinkedHashMap<>();
+
+    for (Warehouse w : warehouses) {
+        Orders order = w.getOrders();
+        if (order == null || order.getCustomer() == null) continue;
+
+        String cCode = order.getCustomer().getCustomerCode();
+
+        DomesticDelivery dto = map.computeIfAbsent(cCode, k -> {
+            DomesticDelivery d = new DomesticDelivery();
+            d.setCustomerCode(cCode);
+            d.setCustomerName(order.getCustomer().getName());
+            d.setPhoneNumber(order.getCustomer().getPhone());
+            d.setAddress(
+                    order.getAddress() != null
+                            ? order.getAddress().getAddressName()
+                            : null
+            );
+            d.setStaffName(order.getStaff().getName());
+            d.setStatus(status.name());
+            d.setShipmemtCode(new ArrayList<>());
+            return d;
+        });
+
+      
+        if (w.getOrderLinks() != null) {
+            w.getOrderLinks().stream()
+                    .map(OrderLinks::getShipmentCode)
+                    .filter(code -> code != null && !code.isBlank())
+                    .distinct()
+                    .forEach(code -> {
+                        if (!dto.getShipmemtCode().contains(code)) {
+                            dto.getShipmemtCode().add(code);
+                        }
+                    });
+        }
+    }
+
+        return new ArrayList<>(map.values());
 }
+    
+ }
+

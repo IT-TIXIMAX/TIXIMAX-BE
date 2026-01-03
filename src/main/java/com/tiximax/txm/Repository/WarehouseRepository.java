@@ -185,8 +185,6 @@ int countImportedByCustomerAndFlight(
                 @Param("importedStatus") OrderLinkStatus importedStatus
         );
 
-
-
     @Query("""
         SELECT COUNT(w)
         FROM Warehouse w
