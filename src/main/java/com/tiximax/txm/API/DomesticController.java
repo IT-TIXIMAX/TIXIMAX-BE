@@ -3,10 +3,12 @@ package com.tiximax.txm.API;
 import com.tiximax.txm.Entity.Domestic;
 import com.tiximax.txm.Model.CheckInDomestic;
 import com.tiximax.txm.Model.CreateDomesticRequest;
+import com.tiximax.txm.Model.DomesticDelivery;
 import com.tiximax.txm.Model.DomesticRecieve;
 import com.tiximax.txm.Model.DomesticResponse;
 import com.tiximax.txm.Model.DomesticSend;
 import com.tiximax.txm.Model.VNPostTrackingCode;
+import com.tiximax.txm.Model.EnumFilter.DeliveryStatus;
 import com.tiximax.txm.Service.DomesticService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -163,6 +165,25 @@ public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(
 
     List<DomesticSend> result =
             domesticService.previewTransferByCustomerCode(code);
+
+    return ResponseEntity.ok(result);
+}
+
+@GetMapping("/delivery")
+public ResponseEntity<List<DomesticDelivery>> getDomesticDelivery(
+        @RequestParam DeliveryStatus status,
+        @RequestParam(required = false) String customerCode
+) {
+    if (status == null) {
+        return ResponseEntity.badRequest().build();
+    }
+
+    List<DomesticDelivery> result =
+            domesticService.getDomesticDelivery(status, customerCode);
+
+    if (result.isEmpty()) {
+        return ResponseEntity.noContent().build();
+    }
 
     return ResponseEntity.ok(result);
 }
