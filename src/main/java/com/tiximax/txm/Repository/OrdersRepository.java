@@ -393,6 +393,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
                 JOIN orders o ON w.order_id = o.order_id
                 WHERE w.created_at >= :start
                   AND w.created_at < :end
+                  AND (:routeId IS NULL OR o.route_id = :routeId)
+                  AND w.status = 'DA_THU_TIEN'
                 GROUP BY
                     o.route_id,
                     o.staff_id
@@ -408,6 +410,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
                   AND o.status NOT IN ('CHO_XAC_NHAN', 'DA_XAC_NHAN', 'CHO_THANH_TOAN', 'DA_HUY')
                   AND o.created_at >= :start
                   AND o.created_at < :end
+                  AND (:routeId IS NULL OR o.route_id = :routeId)
                 GROUP BY
                     o.route_id,
                     o.staff_id
@@ -430,6 +433,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
                   AND g.staff_id = o.staff_id
             WHERE
                 a.role IN ('STAFF_SALE', 'LEAD_SALE')
+                AND (:routeId IS NULL OR o.route_id = :routeId)
             GROUP BY
                 r.name,
                 s.staff_code,
@@ -442,6 +446,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     """, nativeQuery = true)
     List<Object[]> aggregateStaffKPIByRoute(
             @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end);
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId);
 }
 
