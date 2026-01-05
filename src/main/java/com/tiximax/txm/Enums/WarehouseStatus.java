@@ -2,5 +2,6 @@ package com.tiximax.txm.Enums;
 
 public enum WarehouseStatus {
     DA_NHAP_KHO,
-    DANG_DOI_TRA,
+    DA_THU_TIEN,
+    DANG_DOI_TRA
 }

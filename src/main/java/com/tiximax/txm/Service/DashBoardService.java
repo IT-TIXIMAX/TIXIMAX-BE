@@ -563,7 +563,7 @@ public class DashBoardService {
     }
 
     public Map<String, RouteStaffPerformance> getStaffPerformanceByRouteGrouped(
-            LocalDate start, LocalDate end) {
+            LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
 
         Account currentAccount = accountUtils.getAccountCurrent();
         if (currentAccount.getRole() != AccountRoles.ADMIN &&
@@ -571,11 +571,15 @@ public class DashBoardService {
             throw new SecurityException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
         }
 
-        LocalDateTime startDateTime = start.atStartOfDay();
-        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
 
         List<Object[]> aggregates = ordersRepository.aggregateStaffKPIByRoute(
-                startDateTime, endDateTime);
+                startDateTime, endDateTime, routeId);
 
         Map<String, Map<String, StaffPerformanceKPI>> tempMap = new HashMap<>();
 
@@ -584,7 +588,6 @@ public class DashBoardService {
             if (routeName == null) routeName = "Không xác định";
             String staffCode = (String) row[1];
             String staffName = (String) row[2];
-//            BigDecimal totalGoods = (BigDecimal) row[4];
             BigDecimal totalGoods = row[3] == null ? BigDecimal.ZERO
                             : BigDecimal.valueOf(((Number) row[3]).doubleValue());
 
@@ -605,7 +608,6 @@ public class DashBoardService {
             kpi.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
         }
 
-        // 2. Xây dựng kết quả + sắp xếp nhân viên theo totalGoods giảm dần
         Map<String, RouteStaffPerformance> result = new TreeMap<>();
 
         tempMap.forEach((routeName, staffMap) -> {
