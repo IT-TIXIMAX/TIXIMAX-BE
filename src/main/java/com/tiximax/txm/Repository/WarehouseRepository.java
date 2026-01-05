@@ -185,12 +185,42 @@ int countImportedByCustomerAndFlight(
                 @Param("importedStatus") OrderLinkStatus importedStatus
         );
 
-
-
     @Query("""
         SELECT COUNT(w)
         FROM Warehouse w
         WHERE w.packing.flightCode = :flightCode
     """)
     int countByFlightCode(@Param("flightCode") String flightCode);
+
+    @Query(
+    value = """
+        select distinct w
+        from Warehouse w
+        join w.orders o
+        join o.customer c
+        join w.orderLinks ol
+        where ol.status = :status
+          and (
+                :customerCode IS NULL
+                OR upper(c.customerCode) = :customerCode
+          )
+    """,
+    countQuery = """
+        select count(distinct w.id)
+        from Warehouse w
+        join w.orders o
+        join o.customer c
+        join w.orderLinks ol
+        where ol.status = :status
+          and (
+                :customerCode IS NULL
+                OR upper(c.customerCode) = :customerCode
+          )
+    """
+)
+Page<Warehouse> findByOrderLinkStatusAndCustomerCode(
+        @Param("status") OrderLinkStatus status,
+        @Param("customerCode") String customerCode,
+        Pageable pageable
+);
 }
