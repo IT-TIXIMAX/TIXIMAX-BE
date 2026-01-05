@@ -20,6 +20,7 @@ import com.tiximax.txm.Utils.AccountUtils;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -201,7 +202,6 @@ public class DomesticService {
     domestic.setStatus(DomesticStatus.SAN_SANG_GIAO);
     domestic = domesticRepository.save(domestic);
     return domestic;
-    
     }
 
     public List<Map<String, Object>> getReadyForDeliveryOrdersByCustomerCode(String customerCode) {
@@ -821,6 +821,7 @@ private boolean isCustomerMatching(Map<String, Object> data) {
         }
         if (updated) {
             orderLinksRepository.saveAll(orderLinks);
+            updateOrderStatusIfAllLinksReady(orderLinks);
         }
         return true;
 }
@@ -894,75 +895,85 @@ private boolean isCustomerMatching(Map<String, Object> data) {
             )
     );
     checkInDomestic.setTotalWarehouseInFlight(totalWarehouseInFlight);
-     updateOrderStatusIfAllLinksReady(orderLinks);
+    // updateOrderStatusIfAllLinksReady(orderLinks);
     return checkInDomestic;
 }
- public List<DomesticDelivery> getDomesticDelivery(DeliveryStatus status, String customerCode) {
-    
-    OrderLinkStatus orderLinkStatus;
-    if(status == DeliveryStatus.CHUA_DU_DIEU_KIEN){
-        orderLinkStatus = OrderLinkStatus.DA_NHAP_KHO_VN;
-    } else {
-        orderLinkStatus = OrderLinkStatus.CHO_GIAO;
-    }
 
-        String filterCustomerCode = null;
+public Page<DomesticDelivery> getDomesticDelivery(
+        DeliveryStatus status,
+        String customerCode,
+        Pageable pageable
+) {
+    OrderLinkStatus orderLinkStatus =
+            (status == DeliveryStatus.CHUA_DU_DIEU_KIEN)
+                    ? OrderLinkStatus.DA_NHAP_KHO_VN
+                    : OrderLinkStatus.CHO_GIAO;
+
+    String filterCustomerCode = null;
     if (customerCode != null && !customerCode.trim().isEmpty()) {
         filterCustomerCode = customerCode.trim().toUpperCase();
     }
 
-     List<Warehouse> warehouses =
-            warehouseRepository.findWarehousesByOrderLinkStatus(
+    Page<Warehouse> warehousePage =
+            warehouseRepository.findByOrderLinkStatusAndCustomerCode(
                     orderLinkStatus,
-                    filterCustomerCode
+                    filterCustomerCode,
+                    pageable
             );
 
-            
-    if (warehouses.isEmpty()) {
-        return List.of();
+    if (warehousePage.isEmpty()) {
+        return Page.empty(pageable);
     }
 
-    // 🔑 group theo customerCode
+    List<DomesticDelivery> result = new ArrayList<>();
+
     Map<String, DomesticDelivery> map = new LinkedHashMap<>();
 
-    for (Warehouse w : warehouses) {
+    for (Warehouse w : warehousePage.getContent()) {
         Orders order = w.getOrders();
         if (order == null || order.getCustomer() == null) continue;
 
         String cCode = order.getCustomer().getCustomerCode();
 
-        DomesticDelivery dto = map.computeIfAbsent(cCode, k -> {
-            DomesticDelivery d = new DomesticDelivery();
-            d.setCustomerCode(cCode);
-            d.setCustomerName(order.getCustomer().getName());
-            d.setPhoneNumber(order.getCustomer().getPhone());
-            d.setAddress(
-                    order.getAddress() != null
-                            ? order.getAddress().getAddressName()
-                            : null
-            );
-            d.setStaffName(order.getStaff().getName());
-            d.setStatus(status.name());
-            d.setShipmemtCode(new ArrayList<>());
-            return d;
-        });
+        DomesticDelivery delivery =
+                map.computeIfAbsent(cCode, k -> {
+                    DomesticDelivery d = new DomesticDelivery();
+                    d.setCustomerCode(cCode);
+                    d.setCustomerName(order.getCustomer().getName());
+                    d.setPhoneNumber(order.getCustomer().getPhone());
+                    d.setAddress(
+                            order.getAddress() != null
+                                    ? order.getAddress().getAddressName()
+                                    : null
+                    );
+                    d.setStaffName(order.getStaff().getName());
+                    d.setStatus(status.name());
+                    d.setShipmemtCode(new ArrayList<>());
+                    return d;
+                });
 
-      
         if (w.getOrderLinks() != null) {
             w.getOrderLinks().stream()
                     .map(OrderLinks::getShipmentCode)
                     .filter(code -> code != null && !code.isBlank())
                     .distinct()
                     .forEach(code -> {
-                        if (!dto.getShipmemtCode().contains(code)) {
-                            dto.getShipmemtCode().add(code);
+                        if (!delivery.getShipmemtCode().contains(code)) {
+                            delivery.getShipmemtCode().add(code);
                         }
                     });
         }
     }
 
-        return new ArrayList<>(map.values());
+    result.addAll(map.values());
+
+    return new PageImpl<>(
+            result,
+            pageable,
+            warehousePage.getTotalElements()
+    );
 }
+
     
  }
 

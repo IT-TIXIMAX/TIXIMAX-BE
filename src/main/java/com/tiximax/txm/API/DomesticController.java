@@ -13,6 +13,7 @@ import com.tiximax.txm.Service.DomesticService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -169,23 +170,27 @@ public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(
     return ResponseEntity.ok(result);
 }
 
-@GetMapping("/delivery")
-public ResponseEntity<List<DomesticDelivery>> getDomesticDelivery(
+@GetMapping("/delivery/{page}/{size}")
+public ResponseEntity<Page<DomesticDelivery>> getDomesticDelivery(
+       
         @RequestParam DeliveryStatus status,
-        @RequestParam(required = false) String customerCode
+        @RequestParam(required = false) String customerCode,
+         @PathVariable int page,
+        @PathVariable int size
 ) {
     if (status == null) {
         return ResponseEntity.badRequest().build();
     }
 
-    List<DomesticDelivery> result =
-            domesticService.getDomesticDelivery(status, customerCode);
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<DomesticDelivery> result =
+            domesticService.getDomesticDelivery(status, customerCode, pageable);
 
     if (result.isEmpty()) {
         return ResponseEntity.noContent().build();
     }
-
     return ResponseEntity.ok(result);
 }
-
 }
+

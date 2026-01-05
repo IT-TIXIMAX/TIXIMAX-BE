@@ -23,6 +23,8 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
     
     boolean existsByShipmentCode(String shipmentCode);
 
+    boolean existsByShipmentCodeAndOrders_OrderIdNot(String shipmentCode, Long orderId);
+
     List<OrderLinks> findByTrackingCodeIn(List<String> trackingCodes);
 
     List<OrderLinks> findByOrdersOrderId(Long orderId);
