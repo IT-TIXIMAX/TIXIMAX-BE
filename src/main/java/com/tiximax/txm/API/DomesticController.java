@@ -172,7 +172,6 @@ public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(
 
 @GetMapping("/delivery/{page}/{size}")
 public ResponseEntity<Page<DomesticDelivery>> getDomesticDelivery(
-       
         @RequestParam DeliveryStatus status,
         @RequestParam(required = false) String customerCode,
          @PathVariable int page,
@@ -185,7 +184,7 @@ public ResponseEntity<Page<DomesticDelivery>> getDomesticDelivery(
     Pageable pageable = PageRequest.of(page, size);
 
     Page<DomesticDelivery> result =
-            domesticService.getDomesticDelivery(status, customerCode, pageable);
+            domesticService.getDomesticDeliveryByCustomerPaged(status, customerCode, pageable);
 
     if (result.isEmpty()) {
         return ResponseEntity.noContent().build();
