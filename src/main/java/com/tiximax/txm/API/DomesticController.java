@@ -172,7 +172,6 @@ public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(
 
 @GetMapping("/delivery/{page}/{size}")
 public ResponseEntity<Page<DomesticDelivery>> getDomesticDelivery(
-       
         @RequestParam DeliveryStatus status,
         @RequestParam(required = false) String customerCode,
          @PathVariable int page,

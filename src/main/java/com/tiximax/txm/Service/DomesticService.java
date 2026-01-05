@@ -9,6 +9,7 @@ import com.tiximax.txm.Model.DomesticResponse;
 import com.tiximax.txm.Model.DomesticSend;
 import com.tiximax.txm.Model.EnumFilter.DeliveryStatus;
 import com.tiximax.txm.Repository.AddressRepository;
+import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DomesticRepository;
 import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.OrdersRepository;
@@ -44,6 +45,8 @@ public class DomesticService {
     private OrdersRepository ordersRepository;
     @Autowired
     private WarehouseRepository warehouseRepository;
+    @Autowired
+    private CustomerRepository customerRepository;
 
     @Autowired
     private WarehouseLocationRepository warehouseLocationRepository;
@@ -904,16 +907,20 @@ public Page<DomesticDelivery> getDomesticDelivery(
         String customerCode,
         Pageable pageable
 ) {
-    OrderLinkStatus orderLinkStatus =
-            (status == DeliveryStatus.CHUA_DU_DIEU_KIEN)
-                    ? OrderLinkStatus.DA_NHAP_KHO_VN
-                    : OrderLinkStatus.CHO_GIAO;
+    OrderLinkStatus orderLinkStatus = switch (status) {
+        case CHUA_DU_DIEU_KIEN -> OrderLinkStatus.DA_NHAP_KHO_VN;
+        case DU_DIEU_KIEN -> OrderLinkStatus.CHO_GIAO;
+    };
+            
 
     String filterCustomerCode = null;
     if (customerCode != null && !customerCode.trim().isEmpty()) {
         filterCustomerCode = customerCode.trim().toUpperCase();
     }
-
+    boolean existCustomer = customerRepository.existsByCustomerCode(filterCustomerCode);
+    if (filterCustomerCode != null && !existCustomer) {
+        throw new IllegalArgumentException("Mã khách hàng không tồn tại!");
+    }
     Page<Warehouse> warehousePage =
             warehouseRepository.findByOrderLinkStatusAndCustomerCode(
                     orderLinkStatus,
@@ -928,7 +935,6 @@ public Page<DomesticDelivery> getDomesticDelivery(
     List<DomesticDelivery> result = new ArrayList<>();
 
     Map<String, DomesticDelivery> map = new LinkedHashMap<>();
-
     for (Warehouse w : warehousePage.getContent()) {
         Orders order = w.getOrders();
         if (order == null || order.getCustomer() == null) continue;
@@ -948,18 +954,17 @@ public Page<DomesticDelivery> getDomesticDelivery(
                     );
                     d.setStaffName(order.getStaff().getName());
                     d.setStatus(status.name());
-                    d.setShipmemtCode(new ArrayList<>());
+                    d.setShipmentCode(new ArrayList<>());
                     return d;
                 });
-
         if (w.getOrderLinks() != null) {
             w.getOrderLinks().stream()
                     .map(OrderLinks::getShipmentCode)
                     .filter(code -> code != null && !code.isBlank())
                     .distinct()
                     .forEach(code -> {
-                        if (!delivery.getShipmemtCode().contains(code)) {
-                            delivery.getShipmemtCode().add(code);
+                        if (!delivery.getShipmentCode().contains(code)) {
+                            delivery.getShipmentCode().add(code);
                         }
                     });
         }
