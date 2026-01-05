@@ -6,4 +6,5 @@ public interface CustomerDeliveryRow {
     String getPhoneNumber();
     String getAddress();
     String getStaffName();
+    String getStaffCode();
 }

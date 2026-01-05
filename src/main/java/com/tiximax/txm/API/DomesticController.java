@@ -184,7 +184,7 @@ public ResponseEntity<Page<DomesticDelivery>> getDomesticDelivery(
     Pageable pageable = PageRequest.of(page, size);
 
     Page<DomesticDelivery> result =
-            domesticService.getDomesticDelivery(status, customerCode, pageable);
+            domesticService.getDomesticDeliveryByCustomerPaged(status, customerCode, pageable);
 
     if (result.isEmpty()) {
         return ResponseEntity.noContent().build();
