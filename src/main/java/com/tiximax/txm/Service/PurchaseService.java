@@ -560,39 +560,47 @@ public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
 
         if (request.getShipmentCode() != null) {
             String newShipmentCode = request.getShipmentCode().trim();
-
-            if (newShipmentCode.isEmpty()) {
-                throw new IllegalArgumentException("Mã vận đơn không được để trống!");
-            }
+          
+            String shipmentCode = request.getShipmentCode().trim();
+        
 
             Set<OrderLinks> orderLinks = purchase.getOrderLinks();
             if (orderLinks == null || orderLinks.isEmpty()) {
                 throw new IllegalArgumentException("Giao dịch mua chưa có OrderLinks để cập nhật mã vận đơn!");
             }
 
-            OrderLinks firstLink = orderLinks.stream()
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Giao dịch mua chưa có OrderLinks!"));
-
-            Orders order = firstLink.getOrders(); 
-            if (order == null) {
-                throw new IllegalArgumentException("OrderLinks chưa gắn Orders!");
-            }
-            Long currentOrderId = order.getOrderId(); 
-
-            if (orderLinksRepository.existsByShipmentCodeAndOrders_OrderIdNot(newShipmentCode, currentOrderId)) {
-                throw new IllegalArgumentException(
-                        "Mã vận đơn '" + newShipmentCode + "' đã tồn tại ở đơn khác!"
-                );
-            }
+        if (shipmentCode.isEmpty()) {
             for (OrderLinks link : orderLinks) {
-                link.setShipmentCode(newShipmentCode);
+                link.setShipmentCode(""); 
             }
             orderLinksRepository.saveAll(orderLinks);
         }
+        // 🔑 CÓ GIÁ TRỊ → CHECK TRÙNG & UPDATE
+        else {
+            OrderLinks firstLink = orderLinks.iterator().next();
+            Orders order = firstLink.getOrders();
+            if (order == null) {
+                throw new IllegalArgumentException("OrderLinks chưa gắn Orders!");
+            }
 
-        return purchasesRepository.save(purchase);
+            Long currentOrderId = order.getOrderId();
+
+            if (orderLinksRepository
+                    .existsByShipmentCodeAndOrders_OrderIdNot(shipmentCode, currentOrderId)) {
+                throw new IllegalArgumentException(
+                        "Mã vận đơn '" + shipmentCode + "' đã tồn tại ở đơn khác!"
+                );
+            }
+
+            for (OrderLinks link : orderLinks) {
+                link.setShipmentCode(shipmentCode);
+            }
+            orderLinksRepository.saveAll(orderLinks);
+        }
     }
+
+    return purchasesRepository.save(purchase);
+}
 
     private BigDecimal round1(BigDecimal v) {
         if (v == null) return BigDecimal.ZERO;
