@@ -33,7 +33,7 @@ public class DashBoardController {
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType) {
         StartEndDate startEndDate = dashBoardService.getDateStartEnd(filterType);
-        return dashBoardService.getDashboard(startEndDate.getStartDate(), startEndDate.getEndDate());
+        return dashBoardService.getDashboard(startEndDate.getStartDate(), startEndDate.getEndDate(), filterType);
     }
 
     @GetMapping("admin/orders")
@@ -82,19 +82,6 @@ public class DashBoardController {
     public ResponseEntity<List<MonthlyStatsWarehouse>> getYearlyStatsWarehouse(@PathVariable int year) {
         return ResponseEntity.ok(dashBoardService.getYearlyStatsWarehouse(year));
     }
-
-//    @GetMapping("/routes/revenue-summary")
-//    public ResponseEntity<List<RoutePaymentSummary>> getRevenueByRoute(
-//            @RequestParam(required = false) LocalDate startDate,
-//            @RequestParam(required = false) LocalDate endDate,
-//            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
-//            @RequestParam(required = false) PaymentStatus status) {
-//
-//        List<RoutePaymentSummary> result = dashBoardService.getRevenueByRoute(
-//                startDate, endDate, filterType, status);
-//
-//        return ResponseEntity.ok(result);
-//    }
 
     @GetMapping("admin/debts-total")
     public Map<String, BigDecimal> getAdminDebtsTotal() {

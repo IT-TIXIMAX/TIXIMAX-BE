@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
-
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Model.*;
@@ -54,13 +53,21 @@ public class DashBoardService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    public DashboardResponse getDashboard(LocalDate startDate, LocalDate endDate) {
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+    public DashboardResponse getDashboard(LocalDate startDate, LocalDate endDate, DashboardFilterType filterType) {
+//        LocalDateTime start = startDate.atStartOfDay();
+//        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (startDate != null) ? startDate : dateRange.getStartDate();
+        LocalDate finalEnd = (endDate != null) ? endDate : dateRange.getEndDate();
+
+        LocalDateTime start = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime end = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
         long totalOrders = ordersRepository.countByCreatedAtBetween(start, end);
-        BigDecimal totalRevenue = paymentRepository.sumCollectedAmountBetween(start, end).setScale(0, RoundingMode.HALF_UP);;
+//        BigDecimal totalRevenue = paymentRepository.sumCollectedAmountBetween(start, end).setScale(0, RoundingMode.HALF_UP);;
         BigDecimal totalPurchase = paymentRepository.sumPurchaseBetween(start, end).setScale(0, RoundingMode.HALF_UP);;
         BigDecimal totalShip = paymentRepository.sumShipRevenueBetween(start, end).setScale(0, RoundingMode.HALF_UP);;
+        BigDecimal totalRevenue = totalPurchase.add(totalShip);
         long newCustomers = customerRepository.countByCreatedAtBetween(start, end);
         long totalLinks = orderLinksRepository.countByOrdersCreatedAtBetween(start, end);
         Double totalWeight = warehouseRepository.sumWeightByCreatedAtBetween(start, end);
@@ -97,8 +104,13 @@ public class DashBoardService {
 
     public Map<String, BigDecimal> getPaymentSummary() {
         Map<String, BigDecimal> map = new HashMap<>();
-        BigDecimal hang = paymentRepository.sumCollectedAmountByStatusAndActionAtBetween(
-                PaymentStatus.DA_THANH_TOAN, start(), end());
+//        BigDecimal hang = paymentRepository.sumCollectedAmountByStatusAndActionAtBetween(
+//                PaymentStatus.DA_THANH_TOAN, start(), end());
+
+        BigDecimal hang = paymentRepository.sumCollectedAmountByStatusesAndActionAtBetween(
+                List.of(PaymentStatus.DA_THANH_TOAN, PaymentStatus.DA_HOAN_TIEN),
+                start(), end());
+
         BigDecimal ship = paymentRepository.sumCollectedAmountByStatusAndActionAtBetween(
                 PaymentStatus.DA_THANH_TOAN_SHIP, start(), end());
 
