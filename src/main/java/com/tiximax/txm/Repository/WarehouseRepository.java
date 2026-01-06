@@ -3,6 +3,8 @@ package com.tiximax.txm.Repository;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
+import com.tiximax.txm.Model.CustomerDeliveryRow;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -223,4 +225,44 @@ Page<Warehouse> findByOrderLinkStatusAndCustomerCode(
         @Param("customerCode") String customerCode,
         Pageable pageable
 );
+@Query("""
+select
+  c.customerCode as customerCode,
+  c.name as customerName,
+  c.phone as phoneNumber,
+  max(a.addressName) as address,
+  s.name as staffName,
+  s.staffCode as staffCode
+from Warehouse w
+  join w.orders o
+  join o.customer c
+  left join o.staff s
+  left join o.address a
+  join w.orderLinks ol
+where ol.status = :orderLinkStatus
+ and (
+   :customerCode is null
+   or upper(c.customerCode) like concat('%', cast(:customerCode as string), '%')
+)
+group by c.customerCode, c.name, c.phone, s.name, s.staffCode
+""")
+Page<CustomerDeliveryRow> findDomesticDelivery(
+    @Param("orderLinkStatus") OrderLinkStatus orderLinkStatus,
+    @Param("customerCode") String customerCode,
+    Pageable pageable
+);
+
+@Query("""
+        select c.customerCode, ol.shipmentCode
+        from Warehouse w
+          join w.orders o
+          join o.customer c
+          join w.orderLinks ol
+        where ol.status = :orderLinkStatus
+          and c.customerCode in :customerCodes
+        """)
+    List<Object[]> findShipmentCodesByCustomerCodes(
+            @Param("orderLinkStatus") OrderLinkStatus orderLinkStatus,
+            @Param("customerCodes") List<String> customerCodes
+    );
 }

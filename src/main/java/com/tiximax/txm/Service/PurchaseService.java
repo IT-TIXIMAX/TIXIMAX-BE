@@ -10,6 +10,9 @@ import com.tiximax.txm.Enums.PurchaseFilter;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -539,9 +542,9 @@ public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
     });
 }
 
-
-
+  @Transactional
     public Purchases updatePurchase(Long purchaseId, UpdatePurchaseRequest request) {
+
         Purchases purchase = purchasesRepository.findById(purchaseId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giao dịch mua!"));
 
@@ -554,26 +557,51 @@ public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
         if (request.getImagePurchased() != null && !request.getImagePurchased().isEmpty()) {
             purchase.setPurchaseImage(request.getImagePurchased());
         }
+
         if (request.getShipmentCode() != null) {
             String newShipmentCode = request.getShipmentCode().trim();
-            if (newShipmentCode.isEmpty()) {
-                throw new IllegalArgumentException("Mã vận đơn không được để trống!");
-            }
-            if (orderLinksRepository.existsByShipmentCode(newShipmentCode)) {
-                boolean isExistingOutside = purchase.getOrderLinks().stream()
-                        .anyMatch(link -> !link.getShipmentCode().equals(newShipmentCode) && orderLinksRepository.existsByShipmentCode(newShipmentCode));
-                if (isExistingOutside) {
-                    throw new IllegalArgumentException("Mã vận đơn '" + newShipmentCode + "' đã tồn tại!");
-                }
-            }
+          
+            String shipmentCode = request.getShipmentCode().trim();
+        
+
             Set<OrderLinks> orderLinks = purchase.getOrderLinks();
+            if (orderLinks == null || orderLinks.isEmpty()) {
+                throw new IllegalArgumentException("Giao dịch mua chưa có OrderLinks để cập nhật mã vận đơn!");
+            }
+
+        if (shipmentCode.isEmpty()) {
             for (OrderLinks link : orderLinks) {
-                link.setShipmentCode(newShipmentCode);
+                link.setShipmentCode(""); 
             }
             orderLinksRepository.saveAll(orderLinks);
         }
-        return purchasesRepository.save(purchase);
+        // 🔑 CÓ GIÁ TRỊ → CHECK TRÙNG & UPDATE
+        else {
+            OrderLinks firstLink = orderLinks.iterator().next();
+            Orders order = firstLink.getOrders();
+            if (order == null) {
+                throw new IllegalArgumentException("OrderLinks chưa gắn Orders!");
+            }
+
+            Long currentOrderId = order.getOrderId();
+
+            if (orderLinksRepository
+                    .existsByShipmentCodeAndOrders_OrderIdNot(shipmentCode, currentOrderId)) {
+                throw new IllegalArgumentException(
+                        "Mã vận đơn '" + shipmentCode + "' đã tồn tại ở đơn khác!"
+                );
+            }
+
+            for (OrderLinks link : orderLinks) {
+                link.setShipmentCode(shipmentCode);
+            }
+            orderLinksRepository.saveAll(orderLinks);
+        }
     }
+
+    return purchasesRepository.save(purchase);
+}
+
     private BigDecimal round1(BigDecimal v) {
         if (v == null) return BigDecimal.ZERO;
         return v.setScale(1, RoundingMode.HALF_UP);
