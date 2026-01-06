@@ -252,7 +252,7 @@ Page<CustomerDeliveryRow> findDomesticDelivery(
     Pageable pageable
 );
 
-    @Query("""
+@Query("""
         select c.customerCode, ol.shipmentCode
         from Warehouse w
           join w.orders o
