@@ -1,6 +1,7 @@
 package com.tiximax.txm.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.tiximax.txm.Enums.DomesticStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -36,6 +37,14 @@ public class Domestic {
     @JoinColumn(name = "to_address_id")
     @JsonIgnore
     private Address toAddress;
+
+    @Column(nullable = true)
+    private String address;
+
+    @ManyToOne
+    @JoinColumn(name="customer_id", nullable = true)
+    @JsonManagedReference
+    Customer customer;
 
     @Enumerated(EnumType.STRING)
     private DomesticStatus status;
