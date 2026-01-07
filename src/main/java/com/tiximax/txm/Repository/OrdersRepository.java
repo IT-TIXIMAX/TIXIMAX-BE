@@ -403,16 +403,20 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
                 SELECT
                     o.route_id,
                     o.staff_id,
-                    SUM(ol.final_price_vnd) AS total_goods
+                    COALESCE(SUM(ol.total_web), 0) AS total_goods
                 FROM order_links ol
-                JOIN purchases p ON ol.purchase_id = p.purchase_id
-                JOIN orders o ON p.order_id = o.order_id
-                WHERE p.purchase_time >= :start
-                  AND p.purchase_time < :end
-                  AND (:routeId IS NULL OR o.route_id = :routeId)
-                  AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
-                  AND o.status NOT IN ('CHO_XAC_NHAN', 'DA_XAC_NHAN', 'CHO_THANH_TOAN', 'CHO_MUA', 'DAU_GIA_THANH_CONG', 'CHO_THANH_TOAN_DAU_GIA', 'CHO_NHAP_KHO_NN', 'DA_HUY')
-                GROUP BY o.route_id, o.staff_id
+                LEFT JOIN warehouse w
+                    ON ol.warehouse_id = w.warehouse_id
+                LEFT JOIN purchases p
+                    ON ol.purchase_id = p.purchase_id
+                LEFT JOIN orders o
+                    ON o.order_id = COALESCE(w.order_id, p.order_id)
+                WHERE
+                    COALESCE(w.created_at, p.purchase_time) >= '2025-12-01'
+                    AND COALESCE(w.created_at, p.purchase_time) < '2026-01-01'
+                    AND o.route_id = 6
+                    AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
+                GROUP BY o.route_id, o.staff_id;
             )
             SELECT
                 COALESCE(r.name, 'Không xác định') AS route_name,
@@ -463,5 +467,19 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
 //    o.route_id,
 //    o.staff_id
 
+
+//    SELECT
+//    o.route_id,
+//    o.staff_id,
+//    SUM(ol.final_price_vnd) AS total_goods
+//    FROM order_links ol
+//    JOIN purchases p ON ol.purchase_id = p.purchase_id
+//    JOIN orders o ON p.order_id = o.order_id
+//    WHERE p.purchase_time >= :start
+//    AND p.purchase_time < :end
+//    AND (:routeId IS NULL OR o.route_id = :routeId)
+//    AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
+//    AND o.status NOT IN ('CHO_XAC_NHAN', 'DA_XAC_NHAN', 'CHO_THANH_TOAN', 'CHO_MUA', 'DAU_GIA_THANH_CONG', 'CHO_THANH_TOAN_DAU_GIA', 'CHO_NHAP_KHO_NN', 'DA_HUY')
+//    GROUP BY o.route_id, o.staff_id
 }
 
