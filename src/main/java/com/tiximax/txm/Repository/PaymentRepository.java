@@ -70,15 +70,28 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             LocalDateTime end
     );
 
+//    @Query("""
+//            SELECT COALESCE(SUM(p.collectedAmount), 0)
+//            FROM Payment p
+//            WHERE p.status IN (
+//                com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN,
+//                com.tiximax.txm.Enums.PaymentStatus.DA_HOAN_TIEN,
+//                com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN_SHIP
+//            )
+//              AND p.actionAt BETWEEN :start AND :end """)
+//    BigDecimal sumCollectedAmountBetween(@Param("start") LocalDateTime start,
+//                                         @Param("end") LocalDateTime end);
+
     @Query("""
-            SELECT COALESCE(SUM(p.collectedAmount), 0)
+            SELECT COALESCE(SUM(p.amount), 0)
             FROM Payment p
             WHERE p.status IN (
                 com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN,
+                com.tiximax.txm.Enums.PaymentStatus.DA_HOAN_TIEN,
                 com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN_SHIP
             )
               AND p.actionAt BETWEEN :start AND :end """)
-    BigDecimal sumCollectedAmountBetween(@Param("start") LocalDateTime start,
+    BigDecimal sumAmountBetween(@Param("start") LocalDateTime start,
                                          @Param("end") LocalDateTime end);
 
     @Query("""
@@ -90,9 +103,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                                      @Param("end") LocalDateTime end);
 
     @Query("""
-            SELECT COALESCE(SUM(p.collectedAmount), 0)
+            SELECT COALESCE(SUM(p.amount), 0)
             FROM Payment p
-            WHERE p.status = com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN
+            WHERE p.status IN (
+                com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN,
+                com.tiximax.txm.Enums.PaymentStatus.DA_HOAN_TIEN
+            )
               AND p.actionAt BETWEEN :start AND :end """)
     BigDecimal sumPurchaseBetween(@Param("start") LocalDateTime start,
                                   @Param("end") LocalDateTime end);
@@ -108,7 +124,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                                           @Param("status") String status);
 
 
-    //    BigDecimal sumCollectedAmountByStatusAndActionAtBetween(PaymentStatus paymentStatus, LocalDateTime start, LocalDateTime end);
     @Query("SELECT COALESCE(SUM(p.collectedAmount), 0) " +
             "FROM Payment p " +
             "WHERE p.status = :status " +
@@ -117,6 +132,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("status") PaymentStatus status,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(p.collectedAmount), 0) " +
+            "FROM Payment p " +
+            "WHERE p.status IN :statuses " +
+            "AND p.actionAt BETWEEN :start AND :end")
+    BigDecimal sumCollectedAmountByStatusesAndActionAtBetween(
+            @Param("statuses") List<PaymentStatus> statuses,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
+
 
     @Query("SELECT MONTH(p.actionAt), SUM(p.collectedAmount) FROM Payment p WHERE YEAR(p.actionAt) = :year AND p.status = 'DA_THANH_TOAN' GROUP BY MONTH(p.actionAt)")
     List<Object[]> sumRevenueByMonth(@Param("year") int year);

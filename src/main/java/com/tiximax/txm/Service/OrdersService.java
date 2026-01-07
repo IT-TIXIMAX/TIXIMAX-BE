@@ -1049,7 +1049,7 @@ if (consignmentRequest.getConsignmentLinkRequests() != null) {
         } else {
             customer.setBalance(customer.getBalance().add(amountToProcess));
             refundPayment.setContent("Chuyển vào số dư cho đơn " + order.getOrderCode());
-            refundPayment.setCollectedAmount(BigDecimal.ZERO);
+            refundPayment.setCollectedAmount(amountToProcess.negate());
             paymentRepository.save(refundPayment);
         }
 
