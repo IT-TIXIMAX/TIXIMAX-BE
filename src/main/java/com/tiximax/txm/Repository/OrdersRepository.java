@@ -412,11 +412,11 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
                 LEFT JOIN orders o
                     ON o.order_id = COALESCE(w.order_id, p.order_id)
                 WHERE
-                    COALESCE(w.created_at, p.purchase_time) >= '2025-12-01'
-                    AND COALESCE(w.created_at, p.purchase_time) < '2026-01-01'
-                    AND o.route_id = 6
+                    COALESCE(w.created_at, p.purchase_time) >= :start
+                    AND COALESCE(w.created_at, p.purchase_time) < :end
+                    AND (:routeId IS NULL OR o.route_id = :routeId)
                     AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
-                GROUP BY o.route_id, o.staff_id;
+                GROUP BY o.route_id, o.staff_id
             )
             SELECT
                 COALESCE(r.name, 'Không xác định') AS route_name,
