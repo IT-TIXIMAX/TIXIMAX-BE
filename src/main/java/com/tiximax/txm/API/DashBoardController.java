@@ -177,4 +177,12 @@ public class DashBoardController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/routes/inventory-summary")
+    public ResponseEntity<RouteInventorySummary> getInventorySummaryByRoute(
+            @RequestParam Long routeId) {
+
+        RouteInventorySummary summary = dashBoardService.getInventorySummaryByRoute(routeId);
+        return ResponseEntity.ok(summary);
+    }
+
 }

@@ -635,4 +635,12 @@ public class DashBoardService {
 
         return result;
     }
+
+    public RouteInventorySummary getInventorySummaryByRoute(Long routeId) {
+        Object[] result = warehouseRepository.sumCurrentStockWeightByRoute(routeId);
+
+        double totalWeight = result[0] != null ? (double) result[0] : 0;
+        double totalNetWeight = result[1] != null ? (double) result[1] : 0;
+        return new RouteInventorySummary(totalWeight, totalNetWeight);
+    }
 }

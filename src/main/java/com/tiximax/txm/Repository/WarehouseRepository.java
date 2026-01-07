@@ -265,4 +265,19 @@ Page<CustomerDeliveryRow> findDomesticDelivery(
             @Param("orderLinkStatus") OrderLinkStatus orderLinkStatus,
             @Param("customerCodes") List<String> customerCodes
     );
+
+    @Query(nativeQuery = true,
+            value = "SELECT " +
+                    "COALESCE(SUM(w.weight), 0), " +
+                    "COALESCE(SUM(w.net_weight), 0) " +
+                    "FROM warehouse w " +
+                    "JOIN orders o ON w.order_id = o.order_id " +
+                    "WHERE o.route_id = :routeId " +
+                    "AND w.packing_id IS NULL " +
+                    "AND EXISTS (" +
+                    "  SELECT 1 FROM order_links ol " +
+                    "  WHERE ol.warehouse_id = w.warehouse_id " +
+                    "  AND ol.status = 'DA_NHAP_KHO_NN'" +
+                    ")")
+    Object[] sumCurrentStockWeightByRoute(@Param("routeId") Long routeId);
 }
