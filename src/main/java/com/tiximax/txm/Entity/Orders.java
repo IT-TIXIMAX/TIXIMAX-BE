@@ -62,7 +62,6 @@ public class Orders {
 
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = false)
-//    @JsonIgnore
     @JsonManagedReference
     Customer customer;
 

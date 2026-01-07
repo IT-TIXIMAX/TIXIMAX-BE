@@ -1,6 +1,9 @@
 package com.tiximax.txm.API;
 
+import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Domestic;
+import com.tiximax.txm.Entity.Staff;
+import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Model.CheckInDomestic;
 import com.tiximax.txm.Model.CreateDomesticRequest;
 import com.tiximax.txm.Model.DomesticDelivery;
@@ -10,6 +13,7 @@ import com.tiximax.txm.Model.DomesticSend;
 import com.tiximax.txm.Model.VNPostTrackingCode;
 import com.tiximax.txm.Model.EnumFilter.DeliveryStatus;
 import com.tiximax.txm.Service.DomesticService;
+import com.tiximax.txm.Utils.AccountUtils;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,9 @@ public class DomesticController {
 
     @Autowired
     private DomesticService domesticService;
+
+    @Autowired
+    private AccountUtils accountUtils;
 
     @PostMapping("/received")
     public ResponseEntity<DomesticRecieve> createDomesticForWarehousing(@RequestBody CreateDomesticRequest request) {
@@ -174,21 +181,29 @@ public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(
 public ResponseEntity<Page<DomesticDelivery>> getDomesticDelivery(
         @RequestParam DeliveryStatus status,
         @RequestParam(required = false) String customerCode,
-         @PathVariable int page,
+        @PathVariable int page,
         @PathVariable int size
 ) {
     if (status == null) {
         return ResponseEntity.badRequest().build();
     }
 
+    Account currentAccount = accountUtils.getAccountCurrent();
     Pageable pageable = PageRequest.of(page, size);
 
-    Page<DomesticDelivery> result =
-            domesticService.getDomesticDeliveryByCustomerPaged(status, customerCode, pageable);
+    Long staffId =
+            AccountRoles.STAFF_SALE.equals(currentAccount.getRole())
+                    ? currentAccount.getAccountId()
+                    : null;
 
-    if (result.isEmpty()) {
-        return ResponseEntity.noContent().build();
-    }
+    Page<DomesticDelivery> result =
+            domesticService.getDomesticDeliveryByCustomerPaged(
+                    status,
+                    customerCode,
+                    staffId,
+                    pageable
+            );
+
     return ResponseEntity.ok(result);
 }
 }
