@@ -1,4 +1,5 @@
-package com.tiximax.txm.Model.DTORequest;
+package com.tiximax.txm.Model.DTORequest.DraftDomestic;
+
 
 import java.util.List;
 import jakarta.validation.constraints.NotBlank;
@@ -18,6 +19,8 @@ public class DraftDomesticRequest {
     private String phoneNumber;
     @NotBlank(message = "Địa chỉ không được để trống")
     private String address;
+
+    private Boolean isVNpost; 
 
     private List<String> shippingList;
 

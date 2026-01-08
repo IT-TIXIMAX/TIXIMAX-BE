@@ -9,6 +9,7 @@ import com.tiximax.txm.Model.DomesticRecieve;
 import com.tiximax.txm.Model.DomesticResponse;
 import com.tiximax.txm.Model.DomesticSend;
 import com.tiximax.txm.Model.EnumFilter.DeliveryStatus;
+import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Repository.AddressRepository;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DomesticRepository;
@@ -939,7 +940,7 @@ public Page<DomesticDelivery> getDomesticDeliveryByCustomerPaged(
                 .filter(Objects::nonNull)
                 .toList();
 
-        List<Object[]> rows =
+        List<CustomerShipmentRow> rows =
                 warehouseRepository.findShipmentCodesByCustomerCodes(
                         orderLinkStatus,
                         customerCodes,
@@ -947,12 +948,10 @@ public Page<DomesticDelivery> getDomesticDeliveryByCustomerPaged(
                 );
 
         Map<String, List<String>> shipmentMap = new HashMap<>();
-        for (Object[] r : rows) {
-            String cCode = (String) r[0];
-            String sCode = (String) r[1];
+        for (CustomerShipmentRow r : rows) {
             shipmentMap
-                    .computeIfAbsent(cCode, k -> new ArrayList<>())
-                    .add(sCode);
+                .computeIfAbsent(r.getCustomerCode(), k -> new ArrayList<>())
+                .add(r.getTrackingCode());
         }
 
         List<DomesticDelivery> result = new ArrayList<>();

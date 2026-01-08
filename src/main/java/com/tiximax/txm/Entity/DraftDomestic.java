@@ -1,5 +1,6 @@
 package com.tiximax.txm.Entity;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -33,8 +34,14 @@ public class DraftDomestic{
     @ElementCollection
     private List<String> shippingList ;
 
+   @Column(nullable = true, precision = 10, scale = 2)
+   private BigDecimal weight;
+
+    @Column(nullable = false)
+    private Boolean isVNpost ;  // true: VNPost, false: other
+
     @Column(nullable = true)
-    private String weight;
+    private String noteTracking;
 
     @Column(nullable = true)
     private String VNPostTrackingCode;

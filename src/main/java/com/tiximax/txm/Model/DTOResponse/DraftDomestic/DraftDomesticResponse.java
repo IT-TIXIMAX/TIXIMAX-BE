@@ -1,5 +1,6 @@
-package com.tiximax.txm.Model.DTOResponse;
+package com.tiximax.txm.Model.DTOResponse.DraftDomestic;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.tiximax.txm.Entity.DraftDomestic;
@@ -7,14 +8,16 @@ import com.tiximax.txm.Entity.DraftDomestic;
 import lombok.Data;
 @Data
 public class DraftDomesticResponse {
+    private Long id;
     private String customerName;
     private String phoneNumber;
     private String address;
     private List<String> shippingList;
-    private String weight;
+    private BigDecimal weight;
     private String VNPostTrackingCode;
    
     public DraftDomesticResponse(DraftDomestic draftDomestic) {
+        this.id = draftDomestic.getId();
         this.phoneNumber = draftDomestic.getPhoneNumber();
         this.address = draftDomestic.getAddress();
         this.shippingList = draftDomestic.getShippingList();
