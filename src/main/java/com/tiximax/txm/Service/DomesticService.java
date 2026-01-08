@@ -41,8 +41,6 @@ public class DomesticService {
     @Autowired
     private PackingRepository packingRepository;
     @Autowired
-    private PartialShipmentService partialShipmentService;
-    @Autowired
     private OrdersRepository ordersRepository;
     @Autowired
     private WarehouseRepository warehouseRepository;
@@ -906,46 +904,60 @@ private boolean isCustomerMatching(Map<String, Object> data) {
 public Page<DomesticDelivery> getDomesticDeliveryByCustomerPaged(
             DeliveryStatus status,
             String customerCode,
+            Long staffId,
             Pageable pageable
     ) {
-         OrderLinkStatus orderLinkStatus = switch (status) {
-        case CHUA_DU_DIEU_KIEN -> OrderLinkStatus.DA_NHAP_KHO_VN;
-        case DU_DIEU_KIEN -> OrderLinkStatus.CHO_GIAO;
-    };
+        OrderLinkStatus orderLinkStatus = switch (status) {
+            case CHUA_DU_DIEU_KIEN -> OrderLinkStatus.DA_NHAP_KHO_VN;
+            case DU_DIEU_KIEN -> OrderLinkStatus.CHO_GIAO;
+        };
 
-        String filterCustomerCode = (customerCode == null || customerCode.isBlank())
-        ? null
-        : customerCode.trim().toUpperCase();
+        String filterCustomerCode =
+                (customerCode == null || customerCode.isBlank())
+                        ? null
+                        : customerCode.trim().toUpperCase();
 
-         boolean existCustomer = customerRepository.existsByCustomerCode(filterCustomerCode);
-    if (filterCustomerCode != null && !existCustomer) {
-        throw new IllegalArgumentException("Mã khách hàng không tồn tại!");
-    }
+        if (filterCustomerCode != null &&
+            !customerRepository.existsByCustomerCode(filterCustomerCode)) {
+            throw new IllegalArgumentException("Mã khách hàng không tồn tại!");
+        }
 
         Page<CustomerDeliveryRow> customerPage =
-                warehouseRepository.findDomesticDelivery(orderLinkStatus, filterCustomerCode, pageable);
+                warehouseRepository.findDomesticDelivery(
+                        orderLinkStatus,
+                        filterCustomerCode,
+                        staffId,
+                        pageable
+                );
 
         if (customerPage.isEmpty()) {
             return Page.empty(pageable);
         }
+
         List<String> customerCodes = customerPage.getContent().stream()
                 .map(CustomerDeliveryRow::getCustomerCode)
                 .filter(Objects::nonNull)
                 .toList();
 
         List<Object[]> rows =
-                warehouseRepository.findShipmentCodesByCustomerCodes(orderLinkStatus, customerCodes);
+                warehouseRepository.findShipmentCodesByCustomerCodes(
+                        orderLinkStatus,
+                        customerCodes,
+                        staffId
+                );
 
         Map<String, List<String>> shipmentMap = new HashMap<>();
         for (Object[] r : rows) {
             String cCode = (String) r[0];
             String sCode = (String) r[1];
-            shipmentMap.computeIfAbsent(cCode, k -> new ArrayList<>()).add(sCode);
+            shipmentMap
+                    .computeIfAbsent(cCode, k -> new ArrayList<>())
+                    .add(sCode);
         }
-        List<DomesticDelivery> dtoList = new ArrayList<>();
+
+        List<DomesticDelivery> result = new ArrayList<>();
         for (CustomerDeliveryRow c : customerPage.getContent()) {
-            List<String> shipments = shipmentMap.getOrDefault(c.getCustomerCode(), List.of());
-            dtoList.add(new DomesticDelivery(
+            result.add(new DomesticDelivery(
                     c.getCustomerCode(),
                     c.getCustomerName(),
                     c.getPhoneNumber(),
@@ -953,10 +965,11 @@ public Page<DomesticDelivery> getDomesticDeliveryByCustomerPaged(
                     c.getStaffName(),
                     c.getStaffCode(),
                     status.name(),
-                    shipments
+                    shipmentMap.getOrDefault(c.getCustomerCode(), List.of())
             ));
         }
-        return new PageImpl<>(dtoList, pageable, customerPage.getTotalElements());
+
+        return new PageImpl<>(result, pageable, customerPage.getTotalElements());
     }
 }
 
