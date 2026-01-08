@@ -279,5 +279,5 @@ Page<CustomerDeliveryRow> findDomesticDelivery(
                     "  WHERE ol.warehouse_id = w.warehouse_id " +
                     "  AND ol.status = 'DA_NHAP_KHO_NN'" +
                     ")")
-    Object[] sumCurrentStockWeightByRoute(@Param("routeId") Long routeId);
+    Object sumCurrentStockWeightByRoute(@Param("routeId") Long routeId);
 }
