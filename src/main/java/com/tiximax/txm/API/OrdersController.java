@@ -127,7 +127,7 @@ public class OrdersController {
         return ResponseEntity.ok(orders);
     }
 
-     @GetMapping("/for-payment/{page}/{size}/{status}")
+    @GetMapping("/for-payment/{page}/{size}/{status}")
     public ResponseEntity<Page<OrderPayment>> getOrdersForPayment(
             @PathVariable int page,
             @PathVariable int size,
