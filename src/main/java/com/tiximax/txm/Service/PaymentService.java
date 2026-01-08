@@ -70,6 +70,9 @@ public class PaymentService {
     private ObjectMapper objectMapper;
 
     @Autowired
+    private CustomerRepository customerRepository;
+
+    @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
     public List<Payment> getPaymentsByOrderCode(String orderCode) {
@@ -706,5 +709,32 @@ public class PaymentService {
 
         } catch (Exception e) {
         }
+    }
+
+    public void refundFromBalance(Long customerId, BigDecimal amount, String imageUrl) {
+        Customer customer = customerRepository.getCustomerById(customerId);
+        if (customer == null){
+            throw new RuntimeException("Không tìm thấy khách hàng này!");
+        }
+        if (customer.getBalance().compareTo(amount) >= 0){
+            customer.setBalance(customer.getBalance().subtract(amount));
+            customerRepository.save(customer);
+        } else {
+            throw new RuntimeException("Số tiền bạn chuyển lớn hơn số tiền trong ví của khách!");
+        }
+
+        Payment refundPayment = new Payment();
+        refundPayment.setPaymentCode(generatePaymentCode());
+        refundPayment.setContent("Hoàn tiền từ ví, số dư còn lại " + customer.getBalance());
+        refundPayment.setPaymentType(PaymentType.MA_QR);
+        refundPayment.setAmount(BigDecimal.ZERO);
+        refundPayment.setCollectedAmount(amount.negate());
+        refundPayment.setStatus(PaymentStatus.DA_HOAN_TIEN);
+        refundPayment.setQrCode(imageUrl);
+        refundPayment.setActionAt(LocalDateTime.now());
+        refundPayment.setCustomer(customer);
+        refundPayment.setStaff((Staff) accountUtils.getAccountCurrent());
+        refundPayment.setIsMergedPayment(false);
+        paymentRepository.save(refundPayment);
     }
 }
