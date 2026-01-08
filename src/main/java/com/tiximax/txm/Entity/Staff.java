@@ -61,4 +61,8 @@ public class Staff extends Account {
     @JsonIgnore
     private Set<MarketingMedia> marketingMedia;
 
+    private Boolean canRequestExpenses = false;
+
+    private Boolean canApproveExpenses = false;
+
 }

@@ -1,16 +1,10 @@
 package com.tiximax.txm.API;
 
-import com.tiximax.txm.Entity.Account;
-import com.tiximax.txm.Entity.Address;
-import com.tiximax.txm.Entity.Customer;
-import com.tiximax.txm.Entity.Staff;
+import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.AccountStatus;
 import com.tiximax.txm.Model.*;
-import com.tiximax.txm.Service.AuthenticationService;
-import com.tiximax.txm.Service.EmailService;
-import com.tiximax.txm.Service.OtpService;
-import com.tiximax.txm.Service.TokenService;
+import com.tiximax.txm.Service.*;
 import com.tiximax.txm.Utils.AccountUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 //import net.minidev.json.JSONObject;
@@ -29,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -66,6 +61,9 @@ public class AuthenticationController {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private PaymentService paymentService;
 
     @Value("${supabase.url}")
     private String supabaseUrl;
@@ -383,5 +381,12 @@ public ResponseEntity<Page<CustomerResponseDTO>> getCustomersByStaff(
         Staff updated = authenticationService.partialUpdateStaff(staffId, request);
         return ResponseEntity.ok(updated);
     }
-   
+
+    @PutMapping("/refund-balance/{customerId}")
+    public void processBalanceMoney(
+            @PathVariable Long customerId,
+            @RequestParam(required = true) String image,
+            @RequestParam(required = true) BigDecimal amount) {
+        paymentService.refundFromBalance(customerId, amount, image);
+    }
 }

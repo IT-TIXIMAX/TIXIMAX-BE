@@ -103,29 +103,8 @@ public class PaymentController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-//    @PostMapping("/auto-confirm")
-//    public ResponseEntity<Void> autoConfirm(@RequestBody SmsRequest request) {
-//        paymentService.autoConfirm(request.getAmount(), request.getContent());
-//        return ResponseEntity.ok().build();
-//    }
-
-//    @GetMapping("/sms-external")
-//    public ResponseEntity<SmsRequest> getExternalSms() {
-//        SmsRequest smsData = paymentService.getSmsFromExternalApi();
-//        return ResponseEntity.ok(smsData);
-//    }
-
-//    @GetMapping("/sms-external")
-//    public ResponseEntity<SmsRequest> getExternalSms() {
-//        SmsRequest smsData = paymentService.getSmsFromExternalApi();
-//        if (smsData != null && smsData.isSuccess()) {  // Check success để tránh trả data rỗng
-//            return ResponseEntity.ok(smsData);
-//        }
-//        return ResponseEntity.ok(new SmsRequest());  // Empty nếu lỗi
-//    }
-
     @GetMapping("/sms-external")
-    public ResponseEntity<?> getExternalSms() {  // Dùng <?> như exchange rates
+    public ResponseEntity<?> getExternalSms() {
         try {
             SmsRequest smsData = paymentService.getSmsFromExternalApi();
             return ResponseEntity.ok(smsData);

@@ -306,7 +306,8 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
     // === Tạo Payment gộp ===
     Payment payment = new Payment();
     payment.setPaymentCode(paymentService.generatePaymentCode()); // hoặc generatePaymentCode() tùy bạn
-    payment.setContent("Phí ship gộp: " + String.join(", ", allTrackingCodes) + " +" + priceShipDos + "k");
+//    payment.setContent("Phí ship gộp: " + String.join(", ", allTrackingCodes) + " + " + priceShipDos + "k");
+    payment.setContent("Phí ship gộp: " + String.join(", ", allTrackingCodes) + " - " + usedBalance + " số dư + "  + priceShipDos + "k ship");
     payment.setPaymentType(PaymentType.MA_QR);
     payment.setAmount(finalAmount);
     payment.setCollectedAmount(qrAmount);
