@@ -34,8 +34,8 @@ public class DraftDomestic{
     @ElementCollection
     private List<String> shippingList ;
 
-   @Column(nullable = true, precision = 10, scale = 2)
-   private BigDecimal weight;
+   @Column(nullable = true)
+   private Double weight;
 
     @Column(nullable = false)
     private Boolean isVNpost ;  // true: VNPost, false: other
@@ -45,6 +45,9 @@ public class DraftDomestic{
 
     @Column(nullable = true)
     private String VNPostTrackingCode;
+
+    @Column(nullable = false)
+    private Boolean lock; // lock khi xuất file chốt kho 
 
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = false)

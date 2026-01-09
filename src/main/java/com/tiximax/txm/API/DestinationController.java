@@ -5,6 +5,7 @@ import com.tiximax.txm.Service.DestinationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,7 +19,7 @@ public class DestinationController {
 
     @Autowired
     private DestinationService destinationService;
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping
     public ResponseEntity<Destination> createDestination(@RequestBody Destination destination) {
         Destination createdDestination = destinationService.createDestination(destination);
@@ -37,13 +38,13 @@ public class DestinationController {
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<Destination> updateDestination(@PathVariable Long id, @RequestBody Destination destinationDetails) {
         Destination updatedDestination = destinationService.updateDestination(id, destinationDetails);
         return ResponseEntity.ok(updatedDestination);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDestination(@PathVariable Long id) {
         destinationService.deleteDestination(id);

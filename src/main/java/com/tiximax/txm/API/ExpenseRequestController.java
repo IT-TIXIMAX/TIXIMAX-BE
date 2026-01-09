@@ -2,7 +2,7 @@ package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.ExpenseRequest;
 import com.tiximax.txm.Enums.ExpenseStatus;
-import com.tiximax.txm.Model.CreateExpenseRequest;
+import com.tiximax.txm.Model.DTORequest.Route.CreateExpenseRequest;
 import com.tiximax.txm.Service.ExpenseRequestService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;

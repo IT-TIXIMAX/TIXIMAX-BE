@@ -3,13 +3,14 @@ package com.tiximax.txm.Repository;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
-import com.tiximax.txm.Model.CustomerDeliveryRow;
+import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -359,6 +360,40 @@ List<CustomerShipmentRow> findTrackingCodesByCustomerCodes(
         @Param("staffId") Long staffId,
         @Param("routeId") Long routeId
 );
+@Query("""
+    SELECT COALESCE(SUM(w.weight), 0)
+    FROM Warehouse w
+    WHERE w.trackingCode IN :trackingCodes
+""")
+Double sumWeightByTrackingCodes(
+        @Param("trackingCodes") List<String> trackingCodes
+);
+
+        List<Warehouse> findByTrackingCodeInAndStatus(
+            List<String> trackingCodes,
+            WarehouseStatus status
+    );
+@Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update Warehouse w
+        set w.status = :newStatus
+        where w.trackingCode in :codes
+          and w.status = :oldStatus
+    """)
+    int updateStatusByTrackingCodes(
+            @Param("codes") List<String> codes,
+            @Param("oldStatus") WarehouseStatus oldStatus,
+            @Param("newStatus") WarehouseStatus newStatus
+    );
+    @Query("""
+        SELECT DISTINCT ol.orders.orderId
+        FROM OrderLinks ol
+        WHERE ol.shipmentCode IN :shipmentCodes
+    """)
+    List<Long> findOrderIdsByShipmentCodes(
+            @Param("shipmentCodes") List<String> shipmentCodes
+    );
+
 }
 
 

@@ -5,7 +5,8 @@ import com.tiximax.txm.Entity.Payment;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
-import com.tiximax.txm.Model.RoutePaymentSummary;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.RoutePaymentSummary;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

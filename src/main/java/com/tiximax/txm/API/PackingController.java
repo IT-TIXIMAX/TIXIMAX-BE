@@ -2,12 +2,12 @@ package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.Warehouse;
-import com.tiximax.txm.Model.AssignFlightRequest;
-import com.tiximax.txm.Model.PackingCheckResponse;
-import com.tiximax.txm.Model.PackingEligibleOrder;
-import com.tiximax.txm.Model.PackingExport;
-import com.tiximax.txm.Model.PackingInWarehouse;
-import com.tiximax.txm.Model.PackingRequest;
+import com.tiximax.txm.Model.DTORequest.Packing.AssignFlightRequest;
+import com.tiximax.txm.Model.DTORequest.Packing.PackingRequest;
+import com.tiximax.txm.Model.DTOResponse.Packing.PackingCheckResponse;
+import com.tiximax.txm.Model.DTOResponse.Packing.PackingEligibleOrder;
+import com.tiximax.txm.Model.DTOResponse.Packing.PackingExport;
+import com.tiximax.txm.Model.DTOResponse.Packing.PackingInWarehouse;
 import com.tiximax.txm.Service.PackingService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -37,6 +38,7 @@ public class PackingController {
         return ResponseEntity.ok(eligibleOrdersPage);
     }
 
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN')")
     @PostMapping
     public ResponseEntity<Packing> createPacking(@RequestBody PackingRequest request) {
         Packing packing = packingService.createPacking(request);
@@ -65,7 +67,7 @@ public class PackingController {
         Page<Packing> packingsPage = packingService.getPackingsAwaitingFlight(pageable);
         return ResponseEntity.ok(packingsPage);
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN')")
     @PutMapping("/assign-flight")
     public ResponseEntity<String> assignFlightCode(@RequestBody AssignFlightRequest request) {
         List<Long> packingIds = request.getPackingIds();
@@ -84,7 +86,7 @@ public class PackingController {
         Page<Packing> packingsPage = packingService.getPackingsWithFlightStatus(pageable);
         return ResponseEntity.ok(packingsPage);
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN')")
     @PatchMapping("/packing/{packingCode}/remove-shipments")
     public ResponseEntity<Packing> removeShipmentsFromPacking(
             @PathVariable String packingCode,
@@ -92,7 +94,7 @@ public class PackingController {
         Packing updatedPacking = packingService.removeShipmentFromPacking(packingCode, shipmentCodes);
         return ResponseEntity.ok(updatedPacking);
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN')")
     @PatchMapping("/{packingCode}/add-shipments")
     public ResponseEntity<Packing> addShipmentsToPacking(
             @PathVariable String packingCode,
@@ -108,7 +110,7 @@ public class PackingController {
         List<String> packingList = packingService.getPackingListByCode(packingCode);
         return ResponseEntity.ok(packingList);
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN')")
    @PostMapping("/check")
     public ResponseEntity<PackingCheckResponse> checkPacking(
         @RequestBody List<String> shipmentCodes) {

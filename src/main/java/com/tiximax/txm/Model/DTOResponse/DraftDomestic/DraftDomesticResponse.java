@@ -1,6 +1,5 @@
 package com.tiximax.txm.Model.DTOResponse.DraftDomestic;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import com.tiximax.txm.Entity.DraftDomestic;
@@ -13,7 +12,7 @@ public class DraftDomesticResponse {
     private String phoneNumber;
     private String address;
     private List<String> shippingList;
-    private BigDecimal weight;
+    private double weight;
     private String VNPostTrackingCode;
    
     public DraftDomesticResponse(DraftDomestic draftDomestic) {

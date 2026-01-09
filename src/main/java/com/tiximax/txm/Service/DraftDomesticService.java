@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.DraftDomestic;
 import com.tiximax.txm.Enums.WarehouseStatus;
-
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.AvailableAddDarfDomestic;
@@ -47,7 +47,9 @@ public class DraftDomesticService {
         throw new IllegalArgumentException("Không tìm thấy khách hàng");
     }
     validateAllTrackingCodesExist(draft.getShippingList());
+    double weight  = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
     var draftDomestic = mapToEntity(draft, customer.get());
+    draftDomestic.setWeight(weight);
     draftDomesticRepository.save(draftDomestic);
     return new DraftDomesticResponse(draftDomestic);
  } 
@@ -55,7 +57,7 @@ public class DraftDomesticService {
  public DraftDomesticResponse getDraftDomestic(Long id){
     var draftDomestic = draftDomesticRepository.findById(id).get();
     if(draftDomestic == null){
-        throw new IllegalArgumentException("Không tìm thấy draft Domestic");
+        throw new IllegalArgumentException("Không tìm thấy đơn mẫu vận chuyển nội địa");
     }
     return new DraftDomesticResponse(draftDomestic);
  }
@@ -80,12 +82,12 @@ public DraftDomesticResponse addShipments(
         List<String> shippingCodes
 ) {
     DraftDomestic draft = draftDomesticRepository.findById(draftId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy DraftDomestic"));
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn mẫu vận chuyển nội địa"));
 
     if (shippingCodes == null || shippingCodes.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách shipment không được rỗng");
+        throw new IllegalArgumentException("Danh sách mã vận đơn không được rỗng");
     }
-
+    checkDraftDomesticLocked(draftId);
     validateAllTrackingCodesExist(shippingCodes);
 
     if (draft.getShippingList() == null) {
@@ -99,6 +101,8 @@ public DraftDomesticResponse addShipments(
             draft.getShippingList().add(trimmed);
         }
     }
+    double weight  = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
+    draft.setWeight(weight);
     draftDomesticRepository.save(draft);
     return new DraftDomesticResponse(draft);
 }
@@ -115,7 +119,7 @@ public DraftDomesticResponse addShipments(
 
         if (filterCustomerCode != null &&
             !customerRepository.existsByCustomerCode(filterCustomerCode)) {
-            throw new IllegalArgumentException("Mã khách hàng không tồn tại!");
+            throw new NotFoundException("Mã khách hàng không tồn tại!");
         }
         
     Long filterRoute =
@@ -123,7 +127,7 @@ public DraftDomesticResponse addShipments(
                         ? null : routeId;
         if (filterRoute != null &&
             !routeRepository.existsById(filterRoute)) {
-            throw new IllegalArgumentException("Tuyến này không tồn tại!");
+            throw new NotFoundException("Tuyến này không tồn tại!");
         }
 
          Page<DraftDomesticDeliveryRow> customerPage =
@@ -138,8 +142,6 @@ public DraftDomesticResponse addShipments(
         if (customerPage.isEmpty()) {
             return Page.empty(pageable);
         }
-
-        
         List<String> customerCodes = customerPage.getContent().stream()
                 .map(DraftDomesticDeliveryRow::getCustomerCode)
                 .filter(Objects::nonNull)
@@ -170,7 +172,6 @@ public DraftDomesticResponse addShipments(
                     shipmentMap.getOrDefault(c.getCustomerCode(), List.of())
             ));
         }
-
         return new PageImpl<>(result, pageable, customerPage.getTotalElements());
     }
 
@@ -181,8 +182,8 @@ public DraftDomesticResponse updateDraftInfo(
         UpdateDraftDomesticInfoRequest request
 ) {
     DraftDomestic draft = draftDomesticRepository.findById(draftId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy DraftDomestic"));
-
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn mẫu vận chuyển nội địa"));
+    checkDraftDomesticLocked(draftId);
     boolean updated = false;
 
     if (request.getPhoneNumber() != null) {
@@ -217,14 +218,15 @@ public DraftDomesticResponse removeShipments(
         List<String> shippingCodes
 ) {
     DraftDomestic draft = draftDomesticRepository.findById(draftId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy DraftDomestic"));
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa"));
 
+    checkDraftDomesticLocked(draftId);
     if (draft.getShippingList() == null || draft.getShippingList().isEmpty()) {
-        throw new IllegalArgumentException("Draft chưa có shipment nào");
+        throw new IllegalArgumentException("mẫu vận chuyển chưa có mã vận chuyển nào");
     }
 
     if (shippingCodes == null || shippingCodes.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách shipment cần xóa không được rỗng");
+        throw new IllegalArgumentException("Danh sách mã vận đơn cần xóa không được rỗng");
     }
 
     Set<String> removeSet = shippingCodes.stream()
@@ -233,11 +235,33 @@ public DraftDomesticResponse removeShipments(
 
     draft.getShippingList()
             .removeIf(code -> removeSet.contains(code));
-
+    double weight  = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
+    draft.setWeight(weight);
     draftDomesticRepository.save(draft);
     return new DraftDomesticResponse(draft);
 }
 
+@Transactional
+public Boolean lockDraftDomestic(List<Long> draftIds) {
+
+    if (draftIds == null || draftIds.isEmpty()) {
+        throw new IllegalArgumentException("Danh sách draftId không được rỗng");
+    }
+
+    List<DraftDomestic> drafts = draftDomesticRepository.findAllById(draftIds);
+
+    if (drafts.size() != draftIds.size()) {
+        throw new NotFoundException("Có mẫu vận chuyển nội địa không tồn tại");
+    }
+    drafts.forEach(d -> d.setLock(true));
+    draftDomesticRepository.saveAll(drafts);
+    return true;
+}
+
+// IMPORT FILE VNPOST DRAFT DOMESTIC
+
+
+//
 
   private DraftDomestic mapToEntity(
             DraftDomesticRequest request,
@@ -287,8 +311,16 @@ public DraftDomesticResponse removeShipments(
             );
     if (!existedInDraft.isEmpty()) {
         throw new IllegalArgumentException(
-                "Mã đơn đã được thêm ở draft domestic khác: "
-                        + existedInDraft
+                "Mã đơn " + existedInDraft + "đã được thêm ở draft domestic khác: "
+        );
+    }
+}
+private void checkDraftDomesticLocked(Long draftId) {
+
+    Boolean isLocked = draftDomesticRepository.isDraftLocked(draftId);
+    if (isLocked != null && isLocked) {
+        throw new IllegalArgumentException(
+            "Mẫu vận chuyển nội địa đã bị khoá, không thể chỉnh sửa"
         );
     }
 }

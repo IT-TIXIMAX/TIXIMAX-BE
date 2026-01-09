@@ -6,6 +6,7 @@ import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -109,4 +110,48 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
     @Query("SELECT MONTH(ol.orders.createdAt), COUNT(ol) FROM OrderLinks ol WHERE YEAR(ol.orders.createdAt) = :year GROUP BY MONTH(ol.orders.createdAt)")
     List<Object[]> countLinksByMonth(@Param("year") int year);
 
+    List<OrderLinks> findByShipmentCodeInAndStatus(
+            List<String> shipmentCodes,
+            OrderLinkStatus status
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update OrderLinks ol
+        set ol.status = :newStatus
+        where ol.shipmentCode in :codes
+          and ol.status = :oldStatus
+    """)
+    int updateStatusByShipmentCodes(
+            @Param("codes") List<String> codes,
+            @Param("oldStatus") OrderLinkStatus oldStatus,
+            @Param("newStatus") OrderLinkStatus newStatus
+    );
+
+    @Query("""
+        SELECT COUNT(ol)
+        FROM OrderLinks ol
+        WHERE ol.orders.orderId = :orderId
+    """)
+    long countAllByOrderId(@Param("orderId") Long orderId);
+
+    @Query("""
+        SELECT COUNT(ol)
+        FROM OrderLinks ol
+        WHERE ol.orders.orderId = :orderId
+          AND ol.status IN (:finishedStatuses)
+    """)
+    long countFinishedByOrderId(
+            @Param("orderId") Long orderId,
+            @Param("finishedStatuses") Set<OrderLinkStatus> finishedStatuses
+    );
+    @Query("""
+        SELECT DISTINCT ol.orders.orderId
+        FROM OrderLinks ol
+        WHERE ol.shipmentCode IN :shipmentCodes
+    """)
+    List<Long> findOrderIdsByShipmentCodes(
+            @Param("shipmentCodes") List<String> shipmentCodes
+    );
 }
+

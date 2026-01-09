@@ -1,11 +1,12 @@
 package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.RouteExchangeRate;
-import com.tiximax.txm.Model.EffectiveRateResponse;
+import com.tiximax.txm.Model.DTOResponse.Route.EffectiveRateResponse;
 import com.tiximax.txm.Service.RouteExchangeRateService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -19,7 +20,7 @@ import java.util.List;
 public class RouteExchangeRateController {
     @Autowired
     private RouteExchangeRateService routeExchangeRateService;
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping
     public ResponseEntity<RouteExchangeRate> addExchange(@RequestBody RouteExchangeRate request) {
         return ResponseEntity.ok(routeExchangeRateService.addExchange(request));
@@ -37,7 +38,7 @@ public class RouteExchangeRateController {
         return ResponseEntity.ok(routeExchangeRateService.getEffectiveRate(routeId, date));
     }
 
-    // DELETE
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         routeExchangeRateService.delete(id);

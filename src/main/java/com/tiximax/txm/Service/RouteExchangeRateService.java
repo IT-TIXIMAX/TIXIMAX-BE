@@ -2,7 +2,7 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.Route;
 import com.tiximax.txm.Entity.RouteExchangeRate;
-import com.tiximax.txm.Model.EffectiveRateResponse;
+import com.tiximax.txm.Model.DTOResponse.Route.EffectiveRateResponse;
 import com.tiximax.txm.Repository.RouteExchangeRateRepository;
 import com.tiximax.txm.Repository.RouteRepository;
 import org.springframework.beans.factory.annotation.Autowired;

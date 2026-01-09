@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Otp;
-import com.tiximax.txm.Model.EmailDetail;
+import com.tiximax.txm.Model.DTOResponse.Auth.EmailDetail;
 import com.tiximax.txm.Repository.AuthenticationRepository;
 import com.tiximax.txm.Repository.OtpRepository;
 @Service
