@@ -2,13 +2,14 @@ package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Payment;
 import com.tiximax.txm.Enums.OrderStatus;
-import com.tiximax.txm.Model.PaymentAuctionResponse;
-import com.tiximax.txm.Model.SmsRequest;
+import com.tiximax.txm.Model.DTORequest.Payment.SmsRequest;
+import com.tiximax.txm.Model.DTOResponse.Payment.PaymentAuctionResponse;
 import com.tiximax.txm.Service.PaymentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -30,7 +31,7 @@ public class PaymentController {
         List<Payment> payments = paymentService.getPaymentsByOrderCode(orderCode);
         return ResponseEntity.ok(payments);
     }
-
+     @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/merged/{depositPercent}/{isUseBalance}/{bankId}")
     public ResponseEntity<Payment> createMergedPayment(@RequestBody Set<String> orderCodes,
                                                        @PathVariable Integer depositPercent,
@@ -39,7 +40,7 @@ public class PaymentController {
         Payment createdPayment = paymentService.createMergedPayment(orderCodes, depositPercent, isUseBalance, bankId);
         return ResponseEntity.ok(createdPayment);
     }
-
+     @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/merged/payment-after-auction/{depositPercent}/{isUseBalance}/{bankId}")
     public ResponseEntity<Payment> createMergedPaymentAfterAuction(@RequestBody Set<String> orderCodes,
                                                        @PathVariable Integer depositPercent,
@@ -48,7 +49,7 @@ public class PaymentController {
         Payment createdPayment = paymentService.createMergedPaymentAfterAuction(orderCodes, depositPercent, isUseBalance, bankId);
         return ResponseEntity.ok(createdPayment);
     }
-
+     @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/merged-shipping/{isUseBalance}/{bankId}/{priceShipDos}/{customerVoucherId}")
     public ResponseEntity<Payment> createMergedPaymentShipping(@RequestBody Set<String> orderCodes,
                                                                @PathVariable boolean isUseBalance,
@@ -58,13 +59,13 @@ public class PaymentController {
         Payment createdPayment = paymentService.createMergedPaymentShipping(orderCodes, isUseBalance, bankId, priceShipDos, customerVoucherId);
         return ResponseEntity.ok(createdPayment);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/confirm/{paymentCode}")
     public ResponseEntity<Payment> confirmPayment(@PathVariable String paymentCode) {
         Payment confirmedPayment = paymentService.confirmedPayment(paymentCode);
         return ResponseEntity.ok(confirmedPayment);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/confirm-shipping/{paymentCode}")
     public ResponseEntity<Payment> confirmPaymentShipping(@PathVariable String paymentCode) {
         Payment confirmedPayment = paymentService.confirmedPaymentShipment(paymentCode);

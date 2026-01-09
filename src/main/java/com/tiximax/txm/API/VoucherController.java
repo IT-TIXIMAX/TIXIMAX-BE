@@ -2,7 +2,7 @@ package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.CustomerVoucher;
 import com.tiximax.txm.Entity.Voucher;
-import com.tiximax.txm.Model.VoucherCreateRequest;
+import com.tiximax.txm.Model.DTORequest.Order.VoucherCreateRequest;
 import com.tiximax.txm.Service.VoucherService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -23,7 +24,7 @@ import java.util.List;
 public class VoucherController {
     @Autowired
     private VoucherService voucherService;
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping
     public ResponseEntity<Voucher> createVoucher(@RequestBody VoucherCreateRequest request) {
         Voucher created = voucherService.createVoucher(request);
@@ -43,29 +44,29 @@ public class VoucherController {
         Voucher voucher = voucherService.getVoucherById(id);
         return ResponseEntity.ok(voucher);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<Voucher> updateVoucher(@PathVariable Long id, @RequestBody VoucherCreateRequest request) {
         Voucher updated = voucherService.updateVoucher(id, request);
         return ResponseEntity.ok(updated);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVoucher(@PathVariable Long id) {
         voucherService.deleteVoucher(id);
         return ResponseEntity.noContent().build();
     }
-
-    @PostMapping("/{voucherId}/assign/{customerId}")
-    public ResponseEntity<Void> assignVoucherToCustomer(@PathVariable Long voucherId, @PathVariable Long customerId) {
-        // Giả sử bạn có CustomerService để get customer by id
-        // Customer customer = customerService.getCustomerById(customerId);
-        // Voucher voucher = voucherService.getVoucherById(voucherId);
-        // voucherService.assignVoucherToCustomer(customer, voucher);
-        // return new ResponseEntity<>(HttpStatus.OK);
-        // Note: Cần inject CustomerService và implement nếu dùng.
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+    
+    // @PostMapping("/{voucherId}/assign/{customerId}")
+    // public ResponseEntity<Void> assignVoucherToCustomer(@PathVariable Long voucherId, @PathVariable Long customerId) {
+    //     // Giả sử bạn có CustomerService để get customer by id
+    //     // Customer customer = customerService.getCustomerById(customerId);
+    //     // Voucher voucher = voucherService.getVoucherById(voucherId);
+    //     // voucherService.assignVoucherToCustomer(customer, voucher);
+    //     // return new ResponseEntity<>(HttpStatus.OK);
+    //     // Note: Cần inject CustomerService và implement nếu dùng.
+    //     return new ResponseEntity<>(HttpStatus.OK);
+    // }
 
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<CustomerVoucher>> getUnusedCustomerVouchers(@PathVariable Long customerId) {

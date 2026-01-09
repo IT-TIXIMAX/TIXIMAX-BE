@@ -1,8 +1,17 @@
 package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Purchases;
-import com.tiximax.txm.Enums.PurchaseFilter;
 import com.tiximax.txm.Model.*;
+import com.tiximax.txm.Model.DTORequest.Order.AuctionRequest;
+import com.tiximax.txm.Model.DTORequest.OrderLink.ShipmentCode;
+import com.tiximax.txm.Model.DTORequest.Purchase.ExchangeRequest;
+import com.tiximax.txm.Model.DTORequest.Purchase.PurchaseRequest;
+import com.tiximax.txm.Model.DTORequest.Purchase.UpdatePurchaseRequest;
+import com.tiximax.txm.Model.DTORequest.Purchase.UpdateShipmentRequest;
+import com.tiximax.txm.Model.DTOResponse.Purchase.PendingShipmentPurchase;
+import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseDetail;
+import com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment;
+import com.tiximax.txm.Model.EnumFilter.PurchaseFilter;
 import com.tiximax.txm.Service.PurchaseService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -26,12 +36,14 @@ public class PurchaseController {
     @Autowired
     private PurchaseService purchaseService;
 
+    @PreAuthorize("hasAnyRole('STAFF_PURCHASER')")
     @PostMapping("/add")
     public ResponseEntity<Purchases> addPurchase(@RequestParam String orderCode, @RequestBody PurchaseRequest purchaseRequest) {
         Purchases purchase = purchaseService.createPurchase(orderCode, purchaseRequest);
         return ResponseEntity.ok(purchase);
     }
-
+    
+    @PreAuthorize("hasAnyRole('STAFF_PURCHASER')")
     @PostMapping("auction/add")
     public ResponseEntity<Purchases> addAuction(@RequestParam String orderCode, @RequestBody AuctionRequest purchaseRequest) {
         Purchases purchase = purchaseService.createAuction(orderCode, purchaseRequest);
@@ -51,7 +63,7 @@ public class PurchaseController {
         PurchaseDetail purchaseDetail = purchaseService.getPurchaseById(purchaseId);
         return ResponseEntity.ok(purchaseDetail);
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE','STAFF_PURCHASER')")
     @PutMapping("/shipment/{purchaseId}")
     public ResponseEntity<Purchases> updateShipment(
             @PathVariable Long purchaseId,
@@ -60,7 +72,7 @@ public class PurchaseController {
         Purchases updated = purchaseService.updateShipmentForPurchase(purchaseId, shipmentCode.getShipmentCode());
         return ResponseEntity.ok(updated);
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE','STAFF_PURCHASER')")
     @PutMapping("/shipment-ship-fee/{purchaseId}")
     public ResponseEntity<Purchases> updateShipmentAnd(
             @PathVariable Long purchaseId,
@@ -70,7 +82,7 @@ public class PurchaseController {
         Purchases updated = purchaseService.updateShipmentForPurchaseAndShipFee(purchaseId, request.getShipmentCode() , request.getShipFee());
         return ResponseEntity.ok(updated);
 }
-
+    @PreAuthorize("hasAnyRole('STAFF_PURCHASER')")
     @DeleteMapping("/{purchaseId}")
     public ResponseEntity<Void> deletePurchase(@PathVariable Long purchaseId) {
         purchaseService.deletePurchase(purchaseId);
@@ -125,16 +137,16 @@ public ResponseEntity<Page<PurchasePendingShipment>> getPendingShipmentFullPurch
 
     return ResponseEntity.ok(result);
 }
-
-@PostMapping("/money-exchange/add")
-public ResponseEntity<Purchases> createMoneyExchange(
-        @RequestParam String orderCode,
-        @RequestBody ExchangeRequest exchangeRequest
-) {
-    Purchases purchase = purchaseService.createMoneyExchange(orderCode, exchangeRequest);
-    return ResponseEntity.ok(purchase);
-}
-
+    @PreAuthorize("hasAnyRole('STAFF_PURCHASER')")
+    @PostMapping("/money-exchange/add")
+    public ResponseEntity<Purchases> createMoneyExchange(
+            @RequestParam String orderCode,
+            @RequestBody ExchangeRequest exchangeRequest
+    ) {
+        Purchases purchase = purchaseService.createMoneyExchange(orderCode, exchangeRequest);
+        return ResponseEntity.ok(purchase);
+    }
+    @PreAuthorize("hasAnyRole('STAFF_PURCHASER')")
     @PatchMapping("/{purchaseId}")
     public ResponseEntity<Purchases> updatePurchase(
             @PathVariable Long purchaseId,

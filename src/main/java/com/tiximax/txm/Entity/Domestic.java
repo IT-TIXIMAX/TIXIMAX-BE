@@ -38,8 +38,13 @@ public class Domestic {
     @JsonIgnore
     private Address toAddress;
 
+
+    //Lưu lại thông tin khách hàng khi tạo vận đơn
     @Column(nullable = true)
     private String address;
+    @Column(nullable = true)
+    private String phoneNumber;
+
 
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = true)

@@ -5,6 +5,7 @@ import com.tiximax.txm.Service.BankAccountService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +18,7 @@ import java.util.Optional;
 public class BankAccountController {
     @Autowired
     private BankAccountService bankAccountService;
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping
     public ResponseEntity<BankAccount> createBankAccount(@RequestBody BankAccount bankAccount) {
         BankAccount savedAccount = bankAccountService.save(bankAccount);
@@ -36,7 +37,7 @@ public class BankAccountController {
         List<BankAccount> accounts = bankAccountService.findAll();
         return ResponseEntity.ok(accounts);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<BankAccount> updateBankAccount(@PathVariable Long id, @RequestBody BankAccount bankAccount) {
         Optional<BankAccount> existingAccount = bankAccountService.findById(id);
@@ -47,7 +48,7 @@ public class BankAccountController {
         }
         return ResponseEntity.notFound().build();
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBankAccount(@PathVariable Long id) {
         if (bankAccountService.findById(id).isPresent()) {

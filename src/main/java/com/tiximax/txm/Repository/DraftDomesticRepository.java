@@ -2,6 +2,10 @@ package com.tiximax.txm.Repository;
 
 
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -34,6 +38,23 @@ public interface DraftDomesticRepository extends JpaRepository<DraftDomestic, Lo
             @Param("shipmentCode") String shipmentCode,
             Pageable pageable
     );
+      @Query("""
+      SELECT s
+      FROM DraftDomestic d
+      JOIN d.shippingList s
+      WHERE s IN :codes
+  """)
+  List<String> findExistingTrackingCodesInDraft(
+          @Param("codes") List<String> codes
+  );
+  @Query("""
+    SELECT d.lock
+    FROM DraftDomestic d
+    WHERE d.id = :draftId
+""")
+Boolean isDraftLocked(@Param("draftId") Long draftId);
+
+Optional<DraftDomestic> findByVNPostTrackingCode(String vnPostTrackingCode);
   
 }
 

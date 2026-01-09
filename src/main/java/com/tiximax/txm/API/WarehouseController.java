@@ -2,9 +2,9 @@ package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Entity.Warehouse;
-import com.tiximax.txm.Model.InfoShipmentCode;
-import com.tiximax.txm.Model.WarehouseRequest;
-import com.tiximax.txm.Model.WarehouseSummary;
+import com.tiximax.txm.Model.DTORequest.Warehouse.WarehouseRequest;
+import com.tiximax.txm.Model.DTOResponse.OrderLink.InfoShipmentCode;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.WarehouseSummary;
 import com.tiximax.txm.Service.WarehouseService;
 import com.tiximax.txm.Utils.AccountUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,9 +31,8 @@ public class WarehouseController {
     @Autowired
     private WarehouseService warehouseService;
 
-    @Autowired
-    private AccountUtils accountUtils;
-
+ 
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN')")
     @PostMapping("/shipment/{shipmentCode}")
     public ResponseEntity<Warehouse> createWarehouseEntryByShipmentCode(
             @PathVariable String shipmentCode,
@@ -47,7 +47,7 @@ public class WarehouseController {
         return warehouseOptional.map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN')")
     @PostMapping("/list-shipment")
     public ResponseEntity<String> createWarehouseEntryByListShipmentCode(@RequestBody List<String> shipmentCodes) {
         return ResponseEntity.ok(warehouseService.createWarehouseEntryByListShipmentCodes(shipmentCodes));
@@ -71,7 +71,7 @@ public class WarehouseController {
     public ResponseEntity<Map<String, Double>> getWarehouseTotals() {
         return ResponseEntity.ok(warehouseService.calculateWarehouseTotals());
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN','STAFF_SALE')")
     @PutMapping("/{trackingCode}")
     public ResponseEntity<Warehouse> updateWarehouseNetWeight(
             @PathVariable String trackingCode,
@@ -90,7 +90,7 @@ public class WarehouseController {
             @RequestParam(required = false) String keyword) {
         return ResponseEntity.ok(warehouseService.suggestShipmentCodes(keyword));
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_FOREIGN','STAFF_SALE')")
     @PatchMapping("/{trackingCode}")
     public ResponseEntity<Warehouse> updateWarehouse(
             @PathVariable String trackingCode,
