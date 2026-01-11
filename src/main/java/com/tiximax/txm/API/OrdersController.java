@@ -84,7 +84,7 @@ public class OrdersController {
         return ResponseEntity.ok(orders);
     }
 
-    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE','MANAGER')")
     @PutMapping("order-link/cancel/{orderId}/{orderLinkId}")
     public ResponseEntity<Orders> CancelOrderLink(@PathVariable Long orderId, @PathVariable Long orderLinkId) {
         Orders orders = ordersService.updateStatusOrderLink(orderId, orderLinkId);  

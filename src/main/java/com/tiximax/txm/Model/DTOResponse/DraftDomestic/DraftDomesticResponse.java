@@ -13,7 +13,7 @@ public class DraftDomesticResponse {
     private String address;
     private List<String> shippingList;
     private String shipCode;
-    private double weight;
+    private Double weight;
     private String VNPostTrackingCode;
    
     public DraftDomesticResponse(DraftDomestic draftDomestic) {
