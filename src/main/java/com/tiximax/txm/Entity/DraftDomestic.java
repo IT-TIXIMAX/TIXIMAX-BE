@@ -34,6 +34,9 @@ public class DraftDomestic{
     @ElementCollection
     private List<String> shippingList ;
 
+    @Column(nullable = false)
+    private String shipCode;
+
    @Column(nullable = true)
    private Double weight;
 
@@ -46,11 +49,17 @@ public class DraftDomestic{
     @Column(nullable = true)
     private String VNPostTrackingCode;
 
-    @Column(nullable = false)
-    private Boolean lock; // lock khi xuất file chốt kho 
+    
+    @Column(name = "is_locked",nullable = false)
+    private Boolean isLocked;;  
 
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = false)
     @JsonManagedReference
     Customer customer;
+    
+    @ManyToOne
+    @JoinColumn(name = "staff_id", nullable = false)
+    private Staff staff;
+
 }

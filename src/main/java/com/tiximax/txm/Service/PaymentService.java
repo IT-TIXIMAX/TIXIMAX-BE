@@ -7,10 +7,7 @@ import com.tiximax.txm.Model.DTORequest.Payment.SmsRequest;
 import com.tiximax.txm.Model.DTOResponse.Payment.PaymentAuctionResponse;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
-import org.hibernate.query.Order;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,7 +20,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+
 
 @Service
 //@Lazy
@@ -35,7 +32,8 @@ public class PaymentService {
 
     @Autowired
     private PartialShipmentRepository partialShipmentRepository;
-
+    @Autowired
+    private WarehouseRepository warehouseRepository;
     @Autowired
     private AccountUtils accountUtils;
 
@@ -334,20 +332,22 @@ public class PaymentService {
             order.setStatus(OrderStatus.CHO_GIAO);
 
             for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
+                if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
+                syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
-
             ordersRepository.save(order);
             ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
         }
-
     } else if (payment.getOrders() != null) {
 
         Orders order = payment.getOrders();
         order.setStatus(OrderStatus.CHO_GIAO);
 
         for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
-            link.setStatus(OrderLinkStatus.CHO_GIAO);
+             if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
+                link.setStatus(OrderLinkStatus.CHO_GIAO);
+            syncWarehouseIfAllLinksReady(link.getShipmentCode());
         }
 
         ordersRepository.save(order);
@@ -368,6 +368,7 @@ public class PaymentService {
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
                 link.setPartialShipment(shipment);
                 orderLinksRepository.save(link);
+                syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
 
             partialShipmentRepository.save(shipment);
@@ -737,4 +738,23 @@ public class PaymentService {
         refundPayment.setIsMergedPayment(false);
         paymentRepository.save(refundPayment);
     }
+
+
+    private void syncWarehouseIfAllLinksReady(String shipmentCode) {
+
+    List<OrderLinks> links =
+            orderLinksRepository.findByShipmentCode(shipmentCode);
+
+    boolean allReady = links.stream()
+            .allMatch(l -> l.getStatus() == OrderLinkStatus.CHO_GIAO);
+
+    if (!allReady) return;
+
+    warehouseRepository.findByTrackingCode(shipmentCode)
+            .ifPresent(w -> {
+                w.setStatus(WarehouseStatus.CHO_GIAO);
+                warehouseRepository.save(w);
+            });
+}
+
 }

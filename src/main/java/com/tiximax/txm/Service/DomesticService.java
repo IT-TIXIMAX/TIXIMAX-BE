@@ -46,6 +46,7 @@ public class DomesticService {
     private PackingRepository packingRepository;
     @Autowired
     private OrdersRepository ordersRepository;
+    @Autowired
     private WarehouseRepository warehouseRepository;
     @Autowired
     private CustomerRepository customerRepository;
@@ -503,19 +504,22 @@ public class DomesticService {
         return new PageImpl<>(result, pageable, customerPage.getTotalElements());
     }
 
-    public DomesticDelivery ScanToShipByVNPOST(String VNPost){
+
+    @Transactional
+    public DomesticDelivery ScanToShipByVNPOST( String VNPost, String shipCode){
         DraftDomestic draftDomestic = draftDomesticRepository.findByVNPostTrackingCode(VNPost).orElse(null);
-        if (draftDomestic == null) {
-            throw new IllegalArgumentException("Không tìm thấy mẫu vận đơn");
+        draftDomestic = draftDomesticRepository.findByShipCode(shipCode).orElse(null);
+        if(draftDomestic == null){
+            throw new NotFoundException("Không tìm thấy Draft Domestic với mã VNPost hoặc ShipCode đã quét!");
         }
         checkAndUpdateWarehousesAndOrderLinks(draftDomestic);
-
 
         Domestic domestic = new Domestic();
         domestic.setAddress(draftDomestic.getAddress());
         domestic.setPhoneNumber(draftDomestic.getPhoneNumber());
         domestic.setShippingList(draftDomestic.getShippingList());
         domestic.setVNPostTrackingCode(draftDomestic.getVNPostTrackingCode());
+        domestic.setShipCode(draftDomestic.getShipCode());
         domestic.setTimestamp(LocalDateTime.now());
         domestic.setNote("Giao hàng cho khách bằng VNPost với mã vận đơn " + VNPost);
         domestic.setStatus(DomesticStatus.DA_GIAO);
@@ -523,6 +527,7 @@ public class DomesticService {
         domestic.setStaff(getCurrentStaffWithLocation());
         domesticRepository.save(domestic);
 
+        draftDomesticRepository.delete(draftDomestic);
 
         return new DomesticDelivery(
                 domestic.getCustomer().getCustomerCode(),
@@ -550,7 +555,6 @@ public class DomesticService {
     private void checkAndUpdateWarehousesAndOrderLinks(DraftDomestic draftDomestic) {
 
     List<String> trackingCodes = draftDomestic.getShippingList();
-
     if (trackingCodes == null || trackingCodes.isEmpty()) {
         throw new IllegalArgumentException("Danh sách trackingCode trống");
     }
@@ -599,10 +603,11 @@ public class DomesticService {
                     OrderLinkStatus.CHO_GIAO,
                     OrderLinkStatus.DA_GIAO
             );
-
+        //
         entityManager.flush();
         entityManager.clear();
         ordersService.updateOrdersStatusAfterDeliveryByShipmentCodes(trackingCodes);   
+
 }
 
     private Domestic createDomestic(

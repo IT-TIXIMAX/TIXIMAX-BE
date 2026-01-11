@@ -12,6 +12,7 @@ public class DraftDomesticResponse {
     private String phoneNumber;
     private String address;
     private List<String> shippingList;
+    private String shipCode;
     private double weight;
     private String VNPostTrackingCode;
    
@@ -20,6 +21,7 @@ public class DraftDomesticResponse {
         this.phoneNumber = draftDomestic.getPhoneNumber();
         this.address = draftDomestic.getAddress();
         this.shippingList = draftDomestic.getShippingList();
+        this.shipCode = draftDomestic.getShipCode();
         this.weight = draftDomestic.getWeight();
         this.VNPostTrackingCode = draftDomestic.getVNPostTrackingCode();
         this.customerName = draftDomestic.getCustomer().getName();
