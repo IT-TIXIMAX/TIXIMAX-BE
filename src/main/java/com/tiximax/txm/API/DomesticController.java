@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.method.P;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -113,6 +114,20 @@ public ResponseEntity<Domestic> receivedPackingFromWarehouse(@PathVariable Long 
             )
     );
 }
+
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
+    @PostMapping("/scan-vnpost/{trackingCode}/{shipCode}")
+    public ResponseEntity<DomesticDelivery> scanToShipByVNPost(
+            @PathVariable String trackingCode,
+            @PathVariable String shipCode
+    ) {
+        if (trackingCode == null || trackingCode.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        DomesticDelivery result =
+                domesticService.ScanToShipByVNPOST(trackingCode.trim(), shipCode.trim());
+        return ResponseEntity.ok(result);
+    }
 
 @GetMapping("/preview-transfer-by-customer/{customerCode}")
 public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(

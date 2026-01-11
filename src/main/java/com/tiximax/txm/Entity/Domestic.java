@@ -37,8 +37,8 @@ public class Domestic {
     @JoinColumn(name = "to_address_id")
     @JsonIgnore
     private Address toAddress;
-
-
+    @Column(nullable = true)
+    private String shipCode;
     //Lưu lại thông tin khách hàng khi tạo vận đơn
     @Column(nullable = true)
     private String address;

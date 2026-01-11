@@ -1,4 +1,7 @@
 package com.tiximax.txm.API;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -20,10 +23,7 @@ import com.tiximax.txm.Model.DTOResponse.DraftDomestic.AvailableAddDarfDomestic;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse;
 import com.tiximax.txm.Service.DraftDomesticService;
 import com.tiximax.txm.Utils.AccountUtils;
-
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import jakarta.validation.Valid;
-
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -43,22 +43,26 @@ public class DraftDomesticController {
         var response = draftDomesticService.addDraftDomestic(draft);
         return ResponseEntity.ok(response);
     }
-    @GetMapping("")
+    @GetMapping("/{page}/{size}")
         public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 @RequestParam(required = false) String customerCode,
                 @RequestParam(required = false) String shipmentCode,
-                @RequestParam(defaultValue = "0") int page,
-                @RequestParam(defaultValue = "10") int size
+                @RequestParam(required = false) Boolean lock,
+                @PathVariable int page,
+                @PathVariable int size
         ){
+        
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(
-                draftDomesticService.getAllDraftDomestic(
-                        customerCode,
-                        shipmentCode,
-                        pageable
-                )
-        );
-        }
+          Page<DraftDomesticResponse> result =
+            draftDomesticService.getAllDraftDomestic(
+                    customerCode,
+                    shipmentCode,
+                    lock,
+                    pageable
+            );
+
+    return ResponseEntity.ok(result);
+}
      @PatchMapping("/{id}/info")
         public ResponseEntity<?> updateDraftInfo(
                 @PathVariable Long id,
@@ -117,6 +121,32 @@ public class DraftDomesticController {
                         pageable
                 )
         );
-        }
 }
+        @GetMapping("/draft-domestic/importable/{page}/{size}")
+        public ResponseEntity<Page<DraftDomesticResponse>> getDraftToImport(
+                @PathVariable int page,
+                @PathVariable int size
+        ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<DraftDomesticResponse> drafts =
+                draftDomesticService.getDraftToExport(pageable);
+        return ResponseEntity.ok(drafts);
+        
+        }
+
+        @PostMapping("/lock/ids")
+       public ResponseEntity<Map<String, Object>> lockDraftDomestic(
+                @RequestBody List<Long> draftIds
+        ) {
+        Boolean result = draftDomesticService.lockDraftDomestic(draftIds);
+          return ResponseEntity.ok(
+            Map.of(
+                    "success", result,
+                    "message", "Lock danh sách thành công"
+                    
+            )
+    );
+}
+}
+
 
