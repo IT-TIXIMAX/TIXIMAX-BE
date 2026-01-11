@@ -92,6 +92,23 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
             .findAllWithFilter(customerCode, shipmentCode, lock, staffId, pageable)
             .map(DraftDomesticResponse::new);
 }
+
+
+    public Page<DraftDomesticResponse> getAvailableToLock(
+            Long routeId,
+            Pageable pageable
+    ) {
+
+        Page<DraftDomestic> pageResult =
+                draftDomesticRepository.AvailableToLock(
+                        WarehouseStatus.CHO_GIAO,
+                        routeId,         
+                        pageable
+                );
+
+        return pageResult.map(DraftDomesticResponse::new);
+    }
+
 public Page<DraftDomesticResponse> getDraftToExport(
 
         Pageable pageable

@@ -147,6 +147,15 @@ public class DraftDomesticController {
             )
     );
 }
+@GetMapping("/available-to-lock/{page}/{size}")
+public ResponseEntity<Page<DraftDomesticResponse>> getAvailableToLock(
+        @RequestParam(required = false) Long routeId,
+        @PathVariable int page,
+        @PathVariable int size
+) {
+         Pageable pageable = PageRequest.of(page, size);
+    return ResponseEntity.ok(draftDomesticService.getAvailableToLock(routeId, pageable));
+}
 }
 
 

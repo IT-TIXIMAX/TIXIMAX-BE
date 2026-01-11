@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.tiximax.txm.Entity.DraftDomestic;
+import com.tiximax.txm.Enums.WarehouseStatus;
 
 public interface DraftDomesticRepository extends JpaRepository<DraftDomestic, Long> {
 @Query(
@@ -91,6 +92,32 @@ Boolean isDraftLocked(@Param("draftId") Long draftId);
 
   Optional<DraftDomestic> findByShipCode(String shipCode);
   
+     @Query(
+        value = """
+            SELECT DISTINCT d
+            FROM DraftDomestic d,
+                 Warehouse w
+            WHERE w.trackingCode MEMBER OF d.shippingList
+              AND w.status = :status
+              AND d.isLocked = false
+              AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
+        """,
+        countQuery = """
+            SELECT COUNT(DISTINCT d)
+            FROM DraftDomestic d,
+                 Warehouse w
+            WHERE w.trackingCode MEMBER OF d.shippingList
+              AND w.status = :status
+              AND d.isLocked = false
+              AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
+        """
+    )
+    Page<DraftDomestic> AvailableToLock(
+            @Param("status") WarehouseStatus status,
+            @Param("routeId") Long routeId,
+            Pageable pageable
+    );
+
 }
 
 
