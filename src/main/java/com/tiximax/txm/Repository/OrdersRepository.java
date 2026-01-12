@@ -153,7 +153,7 @@ Page<Orders> findByRouteAndStatusAndTypeWithSearch(
             Pageable pageable
     );
 @Query("""
-    SELECT DISTINCT o
+    SELECT o
     FROM Orders o
     JOIN o.orderLinks ol
     WHERE ol.status IN :statuses
@@ -167,6 +167,13 @@ Page<Orders> findByRouteAndStatusAndTypeWithSearch(
         OR LOWER(CAST(o.customer.customerCode AS string)) 
             LIKE LOWER(CAST(CONCAT('%', :customerCode, '%') AS string))
     )
+    ORDER BY
+        CASE
+            WHEN ol.status = 'DA_NHAP_KHO_VN' THEN 0
+            WHEN ol.status = 'CHO_GIAO' THEN 1
+            ELSE 2
+        END,
+        ol.status
     """)
 Page<Orders> filterOrdersByLinkStatus(
         @Param("statuses") List<OrderLinkStatus> statuses,
