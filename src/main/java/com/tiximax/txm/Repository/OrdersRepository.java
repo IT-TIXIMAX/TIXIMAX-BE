@@ -384,6 +384,56 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("end") LocalDateTime end);
 
     @Query(value = """
+            goods_by_staff_route AS (
+                SELECT
+                    o.route_id,
+                    o.staff_id,
+                    COALESCE(SUM(ol.total_web), 0) AS total_goods
+                FROM order_links ol
+                LEFT JOIN warehouse w
+                    ON ol.warehouse_id = w.warehouse_id
+                LEFT JOIN purchases p
+                    ON ol.purchase_id = p.purchase_id
+                LEFT JOIN orders o
+                    ON o.order_id = COALESCE(w.order_id, p.order_id)
+                WHERE
+                    COALESCE(w.created_at, p.purchase_time) >= :start
+                    AND COALESCE(w.created_at, p.purchase_time) < :end
+                    AND (:routeId IS NULL OR o.route_id = :routeId)
+                    AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
+                GROUP BY o.route_id, o.staff_id
+            )
+            SELECT
+                COALESCE(r.name, 'Không xác định') AS route_name,
+                s.staff_code AS staff_code,
+                a.name AS staff_name,
+                COALESCE(g.total_goods, 0) AS total_goods,
+            FROM orders o
+            JOIN staff s ON o.staff_id = s.account_id
+            JOIN account a ON s.account_id = a.account_id
+            LEFT JOIN route r ON o.route_id = r.route_id
+            LEFT JOIN weight_by_staff_route w
+                   ON w.route_id = o.route_id
+                  AND w.staff_id = o.staff_id
+            LEFT JOIN goods_by_staff_route g
+                   ON g.route_id = o.route_id
+                  AND g.staff_id = o.staff_id
+            WHERE (:routeId IS NULL OR o.route_id = :routeId)
+            GROUP BY
+                r.name,
+                s.staff_code,
+                a.name,
+                g.total_goods
+            ORDER BY
+                route_name ASC,
+                total_goods DESC;
+    """, nativeQuery = true)
+    List<Object[]> staffKPIByRoute(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId);
+
+    @Query(value = """
             WITH weight_by_staff_route AS (
                 SELECT
                     o.route_id,

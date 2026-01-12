@@ -60,7 +60,7 @@ public class Account implements UserDetails {
     private Set<Otp> otps;
 
     @Column(nullable = false)
-     private boolean isVerify = false;
+    private boolean isVerify = false;
 
     @Override
     public String getPassword() {
@@ -73,12 +73,11 @@ public class Account implements UserDetails {
     }
 
     @Override
-public Collection<? extends GrantedAuthority> getAuthorities() {
-    return List.of(
-        new SimpleGrantedAuthority("ROLE_" + role.name())
-    );
-}
-
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(
+            new SimpleGrantedAuthority("ROLE_" + role.name())
+        );
+    }
 
     @Override
     public boolean isAccountNonExpired() {
