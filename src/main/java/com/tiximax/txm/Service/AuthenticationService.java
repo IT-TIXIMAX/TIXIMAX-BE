@@ -364,9 +364,12 @@ public class AuthenticationService implements UserDetailsService {
     }
 
     public Page<Customer> getCustomersByStaff(String keyword, Pageable pageable) {
-    Long staffId = accountUtils.getAccountCurrent().getAccountId();
-
-     if (keyword == null || keyword.trim().isEmpty()) {
+    Long staffId = null;
+    Account account = accountUtils.getAccountCurrent();
+    if (!account.getRole().equals(AccountRoles.MANAGER)){
+        staffId = account.getAccountId();
+    }
+    if (keyword == null || keyword.trim().isEmpty()) {
         keyword = "";  
     }
     return customerRepository.searchByStaff(staffId, keyword, pageable);

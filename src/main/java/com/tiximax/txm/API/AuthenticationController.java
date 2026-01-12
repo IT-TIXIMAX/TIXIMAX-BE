@@ -142,6 +142,7 @@ public class AuthenticationController {
         return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
     }
 }
+
     @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping("/register/staff")
     public ResponseEntity<Staff> registerStaff(@RequestBody RegisterStaffRequest registerRequest) {
