@@ -40,6 +40,8 @@ public class PaymentService {
 
     @Autowired
     private OrdersRepository ordersRepository;
+    @Autowired
+    private DraftDomesticService draftDomesticService;
 
     @Autowired
     private OrdersService ordersService;
@@ -335,6 +337,8 @@ public class PaymentService {
     payment.setCollectedAmount(payment.getAmount());
     payment.setActionAt(LocalDateTime.now());
 
+    Set<String> paidShipmentCodes = new HashSet<>();
+
     if (payment.getIsMergedPayment()) {
 
         for (Orders order : payment.getRelatedOrders()) {
@@ -343,6 +347,9 @@ public class PaymentService {
             for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
                 if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
+                if (link.getShipmentCode() != null) {
+                    paidShipmentCodes.add(link.getShipmentCode());
+                }
                 syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
             ordersRepository.save(order);
@@ -356,6 +363,9 @@ public class PaymentService {
         for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
              if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
+                if (link.getShipmentCode() != null) {
+                    paidShipmentCodes.add(link.getShipmentCode());
+                }
             syncWarehouseIfAllLinksReady(link.getShipmentCode());
         }
 
@@ -377,6 +387,9 @@ public class PaymentService {
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
                 link.setPartialShipment(shipment);
                 orderLinksRepository.save(link);
+                if (link.getShipmentCode() != null) {
+                    paidShipmentCodes.add(link.getShipmentCode());
+                }
                 syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
 
@@ -398,6 +411,8 @@ public class PaymentService {
             ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
         }
     }
+       draftDomesticService
+            .checkAndLockDraftDomesticByShipmentCodes(paidShipmentCodes);
 
     messagingTemplate.convertAndSend(
             "/topic/Tiximax",

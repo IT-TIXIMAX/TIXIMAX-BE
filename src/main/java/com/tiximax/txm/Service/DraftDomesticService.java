@@ -14,7 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
+
 
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Customer;
@@ -22,6 +22,7 @@ import com.tiximax.txm.Entity.DraftDomestic;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.AccountRoles;
+import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
@@ -32,6 +33,7 @@ import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DraftDomesticRepository;
+import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.RouteRepository;
 import com.tiximax.txm.Repository.WarehouseRepository;
 import com.tiximax.txm.Utils.AccountUtils;
@@ -291,6 +293,24 @@ public DraftDomesticResponse removeShipments(
     draftDomesticRepository.save(draft);
     return new DraftDomesticResponse(draft);
 }
+@Transactional
+public Boolean deleteDraftDomestic(Long draftId) {
+
+    DraftDomestic draft = draftDomesticRepository.findById(draftId)
+            .orElseThrow(() ->
+                    new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa")
+            );
+    if (Boolean.TRUE.equals(draft.getIsLocked())) {
+        throw new IllegalStateException(
+                "Mẫu vận chuyển nội địa đã bị khóa, không thể xóa"
+        );
+    }
+
+
+    draftDomesticRepository.delete(draft);
+    return true;
+}
+
 
 @Transactional
 public Boolean lockDraftDomestic(List<Long> draftIds) {
@@ -367,6 +387,43 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
             .map(DraftDomesticResponse::new);
     }
 
+     @Transactional
+    public void checkAndLockDraftDomesticByShipmentCodes(
+            Set<String> paidShipmentCodes
+    ) {
+
+        if (paidShipmentCodes == null || paidShipmentCodes.isEmpty()) {
+            return;
+        }
+
+        List<DraftDomestic> drafts =
+                draftDomesticRepository.findDraftByShipmentCodes(paidShipmentCodes);
+
+        for (DraftDomestic draft : drafts) {
+
+            List<String> shippingList = draft.getShippingList();
+            if (shippingList == null || shippingList.isEmpty()) {
+                continue;
+            }
+
+            Set<String> trackingCodes = new HashSet<>(shippingList);
+
+            long total =
+                    warehouseRepository.countByTrackingCodeIn(trackingCodes);
+
+            long ready =
+                    warehouseRepository.countByTrackingCodeInAndStatus(
+                            trackingCodes,
+                            WarehouseStatus.CHO_GIAO
+                    );
+
+            if (total > 0 && total == ready) {
+                draft.setIsLocked(true);
+                draftDomesticRepository.save(draft);
+            }
+        }
+    }
+
 // IMPORT FILE VNPOST DRAFT DOMESTIC
 
 
@@ -393,7 +450,7 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
    private void validateAllTrackingCodesExist(List<String> shippingList) {
 
     if (shippingList == null || shippingList.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách mã vận đơn không được để trống");
+        throw new RuntimeException("Danh sách mã vận đơn không được để trống");
     }
 
     Set<String> inputCodes = shippingList.stream()
@@ -411,7 +468,7 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
         Set<String> invalidCodes = new HashSet<>(inputCodes);
         invalidCodes.removeAll(validCodes);
 
-        throw new IllegalArgumentException(
+        throw new RuntimeException(
                 "Các mã vận đơn không hợp lệ hoặc không ở trạng thái CHO_GIAO: "
                         + invalidCodes
         );
@@ -421,7 +478,7 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
                     new ArrayList<>(inputCodes)
             );
     if (!existedInDraft.isEmpty()) {
-        throw new IllegalArgumentException(
+        throw new RuntimeException(
                 "Mã đơn " + existedInDraft + "đã được thêm ở draft domestic khác: "
         );
     }
