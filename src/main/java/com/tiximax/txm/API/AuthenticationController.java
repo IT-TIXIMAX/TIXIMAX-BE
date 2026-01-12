@@ -142,6 +142,7 @@ public class AuthenticationController {
         return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
     }
 }
+
     @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping("/register/staff")
     public ResponseEntity<Staff> registerStaff(@RequestBody RegisterStaffRequest registerRequest) {
@@ -393,10 +394,11 @@ public class AuthenticationController {
     }
 
     @PutMapping("/refund-balance/{customerId}")
-    public void processBalanceMoney(
+    public ResponseEntity<Payment> processBalanceMoney(
             @PathVariable Long customerId,
             @RequestParam(required = true) String image,
             @RequestParam(required = true) BigDecimal amount) {
-        paymentService.refundFromBalance(customerId, amount, image);
+        Payment payment = paymentService.refundFromBalance(customerId, amount, image);
+        return ResponseEntity.ok(payment);
     }
 }
