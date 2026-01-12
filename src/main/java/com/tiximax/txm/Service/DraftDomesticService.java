@@ -1,5 +1,6 @@
 package com.tiximax.txm.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Customer;
@@ -52,7 +54,7 @@ public class DraftDomesticService {
  public DraftDomesticResponse addDraftDomestic(DraftDomesticRequest draft){
     var customer = customerRepository.findByCustomerCode(draft.getCustomerCode());
     if(customer == null){
-        throw new IllegalArgumentException("Không tìm thấy khách hàng");
+        throw new NotFoundException("Không tìm thấy khách hàng");
     }
     validateAllTrackingCodesExist(draft.getShippingList());
     Double weight  = (warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList())*90)/100;
@@ -94,29 +96,32 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
 }
 
 
-    public Page<DraftDomesticResponse> getAvailableToLock(
-            Long routeId,
-            Pageable pageable
-    ) {
+    public Page<DraftDomesticResponse> getAvailableToShip(
+        Long routeId,
+        LocalDateTime startDate,
+        LocalDateTime endDate,
+        Pageable pageable
+        ) {
 
         Page<DraftDomestic> pageResult =
-                draftDomesticRepository.AvailableToLock(
-                        WarehouseStatus.CHO_GIAO,
+                draftDomesticRepository.getDraftToExport(
                         routeId,         
+                        startDate,
+                        endDate,
                         pageable
-                );
+                );     
 
         return pageResult.map(DraftDomesticResponse::new);
     }
 
-public Page<DraftDomesticResponse> getDraftToExport(
-
-        Pageable pageable
-) {
-    return draftDomesticRepository
-            .getDraftToExport(pageable)
-            .map(DraftDomesticResponse::new);
-}
+// public Page<DraftDomesticResponse> getDraftToExport(
+//         Long routeId,
+//         Pageable pageable
+// ) {
+//     return draftDomesticRepository
+//             .getDraftToExport(routeId,pageable)
+//             .map(DraftDomesticResponse::new);
+// }
 
 @Transactional
 public DraftDomesticResponse addShipments(
@@ -214,6 +219,7 @@ public DraftDomesticResponse addShipments(
                     c.getCustomerName(),
                     c.getPhoneNumber(),
                     c.getAddress(),
+                    c.getRouteName(),
                     shipmentMap.getOrDefault(c.getCustomerCode(), List.of())
             ));
         }
@@ -351,10 +357,13 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
 
 // Get list đủ điều kiện để lock và xuất file 
     public Page<DraftDomesticResponse> getDraftsToLock(
+        Long routeId,
+        LocalDateTime startDate,
+        LocalDateTime endDate,
         Pageable pageable
     ) {
     return draftDomesticRepository
-            .getDraftToExport(pageable)
+            .getDraftToExport(routeId, startDate, endDate, pageable)
             .map(DraftDomesticResponse::new);
     }
 
