@@ -1,5 +1,7 @@
 package com.tiximax.txm.Config;
 
+import com.tiximax.txm.Exception.CustomAccessDeniedHandler;
+import com.tiximax.txm.Exception.CustomAuthenticationEntryPoint;
 import com.tiximax.txm.Service.AuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -32,6 +34,10 @@ public class SecurityConfig {
 
     @Autowired
     Filter filter;
+    @Autowired
+    private CustomAuthenticationEntryPoint authenticationEntryPoint;
+    @Autowired
+    private CustomAccessDeniedHandler accessDeniedHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -48,6 +54,10 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
+                    .exceptionHandling(ex -> ex
+        .authenticationEntryPoint(authenticationEntryPoint) 
+        .accessDeniedHandler(accessDeniedHandler)          
+    )
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(
                                 "/accounts/login",

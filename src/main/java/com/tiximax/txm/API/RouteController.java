@@ -1,8 +1,8 @@
 package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Route;
-import com.tiximax.txm.Model.ExchangeRateList;
-import com.tiximax.txm.Model.RouteRequest;
+import com.tiximax.txm.Model.DTORequest.Route.RouteRequest;
+import com.tiximax.txm.Model.DTOResponse.Route.ExchangeRateList;
 import com.tiximax.txm.Service.AccountRouteService;
 import com.tiximax.txm.Service.RouteService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

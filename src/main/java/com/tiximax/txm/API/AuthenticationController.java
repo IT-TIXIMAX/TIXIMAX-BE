@@ -2,8 +2,19 @@ package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.AccountRoles;
-import com.tiximax.txm.Enums.AccountStatus;
-import com.tiximax.txm.Model.*;
+import com.tiximax.txm.Model.DTORequest.Auth.ChangePasswordRequest;
+import com.tiximax.txm.Model.DTORequest.Auth.ForgotPasswordRequest;
+import com.tiximax.txm.Model.DTORequest.Auth.LoginRequest;
+import com.tiximax.txm.Model.DTORequest.Auth.RegisterCustomerRequest;
+import com.tiximax.txm.Model.DTORequest.Auth.RegisterStaffRequest;
+import com.tiximax.txm.Model.DTORequest.Auth.ResetPasswordRequest;
+import com.tiximax.txm.Model.DTORequest.Auth.StaffPatchRequest;
+import com.tiximax.txm.Model.DTORequest.Auth.VerifyAccountRequest;
+import com.tiximax.txm.Model.DTORequest.Customer.CustomerPatchRequest;
+import com.tiximax.txm.Model.DTOResponse.Auth.EmailDetail;
+import com.tiximax.txm.Model.DTOResponse.Customer.CustomerResponseDTO;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
 import com.tiximax.txm.Service.*;
 import com.tiximax.txm.Utils.AccountUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -18,8 +29,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -34,7 +45,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
-import java.util.Set;
 
 import org.json.JSONObject;
 
@@ -132,7 +142,7 @@ public class AuthenticationController {
         return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
     }
 }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping("/register/staff")
     public ResponseEntity<Staff> registerStaff(@RequestBody RegisterStaffRequest registerRequest) {
         Staff staff = authenticationService.registerStaff(registerRequest);

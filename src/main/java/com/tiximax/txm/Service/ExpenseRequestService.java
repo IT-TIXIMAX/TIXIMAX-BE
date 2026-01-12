@@ -4,7 +4,7 @@ import com.tiximax.txm.Entity.ExpenseRequest;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.ExpenseStatus;
 import com.tiximax.txm.Enums.PaymentMethod;
-import com.tiximax.txm.Model.CreateExpenseRequest;
+import com.tiximax.txm.Model.DTORequest.Route.CreateExpenseRequest;
 import com.tiximax.txm.Repository.ExpenseRequestRepository;
 import com.tiximax.txm.Utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;

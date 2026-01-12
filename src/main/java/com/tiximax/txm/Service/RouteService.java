@@ -1,8 +1,8 @@
 package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.Route;
-import com.tiximax.txm.Model.ExchangeRateList;
-import com.tiximax.txm.Model.RouteRequest;
+import com.tiximax.txm.Model.DTORequest.Route.RouteRequest;
+import com.tiximax.txm.Model.DTOResponse.Route.ExchangeRateList;
 import com.tiximax.txm.Repository.RouteRepository;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;

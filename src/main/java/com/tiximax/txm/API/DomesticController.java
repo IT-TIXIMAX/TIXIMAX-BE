@@ -4,13 +4,13 @@ import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Domestic;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.AccountRoles;
-import com.tiximax.txm.Model.CheckInDomestic;
-import com.tiximax.txm.Model.CreateDomesticRequest;
-import com.tiximax.txm.Model.DomesticDelivery;
-import com.tiximax.txm.Model.DomesticRecieve;
-import com.tiximax.txm.Model.DomesticResponse;
-import com.tiximax.txm.Model.DomesticSend;
-import com.tiximax.txm.Model.VNPostTrackingCode;
+import com.tiximax.txm.Model.DTORequest.Domestic.CreateDomesticRequest;
+import com.tiximax.txm.Model.DTORequest.Domestic.VNPostTrackingCode;
+import com.tiximax.txm.Model.DTOResponse.Domestic.CheckInDomestic;
+import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticDelivery;
+import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticRecieve;
+import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticResponse;
+import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticSend;
 import com.tiximax.txm.Model.EnumFilter.DeliveryStatus;
 import com.tiximax.txm.Service.DomesticService;
 import com.tiximax.txm.Utils.AccountUtils;
@@ -22,6 +22,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.method.P;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,7 +43,7 @@ public class DomesticController {
 
     @Autowired
     private AccountUtils accountUtils;
-
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
     @PostMapping("/received")
     public ResponseEntity<DomesticRecieve> createDomesticForWarehousing(@RequestBody CreateDomesticRequest request) {
         if (request == null || request.getPackingCode().isEmpty()) {
@@ -50,32 +52,13 @@ public class DomesticController {
         DomesticRecieve domestic = domesticService.createDomesticForWarehousing(request.getPackingCode(), request.getNote());
         return ResponseEntity.ok(domestic);
     }
-      @GetMapping("/ready-for-delivery-to-ship")
-    public ResponseEntity<List<Map<String, Object>>> getReadyForDeliveryOrders( 
-        @RequestParam List<String> shipmentCodes) {
-        List<Map<String, Object>> result = domesticService.getReadyForDeliveryOrdersToShip(shipmentCodes);
-      
-        return ResponseEntity.ok(result);
-    } 
+
     @GetMapping("/check-in-domestic/{shipmentCode}")
     public ResponseEntity<CheckInDomestic>  checkInDomestic(@RequestParam String shipmentCode) {
         CheckInDomestic checkInDomestic = domesticService.getCheckInDomestic(shipmentCode);
         return ResponseEntity.ok(checkInDomestic);
     }
 
-    @GetMapping("/ready-for-delivery/{page}/{size}")
-    public ResponseEntity<List<Map<String, Object>>> getReadyForDeliveryOrders(@PathVariable int page, @PathVariable int size) {
-        Sort sort = Sort.by("createdAt").descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-        List<Map<String, Object>> result = domesticService.getReadyForDeliveryOrders(pageable);
-        return ResponseEntity.ok(result);
-    }
-
-    @PostMapping("/transfer-to-customer")
-    public ResponseEntity<List<DomesticResponse>> transferToCustomer(){
-        List<DomesticResponse> domestic = domesticService.TransferToCustomer();
-        return ResponseEntity.ok(domestic);
-    }
      @GetMapping("/{id}")
     public ResponseEntity<Domestic> getDomesticById(@PathVariable Long id) {
     Optional<Domestic> domestic = domesticService.getDomesticById(id);
@@ -87,12 +70,8 @@ public class DomesticController {
         List<DomesticResponse> delivered = domesticService.getDomesticDeliveredOnDaily();
         return ResponseEntity.ok(delivered);
     }
-    @GetMapping("/ready-by-customer/{customerCode}")
-    public ResponseEntity<List<Map<String, Object>>> getReadyByCustomerCode(
-        @PathVariable String customerCode) {
-        List<Map<String, Object>> result = domesticService.getReadyForDeliveryOrdersByCustomerCode(customerCode);
-        return ResponseEntity.ok(result);
-    }
+   
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
     @PostMapping("/transfer-by-customer/{customerCode}")
     public ResponseEntity<List<DomesticResponse>> transferByCustomerCode(@PathVariable String customerCode, @RequestBody VNPostTrackingCode vNPostTrackingCode) {
     if (customerCode == null || customerCode.trim().isEmpty()) {
@@ -102,24 +81,8 @@ public class DomesticController {
     List<DomesticResponse> result = domesticService.transferByCustomerCode(code,vNPostTrackingCode.getVNPostTrackingCode());
     return ResponseEntity.ok(result);
 }
-@PostMapping("/transfer-to-warehouse")
-public ResponseEntity<Domestic> transferPackingToWarehouse(
-        @RequestBody Map<String, Object> requestBody) {
 
-    // Validate request body
-    if (!requestBody.containsKey("packingCodes") ||
-        !requestBody.containsKey("toLocationId")) {
-        return ResponseEntity.badRequest().body(null);
-    }
-
-    List<String> packingCodes = (List<String>) requestBody.get("packingCodes");
-    Long toLocationId = Long.parseLong(requestBody.get("toLocationId").toString());
-    String note = requestBody.containsKey("note") ? requestBody.get("note").toString() : null;
-
-    Domestic domestic = domesticService.TranferPackingToWarehouse(packingCodes, toLocationId, note);
-
-    return ResponseEntity.ok(domestic);
-}
+@PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
 @PostMapping("/received-from-warehouse/{domesticId}")
 public ResponseEntity<Domestic> receivedPackingFromWarehouse(@PathVariable Long domesticId) {
 
@@ -131,21 +94,10 @@ public ResponseEntity<Domestic> receivedPackingFromWarehouse(@PathVariable Long 
 
     return ResponseEntity.ok(domestic);
 }
-
-  @PostMapping("/transfer-by-shipment")
-    public ResponseEntity<List<DomesticResponse>> transferByShipmentCode(@RequestBody List<String> shipmentCodes) {
-        if (shipmentCodes == null || shipmentCodes.isEmpty()) {
-            return ResponseEntity.badRequest().build();  
-        }
-        List<DomesticResponse> domesticResponses = domesticService.transferByShipmentCode(shipmentCodes);
-        
-        if (domesticResponses.isEmpty()) {
-            return ResponseEntity.noContent().build();  
-        }
-        return ResponseEntity.ok(domesticResponses);  
-    }
+ 
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
     @PostMapping("/scan-import/{shipmentCode}")
-public ResponseEntity<Map<String, Object>> scanImportToDomestic(
+    public ResponseEntity<Map<String, Object>> scanImportToDomestic(
         @PathVariable String shipmentCode) {
 
     if (shipmentCode == null || shipmentCode.trim().isEmpty()) {
@@ -162,6 +114,21 @@ public ResponseEntity<Map<String, Object>> scanImportToDomestic(
             )
     );
 }
+
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
+    @PostMapping("/scan-vnpost/{trackingCode}/{shipCode}")
+    public ResponseEntity<DomesticDelivery> scanToShipByVNPost(
+            @PathVariable String trackingCode,
+            @PathVariable String shipCode
+    ) {
+        if (trackingCode == null || trackingCode.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        DomesticDelivery result =
+                domesticService.ScanToShipByVNPOST(trackingCode.trim(), shipCode.trim());
+        return ResponseEntity.ok(result);
+    }
+
 @GetMapping("/preview-transfer-by-customer/{customerCode}")
 public ResponseEntity<List<DomesticSend>> previewTransferByCustomerCode(
         @PathVariable String customerCode) {

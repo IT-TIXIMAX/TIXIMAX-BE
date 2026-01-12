@@ -4,8 +4,8 @@ import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.PartialShipment;
 import com.tiximax.txm.Entity.Payment;
 import com.tiximax.txm.Enums.OrderStatus;
-import com.tiximax.txm.Model.PartialPayment;
-import com.tiximax.txm.Model.ShipmentCodesRequest;
+import com.tiximax.txm.Model.DTORequest.OrderLink.ShipmentCodesRequest;
+import com.tiximax.txm.Model.DTOResponse.Payment.PartialPayment;
 import com.tiximax.txm.Service.PartialShipmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -30,7 +31,7 @@ public class PartialShipmentController {
 
     @Autowired
     private PartialShipmentService partialShipmentService;
-
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/partial-shipment/{isUseBalance}/{bankId}/{priceShipDos}/{customerVoucherId}")
     public ResponseEntity<Payment> createPartialShipment(@RequestBody ShipmentCodesRequest selectedTrackingCode,
                                                                     @PathVariable boolean isUseBalance,

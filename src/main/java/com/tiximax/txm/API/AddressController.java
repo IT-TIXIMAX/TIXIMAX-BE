@@ -1,7 +1,7 @@
 package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Address;
-import com.tiximax.txm.Model.AddressRequest;
+import com.tiximax.txm.Model.DTORequest.Address.AddressRequest;
 import com.tiximax.txm.Service.AddressService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;

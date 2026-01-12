@@ -2,14 +2,13 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.AccountRoles;
-import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Enums.PaymentType;
 import com.tiximax.txm.Enums.ProcessLogAction;
 import com.tiximax.txm.Enums.VoucherType;
-import com.tiximax.txm.Model.PartialPayment;
-import com.tiximax.txm.Model.ShipmentCodesRequest;
+import com.tiximax.txm.Model.DTORequest.OrderLink.ShipmentCodesRequest;
+import com.tiximax.txm.Model.DTOResponse.Payment.PartialPayment;
 import com.tiximax.txm.Repository.AuthenticationRepository;
 import com.tiximax.txm.Repository.CustomerVoucherRepository;
 import com.tiximax.txm.Repository.OrderLinksRepository;
@@ -95,83 +94,6 @@ public class PartialShipmentService {
     private SimpMessagingTemplate messagingTemplate;
 
 
-// public List<PartialShipment> createPartialShipment(TrackingCodesRequest trackingCodesRequest) {
-
-//     Staff currentStaff = (Staff) accountUtils.getAccountCurrent();
-//     List<String> allTrackingCodes = trackingCodesRequest.getSelectedTrackingCodes();
-//     List<PartialShipment> createdPartials = new ArrayList<>();
-
-//     for (String trackingCode : allTrackingCodes) {
-
-//         List<OrderLinks> selectedLinks = orderLinksRepository.findByShipmentCode(trackingCode);
-//         if (selectedLinks.isEmpty()) continue;
-
-//         List<Orders> orders = selectedLinks.stream()
-//                 .map(OrderLinks::getOrders)
-//                 .distinct()
-//                 .collect(Collectors.toList());
-
-//         for (Orders order : orders) {
-//             List<OrderLinks> orderSpecificLinks = selectedLinks.stream()
-//                     .filter(link -> link.getOrders().equals(order))
-//                     .collect(Collectors.toList());
-
-//             if (orderSpecificLinks.isEmpty()) continue;
-
-//             PartialShipment partial = new PartialShipment();
-//             partial.setOrders(order);
-//             partial.setReadyLinks(new HashSet<>(orderSpecificLinks));
-//             partial.setPartialAmount(orderSpecificLinks.stream()
-//                     .map(OrderLinks::getFinalPriceVnd)
-//                     .reduce(BigDecimal.ZERO, BigDecimal::add));
-//             partial.setShipmentDate(LocalDateTime.now());
-//             partial.setStatus(OrderStatus.CHO_THANH_TOAN_SHIP);
-//             partial.setStaff(currentStaff);
-
-//             // Cập nhật quan hệ
-//             orderSpecificLinks.forEach(link -> link.setPartialShipment(partial));
-
-//             partialShipmentRepository.save(partial);
-//             orderLinksRepository.saveAll(orderSpecificLinks);
-//             createdPartials.add(partial);
-//         }
-//     }
-
-//     if (createdPartials.isEmpty()) {
-//         throw new IllegalArgumentException("Không có link nào hợp lệ để tạo Partial Shipment.");
-//     }
-
-//     Orders firstOrder = createdPartials.get(0).getOrders();
-//     BigDecimal shipFee = calculateTotalShippingFee(firstOrder.getRoute().getRouteId(), allTrackingCodes);
-
-//     Payment mergedPayment = new Payment();
-//     mergedPayment.setAmount(shipFee);
-//     mergedPayment.setCollectedAmount(shipFee);
-//     mergedPayment.setPaymentCode(paymentService.generatePaymentCode());
-//     mergedPayment.setPaymentType(PaymentType.MA_QR);
-
-//     String qrCodeUrl = "https://img.vietqr.io/image/"
-//             + bankName + "-" + bankNumber + "-print.png?amount=" + mergedPayment.getCollectedAmount()
-//             + "&addInfo=" + mergedPayment.getPaymentCode()
-//             + "&accountName=" + bankOwner;
-//     mergedPayment.setQrCode(qrCodeUrl);
-//     mergedPayment.setStatus(PaymentStatus.CHO_THANH_TOAN_SHIP);
-//     mergedPayment.setActionAt(LocalDateTime.now());
-//     mergedPayment.setCustomer(firstOrder.getCustomer());
-//     mergedPayment.setStaff(currentStaff);
-//     mergedPayment.setIsMergedPayment(false);
-//     mergedPayment.setPartialShipments(new HashSet<>());
-
-//     // Liên kết tất cả partial shipments với payment
-//     for (PartialShipment partial : createdPartials) {
-//         partial.setPayment(mergedPayment);
-//         mergedPayment.getPartialShipments().add(partial);
-//     }
-//     paymentRepository.save(mergedPayment);
-//     partialShipmentRepository.saveAll(createdPartials);
-
-//     return createdPartials;
-// }
 
 @Transactional
 public List<PartialShipment> createPartialShipment(ShipmentCodesRequest trackingCodesRequest,

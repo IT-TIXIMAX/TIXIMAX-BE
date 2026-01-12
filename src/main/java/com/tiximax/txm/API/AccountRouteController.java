@@ -6,6 +6,7 @@ import com.tiximax.txm.Service.AccountRouteService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -17,7 +18,7 @@ public class AccountRouteController {
 
     @Autowired
     private AccountRouteService accountRouteService;
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PostMapping
     public ResponseEntity<AccountRoute> createAccountRoute(
             @RequestParam Long accountId,
@@ -31,30 +32,7 @@ public class AccountRouteController {
         AccountRoute accountRoute = accountRouteService.getAccountRouteById(accountRouteId);
         return ResponseEntity.ok(accountRoute);
     }
-
-//    @GetMapping("/{page}/{size}/paging")
-//    public ResponseEntity<Page<AccountRoute>> getAllAccountRoutes(@PathVariable int page, int size) {
-//        Sort sort = Sort.by("route.routeId").ascending();
-//        Pageable pageable = PageRequest.of(page, size, sort);
-//        Page<AccountRoute> accountRoutes = accountRouteService.getAllAccountRoutes(pageable);
-//        return ResponseEntity.ok(accountRoutes);
-//    }
-
-//    @GetMapping
-//    public ResponseEntity<List<AccountRoute>> getAllAccountRoutes() {
-//        List<AccountRoute> accountRoutes = accountRouteService.getAllAccountRoutes();
-//        return ResponseEntity.ok(accountRoutes);
-//    }
-
-//    @PutMapping("/{accountRouteId}")
-//    public ResponseEntity<AccountRoute> updateAccountRoute(
-//            @PathVariable Long accountRouteId,
-//            @RequestParam Long accountId,
-//            @RequestParam Long routeId) {
-//        AccountRoute updatedAccountRoute = accountRouteService.updateAccountRoute(accountRouteId, accountId, routeId);
-//        return ResponseEntity.ok(updatedAccountRoute);
-//    }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @DeleteMapping("/{accountRouteId}")
     public ResponseEntity<Void> deleteAccountRoute(@PathVariable Long accountRouteId) {
         accountRouteService.deleteAccountRoute(accountRouteId);

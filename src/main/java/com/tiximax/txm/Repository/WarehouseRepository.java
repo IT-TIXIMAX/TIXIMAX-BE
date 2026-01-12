@@ -3,11 +3,14 @@ package com.tiximax.txm.Repository;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
-import com.tiximax.txm.Model.CustomerDeliveryRow;
+import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
+import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
+import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -256,7 +259,9 @@ Page<Warehouse> findByOrderLinkStatusAndCustomerCode(
 
     
     @Query("""
-    select c.customerCode, ol.shipmentCode
+      select
+        c.customerCode as customerCode,
+        ol.shipmentCode as trackingCode
     from Warehouse w
       join w.orders o
       join o.customer c
@@ -265,13 +270,23 @@ Page<Warehouse> findByOrderLinkStatusAndCustomerCode(
       and (:staffId is null or o.staff.id = :staffId)
       and c.customerCode in :customerCodes
     """)
-    List<Object[]> findShipmentCodesByCustomerCodes(
+    List<CustomerShipmentRow> findShipmentCodesByCustomerCodes(
             @Param("orderLinkStatus") OrderLinkStatus orderLinkStatus,
             @Param("customerCodes") List<String> customerCodes,
             @Param("staffId") Long staffId
     );
 
-      @Query(nativeQuery = true,
+@Query("""
+    SELECT w.trackingCode
+    FROM Warehouse w
+    WHERE w.trackingCode IN :codes
+""")
+List<String> findExistingTrackingCodesByStatus(
+        @Param("codes") List<String> codes
+      //  @Param("status") WarehouseStatus status
+);
+
+@Query(nativeQuery = true,
             value = "SELECT " +
                     "COALESCE(SUM(w.weight), 0), " +
                     "COALESCE(SUM(w.net_weight), 0) " +
@@ -285,5 +300,100 @@ Page<Warehouse> findByOrderLinkStatusAndCustomerCode(
                     "  AND ol.status = 'DA_NHAP_KHO_NN'" +
                     ")")
     Object[] sumCurrentStockWeightByRoute(@Param("routeId") Long routeId);
+
+@Query("""
+    select
+        c.customerCode as customerCode,
+        c.name as customerName,
+        c.phone as phoneNumber,
+        max(o.address.addressName) as address,
+        r.name as routeName
+    from Warehouse w
+        join w.packing p
+        join w.orders o
+        join o.customer c
+        join o.route r
+        left join o.staff s
+        left join DraftDomestic d
+            on w.trackingCode in elements(d.shippingList)
+    where w.status = :warehouseStatus
+      and p.flightCode is not null
+      and d.id is null
+      and (:staffId is null or s.accountId = :staffId)
+      and (:customerCode is null or c.customerCode = :customerCode)
+      and (:routeId is null or r.routeId = :routeId)
+    group by
+        c.customerCode,
+        c.name,
+        c.phone,
+        r.name
+""")
+Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
+        @Param("warehouseStatus") WarehouseStatus warehouseStatus,
+        @Param("staffId") Long staffId,
+        @Param("customerCode") String customerCode,
+        @Param("routeId") Long routeId,
+        Pageable pageable
+);
+
+@Query("""
+    select
+        c.customerCode as customerCode,
+        w.trackingCode as trackingCode
+    from Warehouse w
+        join w.orders o
+        join o.customer c
+        join o.route r
+        join w.packing p
+        left join DraftDomestic d
+            on w.trackingCode in elements(d.shippingList)
+    where w.status = :warehouseStatus
+      and p.flightCode is not null
+      and d.id is null
+      and (:staffId is null or o.staff.accountId = :staffId)
+      and (:routeId is null or r.routeId = :routeId)
+      and c.customerCode in :customerCodes
+""")
+List<CustomerShipmentRow> findTrackingCodesByCustomerCodes(
+        @Param("warehouseStatus") WarehouseStatus warehouseStatus,
+        @Param("customerCodes") List<String> customerCodes,
+        @Param("staffId") Long staffId,
+        @Param("routeId") Long routeId
+);
+@Query("""
+    SELECT COALESCE(SUM(w.weight), 0)
+    FROM Warehouse w
+    WHERE w.trackingCode IN :trackingCodes
+""")
+Double sumWeightByTrackingCodes(
+        @Param("trackingCodes") List<String> trackingCodes
+);
+
+        List<Warehouse> findByTrackingCodeInAndStatus(
+            List<String> trackingCodes,
+            WarehouseStatus status
+    );
+@Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update Warehouse w
+        set w.status = :newStatus
+        where w.trackingCode in :codes
+          and w.status = :oldStatus
+    """)
+    int updateStatusByTrackingCodes(
+            @Param("codes") List<String> codes,
+            @Param("oldStatus") WarehouseStatus oldStatus,
+            @Param("newStatus") WarehouseStatus newStatus
+    );
+    @Query("""
+        SELECT DISTINCT ol.orders.orderId
+        FROM OrderLinks ol
+        WHERE ol.shipmentCode IN :shipmentCodes
+    """)
+    List<Long> findOrderIdsByShipmentCodes(
+            @Param("shipmentCodes") List<String> shipmentCodes
+    );
+
 }
+
 

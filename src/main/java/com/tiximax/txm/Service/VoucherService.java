@@ -5,7 +5,7 @@ import com.tiximax.txm.Entity.CustomerVoucher;
 import com.tiximax.txm.Entity.Route;
 import com.tiximax.txm.Entity.Voucher;
 import com.tiximax.txm.Enums.AssignType;
-import com.tiximax.txm.Model.VoucherCreateRequest;
+import com.tiximax.txm.Model.DTORequest.Order.VoucherCreateRequest;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.CustomerVoucherRepository;
 import com.tiximax.txm.Repository.RouteRepository;

@@ -4,7 +4,7 @@ import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Address;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.Staff;
-import com.tiximax.txm.Model.AddressRequest;
+import com.tiximax.txm.Model.DTORequest.Address.AddressRequest;
 import com.tiximax.txm.Repository.AddressRepository;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Utils.AccountUtils;

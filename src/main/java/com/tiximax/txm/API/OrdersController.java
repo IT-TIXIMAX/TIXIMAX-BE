@@ -4,10 +4,25 @@ import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Enums.OrderDestination;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.OrderType;
-import com.tiximax.txm.Model.*;
+import com.tiximax.txm.Model.DTORequest.Order.ConsignmentRequest;
+import com.tiximax.txm.Model.DTORequest.Order.MoneyExchangeRequest;
+import com.tiximax.txm.Model.DTORequest.Order.OrdersRequest;
+import com.tiximax.txm.Model.DTORequest.Order.UpdateDestinationBatchRequest;
+import com.tiximax.txm.Model.DTOResponse.Customer.CustomerBalanceAndOrders;
+import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinkForegin;
+import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinks;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderByShipmentResponse;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderDetail;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderPayment;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderWithLinks;
+import com.tiximax.txm.Model.DTOResponse.Order.OrdersPendingShipment;
+import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
+import com.tiximax.txm.Model.DTOResponse.Order.ShipmentGroup;
+import com.tiximax.txm.Model.DTOResponse.OrderLink.InfoShipmentCode;
+import com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkWithStaff;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.WareHouseOrderLink;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 import com.tiximax.txm.Service.OrdersService;
-import com.tiximax.txm.Utils.AccountUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -15,6 +30,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.Arrays;
@@ -28,12 +44,11 @@ import java.util.Map;
 
 public class OrdersController {
 
-    @Autowired
-    private AccountUtils accountUtils;
 
     @Autowired
     private OrdersService ordersService;
 
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/{customerCode}/{routeId}/{addressId}")
     public ResponseEntity<Orders> createdReview(@PathVariable String customerCode,
                                                 @PathVariable long routeId,
@@ -42,6 +57,7 @@ public class OrdersController {
         Orders orders = ordersService.addOrder(customerCode, routeId, addressId,ordersRequest);
         return ResponseEntity.ok(orders);
     }
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/money-exchange/{customerCode}/{routeId}")
     public ResponseEntity<Orders> moneyExchange(
             @PathVariable String customerCode,
@@ -58,7 +74,7 @@ public class OrdersController {
         return ResponseEntity.ok(order);
     }
 
-
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/deposit/{customerCode}/{routeId}/{addressId}")
     public ResponseEntity<Orders> createdConsignment(@PathVariable String customerCode,
                                                      @PathVariable long routeId,
@@ -68,6 +84,7 @@ public class OrdersController {
         return ResponseEntity.ok(orders);
     }
 
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE','MANAGER')")
     @PutMapping("order-link/cancel/{orderId}/{orderLinkId}")
     public ResponseEntity<Orders> CancelOrderLink(@PathVariable Long orderId, @PathVariable Long orderLinkId) {
         Orders orders = ordersService.updateStatusOrderLink(orderId, orderLinkId);  
@@ -240,12 +257,14 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
     return ResponseEntity.ok(result);
 }
 
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE','STAFF_PURCHASER')")
     @PutMapping("/buy-later/{orderId}/links/{orderLinkId}")
     public ResponseEntity<Orders> updateOrderLinkToBuyLater(@PathVariable Long orderId, @PathVariable Long orderLinkId) {
         Orders updatedOrder = ordersService.updateOrderLinkToBuyLater(orderId, orderLinkId);
         return ResponseEntity.ok(updatedOrder);
     }
 
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE','STAFF_PURCHASER')")
     @PutMapping("/pin/{orderId}")
     public ResponseEntity<Void> pinOrder(@PathVariable Long orderId, @RequestParam boolean pin) {
         ordersService.pinOrder(orderId, pin);
@@ -269,7 +288,7 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
         Page<RefundResponse> ordersPage = ordersService.getOrdersWithNegativeLeftoverMoney(pageable);
         return ResponseEntity.ok(ordersPage);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/refund-confirm/{orderId}")
     public ResponseEntity<Orders> processNegativeLeftoverMoney(
             @PathVariable Long orderId,
@@ -308,6 +327,7 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
         return ResponseEntity.ok(response);
     }
 
+    @PreAuthorize("hasAnyRole('STAFF_SALE','MANAGER','LEAD_SALE','STAFF_PURCHASER')")
     @PutMapping("/update-destination/batch")
     public ResponseEntity<List<Orders>> updateDestinationBatch(
             @RequestBody UpdateDestinationBatchRequest request) {
@@ -335,7 +355,7 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
         Page<OrdersPendingShipment> result = ordersService.getMyOrdersWithoutShipmentCode(pageable);
         return ResponseEntity.ok(result);
     }
-
+    @PreAuthorize("hasAnyRole('STAFF_SALE','MANAGER','LEAD_SALE','STAFF_PURCHASER')")
     @PatchMapping("/shipmentCode/{orderId}/{orderLinkId}/{shipmentCode}")
     public ResponseEntity<OrderWithLinks> updateShipmentCode(
             @PathVariable Long orderId,
@@ -362,7 +382,7 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
         Page<OrderWithLinks> result = ordersService.searchOrdersByKeyword(keyword, pageable);
         return ResponseEntity.ok(result);
     }
-
+    @PreAuthorize("hasAnyRole('MANAGER')")
     @DeleteMapping("/{orderId}")
     public ResponseEntity<Void> deleteOrder(@PathVariable Long orderId) {
         ordersService.deleteOrder(orderId);

@@ -1,6 +1,5 @@
 package com.tiximax.txm.Service;
 
-import com.tiximax.txm.Model.EmailDetail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
@@ -10,6 +9,7 @@ import org.thymeleaf.context.Context;
 import com.sendgrid.*;
 import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Email;
+import com.tiximax.txm.Model.DTOResponse.Auth.EmailDetail;
 import com.sendgrid.helpers.mail.objects.Content;
 
 import java.io.IOException;
