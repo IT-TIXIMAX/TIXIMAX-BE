@@ -73,4 +73,9 @@ public class VoucherController {
         List<CustomerVoucher> unusedVouchers = voucherService.getUnusedVouchersByCustomerId(customerId);
         return new ResponseEntity<>(unusedVouchers, HttpStatus.OK);
     }
+
+    @GetMapping("/test/customer/{customerId}/{voucherId}")
+    public ResponseEntity<Boolean> gettest(@PathVariable Long customerId, @PathVariable Long voucherId) {
+        return ResponseEntity.ok(voucherService.usedVoucher(customerId, voucherId));
+    }
 }
