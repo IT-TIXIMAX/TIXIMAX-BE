@@ -137,7 +137,6 @@ public class OrdersService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     order.setPriceBeforeFee(priceBeforeFee);
-    // Tính tổng tiền cuối cùng
     Orders saved = finalizeOrder(order, links);
 
     messagingTemplate.convertAndSend(
@@ -1063,22 +1062,19 @@ public Orders addConsignment(
 
     
 
- public Page<ShipLinks> getOrderLinksForWarehouse(
+public Page<ShipLinks> getOrderLinksForWarehouse(
         Pageable pageable,
         ShipStatus status,
         String shipmentCode,
         String customerCode
 ) {
-
     Account currentAccount = accountUtils.getAccountCurrent();
     if (!currentAccount.getRole().equals(AccountRoles.STAFF_WAREHOUSE_DOMESTIC)) {
         throw new IllegalStateException("Chỉ nhân viên kho mới có quyền truy cập!");
     }
-
     List<OrderLinkStatus> statuses =
             (status == null) ? DEFAULT_SHIP_STATUSES : List.of(convert(status));
 
-    // gọi repository đã thêm search
     Page<Orders> ordersPage = ordersRepository.filterOrdersByLinkStatus(
             statuses,
             (shipmentCode == null || shipmentCode.isBlank()) ? null : shipmentCode,

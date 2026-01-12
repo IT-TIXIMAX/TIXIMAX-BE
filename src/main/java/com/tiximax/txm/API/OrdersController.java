@@ -234,7 +234,7 @@ public class OrdersController {
         Page<ShipLinks> result  = ordersService.getOrderLinksForWarehouse(
                 pageable,
                 status,
-                shipmentCode,
+                shipmentCode, 
                 customerCode
         );
           return ResponseEntity.ok(result);

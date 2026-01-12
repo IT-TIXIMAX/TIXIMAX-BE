@@ -3,6 +3,7 @@ package com.tiximax.txm.Repository;
 
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,25 +53,38 @@ Page<DraftDomestic> findAllWithFilter(
         Pageable pageable
 );
 
-  @Query(
-        value = """
-            SELECT DISTINCT d
-            FROM DraftDomestic d
-            JOIN d.shippingList s
-            JOIN Warehouse w ON w.trackingCode = s
-            WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
-              AND d.isLocked = false
-        """,
-        countQuery = """
-            SELECT COUNT(DISTINCT d)
-            FROM DraftDomestic d
-            JOIN d.shippingList s
-            JOIN Warehouse w ON w.trackingCode = s
-            WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
-              AND d.isLocked = false
-        """
-    )
-    Page<DraftDomestic> getDraftToExport(Pageable pageable);
+@Query(
+    value = """
+        SELECT DISTINCT d
+        FROM DraftDomestic d
+        JOIN d.shippingList s
+        JOIN Warehouse w ON w.trackingCode = s
+        WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+          AND d.isLocked = false
+          AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
+          AND (:startDateTime IS NULL OR d.createdAt >= :startDateTime)
+          AND (:endDateTime IS NULL OR d.createdAt <= :endDateTime)
+    """,
+    countQuery = """
+        SELECT COUNT(DISTINCT d)
+        FROM DraftDomestic d
+        JOIN d.shippingList s
+        JOIN Warehouse w ON w.trackingCode = s
+        WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+          AND d.isLocked = true
+          AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
+          AND (:startDateTime IS NULL OR d.createdAt >= :startDateTime)
+          AND (:endDateTime IS NULL OR d.createdAt <= :endDateTime)
+    """
+)
+Page<DraftDomestic> getDraftToExport(
+        @Param("routeId") Long routeId,
+        @Param("startDateTime") LocalDateTime startDateTime,
+        @Param("endDateTime") LocalDateTime endDateTime,
+        Pageable pageable
+);
+
+
 
       @Query("""
       SELECT s

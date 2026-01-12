@@ -1,4 +1,5 @@
 package com.tiximax.txm.API;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Page;
 
 import com.tiximax.txm.Enums.AccountRoles;
@@ -122,17 +124,6 @@ public class DraftDomesticController {
                 )
         );
 }
-        @GetMapping("/draft-domestic/importable/{page}/{size}")
-        public ResponseEntity<Page<DraftDomesticResponse>> getDraftToImport(
-                @PathVariable int page,
-                @PathVariable int size
-        ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<DraftDomesticResponse> drafts =
-                draftDomesticService.getDraftToExport(pageable);
-        return ResponseEntity.ok(drafts);
-        
-        }
 
         @PostMapping("/lock/ids")
        public ResponseEntity<Map<String, Object>> lockDraftDomestic(
@@ -147,14 +138,16 @@ public class DraftDomesticController {
             )
     );
 }
-@GetMapping("/available-to-lock/{page}/{size}")
-public ResponseEntity<Page<DraftDomesticResponse>> getAvailableToLock(
+@GetMapping("/available-to-ship/{page}/{size}")
+public ResponseEntity<Page<DraftDomesticResponse>> getAvailableToShip(
         @RequestParam(required = false) Long routeId,
+        @Param("startDateTime") LocalDateTime startDateTime,
+        @Param("endDateTime") LocalDateTime endDateTime,
         @PathVariable int page,
         @PathVariable int size
 ) {
          Pageable pageable = PageRequest.of(page, size);
-    return ResponseEntity.ok(draftDomesticService.getAvailableToLock(routeId, pageable));
+    return ResponseEntity.ok(draftDomesticService.getAvailableToShip(routeId, startDateTime, endDateTime, pageable));
 }
 }
 
