@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface ExpenseRequestRepository  extends JpaRepository<ExpenseRequest, Long> {
+public interface ExpenseRequestRepository extends JpaRepository<ExpenseRequest, Long> {
     @Query("SELECT e FROM ExpenseRequest e " +
             "WHERE (:status IS NULL OR e.status = :status)")
     Page<ExpenseRequest> findAllForApprover(

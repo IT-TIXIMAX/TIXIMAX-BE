@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -158,5 +159,16 @@ public class VoucherService {
     public List<CustomerVoucher> getUnusedVouchersByCustomerId(Long customerId) {
         Customer customer = customerRepository.findById(customerId).orElseThrow(() -> new RuntimeException("Khách này không tồn tại!"));
         return customerVoucherRepository.findByCustomerAndIsUsedFalse(customer);
+    }
+
+    public boolean usedVoucher(Long customerId, Long voucherId) {
+        Optional<CustomerVoucher> customerVoucher = customerVoucherRepository.findByCustomer_AccountIdAndVoucher_VoucherId(customerId, voucherId);
+        if (customerVoucher.isPresent()){
+            customerVoucher.get().setUsed(true);
+            customerVoucher.get().setUsedDate(LocalDateTime.now());
+            customerVoucherRepository.save(customerVoucher.get());
+            return true;
+        }
+        return false;
     }
 }
