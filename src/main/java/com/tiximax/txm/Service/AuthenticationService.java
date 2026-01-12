@@ -153,7 +153,7 @@ public class AuthenticationService implements UserDetailsService {
         }
         if (!account.isVerify()) {
           throw new AuthenticationServiceException("Tài khoản của bạn chưa được xác minh, vui lòng kiểm tra email để xác minh tài khoản!");
-         }
+        }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -888,19 +888,16 @@ public class AuthenticationService implements UserDetailsService {
 
     public Customer partialUpdateCustomer(Long customerId, CustomerPatchRequest request) {
         Account account = accountUtils.getAccountCurrent();
-        if (!account.getRole().equals(AccountRoles.MANAGER)){
-            throw new IllegalArgumentException("Chỉ manager mới được phép chỉnh sửa!");
-        }
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("Khách hàng này không tồn tại!"));
-        if (request.getUsername() != null) customer.setUsername(request.getUsername());
-        if (request.getPassword() != null) customer.setPassword(passwordEncoder.encode(request.getPassword()));
-        if (request.getEmail() != null) customer.setEmail(request.getEmail());
-        if (request.getPhone() != null) customer.setPhone(request.getPhone());
-        if (request.getName() != null) customer.setName(request.getName());
-        if (request.getCustomerCode() != null) customer.setCustomerCode(request.getCustomerCode());
-        if (request.getSource() != null) customer.setSource(request.getSource());
-        return customerRepository.save(customer);
+        if (customer.getStaffId().equals(account.getAccountId()) || account.getRole().equals(AccountRoles.MANAGER)){
+            if (request.getEmail() != null) customer.setEmail(request.getEmail());
+            if (request.getPhone() != null) customer.setPhone(request.getPhone());
+            if (request.getName() != null) customer.setName(request.getName());
+            return customerRepository.save(customer);
+        } else {
+            throw new RuntimeException("Bạn không có quyền sửa thông tin khách hàng này!");
+        }
     }
 
     public Staff partialUpdateStaff(Long staffId, StaffPatchRequest request) {
@@ -910,10 +907,9 @@ public class AuthenticationService implements UserDetailsService {
         }
         Staff staff = staffRepository.findById(staffId)
                 .orElseThrow(() -> new IllegalArgumentException("Nhân viên này không tồn tại!"));
-        if (request.getUsername() != null) staff.setUsername(request.getUsername());
-        if (request.getPassword() != null) staff.setPassword(passwordEncoder.encode(request.getPassword()));
         if (request.getEmail() != null) staff.setEmail(request.getEmail());
         if (request.getPhone() != null) staff.setPhone(request.getPhone());
+        if (request.getStatus() != null) staff.setStatus(request.getStatus());
         if (request.getName() != null) staff.setName(request.getName());
         if (request.getStaffCode() != null) staff.setStaffCode(request.getStaffCode());
         if (request.getDepartment() != null) staff.setDepartment(request.getDepartment());

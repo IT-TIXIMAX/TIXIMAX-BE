@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -69,6 +70,9 @@ public class PaymentService {
 
     @Autowired
     private CustomerRepository customerRepository;
+
+    @Autowired
+    private VoucherService voucherService;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
@@ -194,7 +198,7 @@ public class PaymentService {
 //            } else {
 //                totalWeight = BigDecimal.ONE;
 //            }
-            if (ordersList.get(0).getRoute().getMinWeight().compareTo(new BigDecimal("0.50")) == 0){
+            if (ordersList.get(0).getRoute().getMinWeight().compareTo(new BigDecimal("0.50")) == 0) {
                 if (rawTotalWeight.compareTo(new BigDecimal("0.5")) <= 0) {
                     totalWeight = new BigDecimal("0.5");
                 } else {
@@ -211,9 +215,10 @@ public class PaymentService {
 
         BigDecimal discount = BigDecimal.ZERO;
         CustomerVoucher customerVoucher = null;
+        Voucher voucher = null;
         if (customerVoucherId != null) {
             customerVoucher = customerVoucherRepository.findById(customerVoucherId).orElseThrow(() -> new RuntimeException("Voucher không tồn tại!"));
-            Voucher voucher = customerVoucher.getVoucher();
+            voucher = customerVoucher.getVoucher();
             if (customerVoucher.isUsed()) {
                 throw new RuntimeException("Voucher đã sử dụng!");
             }
@@ -236,7 +241,11 @@ public class PaymentService {
             } else if (voucher.getType() == VoucherType.CO_DINH) {
                 discount = voucher.getValue();
             }
-            totalAmount = totalAmount.subtract(discount);
+            if (voucherService.usedVoucher(commonCustomer.getAccountId(), voucher.getVoucherId())){
+                totalAmount = totalAmount.subtract(discount);
+            } else {
+                throw new RuntimeException("Lỗi khi áp voucher!");
+            }
         }
 
         BigDecimal totalDebt = ordersList.stream()
@@ -258,7 +267,7 @@ public class PaymentService {
 
         Payment payment = new Payment();
         payment.setPaymentCode(generateMergedPaymentCode());
-        payment.setContent(String.join(", ", orderCodes) + " + " + priceShipDos + " ship" + " - " + usedBalance + " số dư");
+        payment.setContent(String.join(", ", orderCodes) + " + " + priceShipDos + " ship" + " - " + usedBalance + " số dư" + " - " + discount + " discount");
         payment.setPaymentType(PaymentType.MA_QR);
         payment.setAmount(totalAmount);
         payment.setStatus(PaymentStatus.CHO_THANH_TOAN_SHIP);
@@ -272,7 +281,7 @@ public class PaymentService {
         payment.setCollectedAmount(qrAmount);
 
         BankAccount bankAccount = bankAccountService.getAccountById(bankId);
-        if (bankAccount == null){
+        if (bankAccount == null) {
             throw new RuntimeException("Thông tin thẻ ngân hàng không được tìm thấy!");
         }
 

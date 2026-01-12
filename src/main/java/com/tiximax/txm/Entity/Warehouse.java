@@ -76,4 +76,9 @@ public class Warehouse {
     @OneToMany(mappedBy = "warehouse", cascade = CascadeType.ALL)
     @JsonIgnore
     private Set<OrderLinks> orderLinks;
+
+    @ManyToOne
+    @JoinColumn(name = "flight_shipment_id")
+    @JsonIgnore
+    private FlightShipment flightShipment;
 }
