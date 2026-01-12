@@ -393,10 +393,11 @@ public class AuthenticationController {
     }
 
     @PutMapping("/refund-balance/{customerId}")
-    public void processBalanceMoney(
+    public ResponseEntity<Payment> processBalanceMoney(
             @PathVariable Long customerId,
             @RequestParam(required = true) String image,
             @RequestParam(required = true) BigDecimal amount) {
-        paymentService.refundFromBalance(customerId, amount, image);
+        Payment payment = paymentService.refundFromBalance(customerId, amount, image);
+        return ResponseEntity.ok(payment);
     }
 }

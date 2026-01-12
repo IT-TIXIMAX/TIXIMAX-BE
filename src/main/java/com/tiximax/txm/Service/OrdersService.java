@@ -56,8 +56,7 @@ public class OrdersService {
             OrderLinkStatus.DA_NHAP_KHO_VN,
             OrderLinkStatus.CHO_GIAO,
             OrderLinkStatus.CHO_TRUNG_CHUYEN,
-            OrderLinkStatus.DANG_GIAO,
-            OrderLinkStatus.DA_GIAO
+            OrderLinkStatus.DANG_GIAO
     );
 
     @Autowired
@@ -1088,8 +1087,8 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
 
         List<OrderLinks> validLinks = order.getOrderLinks().stream()
                 .filter(link -> statuses.contains(link.getStatus()))
-                .filter(link -> shipmentCode == null 
-                        || link.getShipmentCode() != null 
+                .filter(link -> shipmentCode == null
+                        || link.getShipmentCode() != null
                         || link.getShipmentCode().contains(shipmentCode)) // nếu muốn lọc lần 2
                 .sorted(Comparator.comparing(
                         OrderLinks::getGroupTag,

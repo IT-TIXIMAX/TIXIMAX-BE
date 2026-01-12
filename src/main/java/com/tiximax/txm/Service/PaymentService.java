@@ -721,10 +721,16 @@ public class PaymentService {
         }
     }
 
-    public void refundFromBalance(Long customerId, BigDecimal amount, String imageUrl) {
+    public Payment refundFromBalance(Long customerId, BigDecimal amount, String imageUrl) {
         Customer customer = customerRepository.getCustomerById(customerId);
         if (customer == null){
             throw new RuntimeException("Không tìm thấy khách hàng này!");
+        }
+        if (customer.getBalance().equals(BigDecimal.ZERO)){
+            throw new RuntimeException("Số dư phải lớn hơn 0 thì mới được sử dụng tính năng này!");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) < 0){
+            throw new RuntimeException("Không cho phép truyền vào số âm!");
         }
         if (customer.getBalance().compareTo(amount) >= 0){
             customer.setBalance(customer.getBalance().subtract(amount));
@@ -746,6 +752,7 @@ public class PaymentService {
         refundPayment.setStaff((Staff) accountUtils.getAccountCurrent());
         refundPayment.setIsMergedPayment(false);
         paymentRepository.save(refundPayment);
+        return refundPayment;
     }
 
 
