@@ -67,7 +67,7 @@ public class ExpenseRequestService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đề nghị thanh toán"));
 
         if (request.getStatus() != ExpenseStatus.CHO_DUYET) {
-            throw new IllegalStateException("Chỉ có thể duyệt đề nghị đang chờ xử lý");
+            throw new BadRequestException("Chỉ có thể duyệt đề nghị đang chờ xử lý");
         }
 
         request.setStatus(ExpenseStatus.DA_DUYET);
@@ -75,7 +75,7 @@ public class ExpenseRequestService {
 
         if (request.getPaymentMethod() == PaymentMethod.CHUYEN_KHOAN) {
             if (image == null) {
-                throw new IllegalArgumentException("Vui lòng cung cấp ảnh chuyển khoản khi duyệt thanh toán chuyển khoản");
+                throw new BadRequestException("Vui lòng cung cấp ảnh chuyển khoản khi duyệt thanh toán chuyển khoản");
             }
             request.setTransferImage(image);
         }
