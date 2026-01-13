@@ -27,6 +27,7 @@ public interface DraftDomesticRepository extends JpaRepository<DraftDomestic, Lo
           (:customerCode IS NULL OR c.customerCode = :customerCode)
           AND (:shipmentCode IS NULL OR sl = :shipmentCode)
           AND (:isLocked IS NULL OR d.isLocked = :isLocked)
+          AND (:isExported IS NULL OR d.isExported = :isExported)
           AND (:staffId IS NULL OR s.id = :staffId)
     """,
     countQuery = """
@@ -37,6 +38,7 @@ public interface DraftDomesticRepository extends JpaRepository<DraftDomestic, Lo
         WHERE
           (:customerCode IS NULL OR c.customerCode = :customerCode)
           AND (:isLocked IS NULL OR d.isLocked = :isLocked)
+          AND (:isExported IS NULL OR d.isExported = :isExported)
           AND (:staffId IS NULL OR s.id = :staffId)
           AND (
               :shipmentCode IS NULL
@@ -50,10 +52,19 @@ Page<DraftDomestic> findAllWithFilter(
         @Param("customerCode") String customerCode,
         @Param("shipmentCode") String shipmentCode,
         @Param("isLocked") Boolean isLocked,
-//  @Param("isExported") Boolean isExported,
+        @Param("isExported") Boolean isExported,
         @Param("staffId") Long staffId,
         Pageable pageable
 );
+    boolean existsByShipCode(String shipCode);
+
+    @Query("""
+        SELECT d.shipCode
+        FROM DraftDomestic d
+        WHERE d.shipCode LIKE CONCAT(:baseCode, '-%')
+        ORDER BY d.shipCode DESC
+    """)
+    List<String> findShipCodesByBaseCode(@Param("baseCode") String baseCode);
 
 
 @Query(

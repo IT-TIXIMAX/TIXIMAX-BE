@@ -2,9 +2,13 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.Route;
 import com.tiximax.txm.Entity.RouteExchangeRate;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTOResponse.Route.EffectiveRateResponse;
 import com.tiximax.txm.Repository.RouteExchangeRateRepository;
 import com.tiximax.txm.Repository.RouteRepository;
+
+import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,21 +30,20 @@ public class RouteExchangeRateService {
     public RouteExchangeRate addExchange(RouteExchangeRate request) {
         Long routeId = request.getId();
         if (routeId == null) {
-            throw new IllegalArgumentException("Mã tuyến bắt buộc phải được truyền vào!");
+            throw new BadRequestException("Mã tuyến bắt buộc phải được truyền vào!");
         }
 
         Route route = routeRepository.findById(routeId)
-                .orElseThrow(() -> new IllegalArgumentException("Tuyến này không tồn tại!"));
-
+                .orElseThrow(() -> new NotFoundException("Tuyến này không tồn tại!"));
         if (request.getStartDate() == null) {
-            throw new IllegalArgumentException("Ngày bắt đầu là bắt buộc!");
+            throw new BadRequestException("Ngày bắt đầu là bắt buộc!");
         }
         if (request.getExchangeRate() == null) {
-            throw new IllegalArgumentException("Tỷ giá gốc bắt buộc phải được nhập!");
+            throw new BadRequestException("Tỷ giá gốc bắt buộc phải được nhập!");
         }
 
         if (request.getStartDate().isAfter(request.getEndDate())){
-           throw new IllegalArgumentException("Ngày bắt đầu phải nhỏ hơn ngày kết thúc!");
+           throw new BadRequestException("Ngày bắt đầu phải nhỏ hơn ngày kết thúc!");
         }
 
         LocalDate start = request.getStartDate();
@@ -50,7 +53,7 @@ public class RouteExchangeRateService {
                 .existsByRoute_RouteIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(routeId, start, end);
 
         if (overlap) {
-            throw new IllegalArgumentException("Khoảng thời gian này đã chồng lấn với bản ghi tỷ giá khác của cùng tuyến!");
+            throw new BadRequestException("Khoảng thời gian này đã chồng lấn với bản ghi tỷ giá khác của cùng tuyến!");
         }
 
         RouteExchangeRate entity = new RouteExchangeRate();
@@ -75,7 +78,7 @@ public class RouteExchangeRateService {
 
         LocalDate finalDate = date;
         RouteExchangeRate rate = routeExchangeRateRepository.findEffectiveRate(routeId, date)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tỷ giá hiệu lực cho tuyến này tại ngày " + finalDate));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tỷ giá hiệu lực cho tuyến này tại ngày " + finalDate));
 
         EffectiveRateResponse resp = new EffectiveRateResponse();
         resp.setRouteName(rate.getRoute().getName());
@@ -88,7 +91,7 @@ public class RouteExchangeRateService {
 
     public void delete(Long id) {
         if (!routeExchangeRateRepository.existsById(id)) {
-            throw new IllegalArgumentException("Bản ghi không tồn tại");
+            throw new NotFoundException("Bản ghi không tồn tại");
         }
         routeExchangeRateRepository.deleteById(id);
     }

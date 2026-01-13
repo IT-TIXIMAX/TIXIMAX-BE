@@ -1,11 +1,15 @@
 package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.Route;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.Route.RouteRequest;
 import com.tiximax.txm.Model.DTOResponse.Route.ExchangeRateList;
 import com.tiximax.txm.Repository.RouteRepository;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
+
+import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,10 +29,10 @@ public class RouteService {
 
     public Route createRoute(RouteRequest routeRequest) {
         if (routeRequest.getName() == null || routeRequest.getName().isEmpty()) {
-            throw new IllegalArgumentException("Tên tuyến đường không được để trống!");
+            throw new BadRequestException("Tên tuyến đường không được để trống!");
         }
         if (routeRepository.existsByName(routeRequest.getName())) {
-            throw new IllegalArgumentException("Tuyến đường với tên " + routeRequest.getName() + " đã tồn tại!");
+            throw new BadRequestException("Tuyến đường với tên " + routeRequest.getName() + " đã tồn tại!");
         }
 
         Route route = new Route();
@@ -46,24 +50,24 @@ public class RouteService {
 
     public Route getRouteById(Long routeId) {
         return routeRepository.findById(routeId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tuyến đường này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tuyến đường này!"));
     }
 
     public List<Route> getAllRoutes() {
         List<Route> routes = routeRepository.findAll();
         if (routes.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy tuyến đường nào!");
+            throw new NotFoundException("Không tìm thấy tuyến đường nào!");
         }
         return routes;
     }
 
     public Route updateRoute(Long routeId, RouteRequest routeRequest) {
         Route route = routeRepository.findById(routeId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tuyến đường này để cập nhật!"));
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy tuyến đường này để cập nhật!"));
 
         if (routeRequest.getName() != null && !routeRequest.getName().isEmpty()) {
             if (!routeRequest.getName().equals(route.getName()) && routeRepository.existsByName(routeRequest.getName())) {
-                throw new IllegalArgumentException("Tuyến đường với tên " + routeRequest.getName() + " đã tồn tại!");
+                throw new BadRequestException("Tuyến đường với tên " + routeRequest.getName() + " đã tồn tại!");
             }
             route.setName(routeRequest.getName());
         }
@@ -88,9 +92,9 @@ public class RouteService {
 
     public void deleteRoute(Long routeId) {
         Route route = routeRepository.findById(routeId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tuyến đường với ID: " + routeId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tuyến đường với ID: " + routeId));
         if (!route.getOrders().isEmpty()) {
-            throw new IllegalStateException("Không thể xóa tuyến đường vì đã có đơn hàng liên kết!");
+            throw new BadRequestException("Không thể xóa tuyến đường vì đã có đơn hàng liên kết!");
         }
         routeRepository.delete(route);
     }

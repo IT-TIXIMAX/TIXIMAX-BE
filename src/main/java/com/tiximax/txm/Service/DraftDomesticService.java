@@ -50,19 +50,29 @@ public class DraftDomesticService {
  @Autowired
  private AccountUtils accountUtils;
 
- public DraftDomesticResponse addDraftDomestic(DraftDomesticRequest draft){
-    var customer = customerRepository.findByCustomerCode(draft.getCustomerCode());
-    if(customer == null){
-        throw new NotFoundException("Không tìm thấy khách hàng");
-    }
+public DraftDomesticResponse addDraftDomestic(DraftDomesticRequest draft) {
+
+    var customer = customerRepository
+            .findByCustomerCode(draft.getCustomerCode())
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng"));
+
     validateAllTrackingCodesExist(draft.getShippingList());
-    Double weight  = (warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList())*90)/100;
-    var draftDomestic = mapToEntity(draft, customer.get());
+    Double weight =(warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList()) * 90) / 100;
+
+    DraftDomestic draftDomestic = mapToEntity(draft, customer);
     draftDomestic.setWeight(weight);
-    draftDomestic.setShipCode(customer.get().getCustomerCode() + "-" + draft.getShippingList().size());
+
+    String shipCode = generateShipCode(
+            customer.getCustomerCode(),
+            draft.getShippingList().size()
+    );
+
+    draftDomestic.setShipCode(shipCode);
     draftDomesticRepository.save(draftDomestic);
+
     return new DraftDomesticResponse(draftDomestic);
- } 
+}
+
  
  public DraftDomesticResponse getDraftDomestic(Long id){
     var draftDomestic = draftDomesticRepository.findById(id).get();
@@ -76,7 +86,7 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
         String customerCode,
         String shipmentCode,
         Boolean lock,
-    //   Boolean isExported,
+        Boolean isExported,
         Pageable pageable
 ) {
     Account account = accountUtils.getAccountCurrent();
@@ -95,7 +105,7 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
                     customerCode,
                     shipmentCode,
                     lock,
-                 //   isExported,
+                    isExported,
                     staffId,
                     pageable
             )
@@ -310,68 +320,68 @@ public Boolean deleteDraftDomestic(Long draftId) {
 }
 
 
-// @Transactional
-// public Boolean lockDraftDomestic(List<Long> draftIds) {
+@Transactional
+public Boolean lockDraftDomestic(List<Long> draftIds) {
 
-//     if (draftIds == null || draftIds.isEmpty()) {
-//         throw new BadRequestException("Danh sách draftId không được rỗng");
-//     }
+    if (draftIds == null || draftIds.isEmpty()) {
+        throw new BadRequestException("Danh sách draftId không được rỗng");
+    }
 
-//     List<DraftDomestic> drafts = draftDomesticRepository.findAllById(draftIds);
-//   if (drafts.size() != draftIds.size()) {
-//         throw new BadRequestException("Có mẫu vận chuyển nội địa không tồn tại");
-//     }
+    List<DraftDomestic> drafts = draftDomesticRepository.findAllById(draftIds);
+  if (drafts.size() != draftIds.size()) {
+        throw new BadRequestException("Có mẫu vận chuyển nội địa không tồn tại");
+    }
 
-//     // 2. Gom toàn bộ trackingCode
-//     Set<String> allTrackingCodes = new HashSet<>();
+    // 2. Gom toàn bộ trackingCode
+    Set<String> allTrackingCodes = new HashSet<>();
 
-//     for (DraftDomestic draft : drafts) {
+    for (DraftDomestic draft : drafts) {
 
-//         if (Boolean.TRUE.equals(draft.getIsExported())) {
-//             throw new BadRequestException(
-//                 "DraftDomestic ID " + draft.getId() + " đã xuất file, không thể khóa"
-//             );
-//         }
-//         List<String> shippingList = draft.getShippingList();
+        if (Boolean.TRUE.equals(draft.getIsExported())) {
+            throw new BadRequestException(
+                "DraftDomestic ID " + draft.getId() + " đã xuất file, không thể khóa"
+            );
+        }
+        List<String> shippingList = draft.getShippingList();
 
-//         if (shippingList == null || shippingList.isEmpty()) {
-//             throw new BadRequestException(
-//                 "DraftDomestic ID " + draft.getId() + " có danh sách trackingCode trống"
-//             );
-//         }
+        if (shippingList == null || shippingList.isEmpty()) {
+            throw new BadRequestException(
+                "DraftDomestic ID " + draft.getId() + " có danh sách trackingCode trống"
+            );
+        }
 
-//         shippingList.forEach(code -> {
-//             if (code != null && !code.trim().isEmpty()) {
-//                 allTrackingCodes.add(code.trim());
-//             }
-//         });
-//     }
+        shippingList.forEach(code -> {
+            if (code != null && !code.trim().isEmpty()) {
+                allTrackingCodes.add(code.trim());
+            }
+        });
+    }
 
-//     List<Warehouse> warehouses =
-//             warehouseRepository.findByTrackingCodeInAndStatus(
-//                     new ArrayList<>(allTrackingCodes),
-//                     WarehouseStatus.CHO_GIAO
-//             );
+    List<Warehouse> warehouses =
+            warehouseRepository.findByTrackingCodeInAndStatus(
+                    new ArrayList<>(allTrackingCodes),
+                    WarehouseStatus.CHO_GIAO
+            );
 
-//     if (warehouses.size() != allTrackingCodes.size()) {
+    if (warehouses.size() != allTrackingCodes.size()) {
 
-//         Set<String> validCodes = warehouses.stream()
-//                 .map(Warehouse::getTrackingCode)
-//                 .collect(Collectors.toSet());
+        Set<String> validCodes = warehouses.stream()
+                .map(Warehouse::getTrackingCode)
+                .collect(Collectors.toSet());
 
-//         Set<String> invalidCodes = new HashSet<>(allTrackingCodes);
-//         invalidCodes.removeAll(validCodes); 
+        Set<String> invalidCodes = new HashSet<>(allTrackingCodes);
+        invalidCodes.removeAll(validCodes); 
 
-//         throw new BadRequestException(
-//             "Các trackingCode không hợp lệ hoặc không ở CHO_GIAO: " + invalidCodes
-//         );
-//     }
+        throw new BadRequestException(
+            "Các trackingCode không hợp lệ hoặc không ở CHO_GIAO: " + invalidCodes
+        );
+    }
 
-//     drafts.forEach(d -> d.setIsExported(true));
-//     draftDomesticRepository.saveAll(drafts);
+    drafts.forEach(d -> d.setIsExported(true));
+    draftDomesticRepository.saveAll(drafts);
 
-//     return true;
-// }
+    return true;
+ }
 
     public Page<DraftDomesticResponse> getDraftsToLock(
         Long routeId,
@@ -490,6 +500,33 @@ private void checkDraftDomesticLocked(Long draftId) {
     }
 }
 
+private String generateShipCode(
+        String customerCode,
+        int packageCount
+) {
+
+    String baseCode = customerCode + "-" + packageCount;
+
+    // Lấy tất cả shipCode dạng C00001-1-*
+    List<String> existingCodes =
+            draftDomesticRepository.findShipCodesByBaseCode(baseCode);
+
+    if (existingCodes.isEmpty()) {
+        return baseCode + "-A";
+    }
+
+    // Lấy suffix lớn nhất
+    char maxSuffix = 'A' - 1;
+
+    for (String code : existingCodes) {
+        char suffix = code.charAt(code.length() - 1);
+        if (suffix > maxSuffix) {
+            maxSuffix = suffix;
+        }
+    }
+
+    return baseCode + "-" + (char) (maxSuffix + 1);
+}
 
 
 

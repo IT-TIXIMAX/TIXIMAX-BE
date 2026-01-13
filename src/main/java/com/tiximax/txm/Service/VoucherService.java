@@ -5,6 +5,7 @@ import com.tiximax.txm.Entity.CustomerVoucher;
 import com.tiximax.txm.Entity.Route;
 import com.tiximax.txm.Entity.Voucher;
 import com.tiximax.txm.Enums.AssignType;
+import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.DTORequest.Order.VoucherCreateRequest;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.CustomerVoucherRepository;
@@ -70,10 +71,10 @@ public class VoucherService {
         voucher.setThresholdAmount(request.getThresholdAmount());
 
         if (voucher.getCode() == null || voucherRepository.findByCode(voucher.getCode()) != null) {
-            throw new IllegalArgumentException("Mã voucher đã tồn tại hoặc không hợp lệ!");
+            throw new BadRequestException("Mã voucher đã tồn tại hoặc không hợp lệ!");
         }
         if (voucher.getAssignType() == AssignType.DAT_CHI_TIEU && voucher.getThresholdAmount() == null) {
-            throw new IllegalArgumentException("Cần nhập số ký chỉ tiêu cho loại voucher cần chỉ tiêu như này!");
+            throw new BadRequestException("Cần nhập số ký chỉ tiêu cho loại voucher cần chỉ tiêu như này!");
         }
 
         if (request.getRouteIds() != null && !request.getRouteIds().isEmpty()) {
