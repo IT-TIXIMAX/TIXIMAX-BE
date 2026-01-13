@@ -14,8 +14,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
-
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.DraftDomestic;
@@ -23,6 +21,7 @@ import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.WarehouseStatus;
+import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
@@ -68,7 +67,7 @@ public class DraftDomesticService {
  public DraftDomesticResponse getDraftDomestic(Long id){
     var draftDomestic = draftDomesticRepository.findById(id).get();
     if(draftDomestic == null){
-        throw new IllegalArgumentException("Không tìm thấy đơn mẫu vận chuyển nội địa");
+        throw new BadRequestException("Không tìm thấy đơn mẫu vận chuyển nội địa");
     }
     return new DraftDomesticResponse(draftDomestic);
  }
@@ -114,14 +113,6 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
         return pageResult.map(DraftDomesticResponse::new);
     }
 
-// public Page<DraftDomesticResponse> getDraftToExport(
-//         Long routeId,
-//         Pageable pageable
-// ) {
-//     return draftDomesticRepository
-//             .getDraftToExport(routeId,pageable)
-//             .map(DraftDomesticResponse::new);
-// }
 
 @Transactional
 public DraftDomesticResponse addShipments(
@@ -132,7 +123,7 @@ public DraftDomesticResponse addShipments(
             .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn mẫu vận chuyển nội địa"));
 
     if (shippingCodes == null || shippingCodes.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách mã vận đơn không được rỗng");
+        throw new BadRequestException("Danh sách mã vận đơn không được rỗng");
     }
     checkDraftDomesticLocked(draftId);
     validateAllTrackingCodesExist(shippingCodes);
@@ -240,7 +231,7 @@ public DraftDomesticResponse updateDraftInfo(
     if (request.getPhoneNumber() != null) {
         String phone = request.getPhoneNumber().trim();
         if (phone.isEmpty()) {
-            throw new IllegalArgumentException("Số điện thoại không được để trống");
+            throw new BadRequestException("Số điện thoại không được để trống");
         }
         draft.setPhoneNumber(phone);
         updated = true;
@@ -248,14 +239,14 @@ public DraftDomesticResponse updateDraftInfo(
     if (request.getAddress() != null) {
         String address = request.getAddress().trim();
         if (address.isEmpty()) {
-            throw new IllegalArgumentException("Địa chỉ không được để trống");
+            throw new BadRequestException("Địa chỉ không được để trống");
         }
         draft.setAddress(address);
         updated = true;
     }
 
     if (!updated) {
-        throw new IllegalArgumentException("Không có dữ liệu để cập nhật");
+        throw new BadRequestException("Không có dữ liệu để cập nhật");
     }
 
     draftDomesticRepository.save(draft);
@@ -272,11 +263,11 @@ public DraftDomesticResponse removeShipments(
 
     checkDraftDomesticLocked(draftId);
     if (draft.getShippingList() == null || draft.getShippingList().isEmpty()) {
-        throw new IllegalArgumentException("mẫu vận chuyển chưa có mã vận chuyển nào");
+        throw new BadRequestException("mẫu vận chuyển chưa có mã vận chuyển nào");
     }
 
     if (shippingCodes == null || shippingCodes.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách mã vận đơn cần xóa không được rỗng");
+        throw new BadRequestException("Danh sách mã vận đơn cần xóa không được rỗng");
     }
 
     Set<String> removeSet = shippingCodes.stream()
@@ -291,17 +282,35 @@ public DraftDomesticResponse removeShipments(
     draftDomesticRepository.save(draft);
     return new DraftDomesticResponse(draft);
 }
+@Transactional
+public Boolean deleteDraftDomestic(Long draftId) {
+
+    DraftDomestic draft = draftDomesticRepository.findById(draftId)
+            .orElseThrow(() ->
+                    new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa")
+            );
+    if (Boolean.TRUE.equals(draft.getIsLocked())) {
+        throw new BadRequestException(
+                "Mẫu vận chuyển nội địa đã bị khóa, không thể xóa"
+        );
+    }
+
+
+    draftDomesticRepository.delete(draft);
+    return true;
+}
+
 
 @Transactional
 public Boolean lockDraftDomestic(List<Long> draftIds) {
 
     if (draftIds == null || draftIds.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách draftId không được rỗng");
+        throw new BadRequestException("Danh sách draftId không được rỗng");
     }
 
     List<DraftDomestic> drafts = draftDomesticRepository.findAllById(draftIds);
   if (drafts.size() != draftIds.size()) {
-        throw new NotFoundException("Có mẫu vận chuyển nội địa không tồn tại");
+        throw new BadRequestException("Có mẫu vận chuyển nội địa không tồn tại");
     }
 
     // 2. Gom toàn bộ trackingCode
@@ -310,14 +319,14 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
     for (DraftDomestic draft : drafts) {
 
         if (Boolean.TRUE.equals(draft.getIsLocked())) {
-            throw new IllegalStateException(
+            throw new BadRequestException(
                 "DraftDomestic ID " + draft.getId() + " đã bị khóa"
             );
         }
         List<String> shippingList = draft.getShippingList();
 
         if (shippingList == null || shippingList.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new BadRequestException(
                 "DraftDomestic ID " + draft.getId() + " có danh sách trackingCode trống"
             );
         }
@@ -342,9 +351,9 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
                 .collect(Collectors.toSet());
 
         Set<String> invalidCodes = new HashSet<>(allTrackingCodes);
-        invalidCodes.removeAll(validCodes);
+        invalidCodes.removeAll(validCodes); 
 
-        throw new IllegalStateException(
+        throw new BadRequestException(
             "Các trackingCode không hợp lệ hoặc không ở CHO_GIAO: " + invalidCodes
         );
     }
@@ -365,6 +374,43 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
     return draftDomesticRepository
             .getDraftToExport(routeId, startDate, endDate, pageable)
             .map(DraftDomesticResponse::new);
+    }
+
+     @Transactional
+    public void checkAndLockDraftDomesticByShipmentCodes(
+            Set<String> paidShipmentCodes
+    ) {
+
+        if (paidShipmentCodes == null || paidShipmentCodes.isEmpty()) {
+            return;
+        }
+
+        List<DraftDomestic> drafts =
+                draftDomesticRepository.findDraftByShipmentCodes(paidShipmentCodes);
+
+        for (DraftDomestic draft : drafts) {
+
+            List<String> shippingList = draft.getShippingList();
+            if (shippingList == null || shippingList.isEmpty()) {
+                continue;
+            }
+
+            Set<String> trackingCodes = new HashSet<>(shippingList);
+
+            long total =
+                    warehouseRepository.countByTrackingCodeIn(trackingCodes);
+
+            long ready =
+                    warehouseRepository.countByTrackingCodeInAndStatus(
+                            trackingCodes,
+                            WarehouseStatus.CHO_GIAO
+                    );
+
+            if (total > 0 && total == ready) {
+                draft.setIsLocked(true);
+                draftDomesticRepository.save(draft);
+            }
+        }
     }
 
 // IMPORT FILE VNPOST DRAFT DOMESTIC
@@ -393,7 +439,7 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
    private void validateAllTrackingCodesExist(List<String> shippingList) {
 
     if (shippingList == null || shippingList.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách mã vận đơn không được để trống");
+        throw new BadRequestException("Danh sách mã vận đơn không được để trống");
     }
 
     Set<String> inputCodes = shippingList.stream()
@@ -411,7 +457,7 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
         Set<String> invalidCodes = new HashSet<>(inputCodes);
         invalidCodes.removeAll(validCodes);
 
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
                 "Các mã vận đơn không hợp lệ hoặc không ở trạng thái CHO_GIAO: "
                         + invalidCodes
         );
@@ -421,7 +467,7 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
                     new ArrayList<>(inputCodes)
             );
     if (!existedInDraft.isEmpty()) {
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
                 "Mã đơn " + existedInDraft + "đã được thêm ở draft domestic khác: "
         );
     }
@@ -430,7 +476,7 @@ private void checkDraftDomesticLocked(Long draftId) {
 
     Boolean isLocked = draftDomesticRepository.isDraftLocked(draftId);
     if (isLocked != null && isLocked) {
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
             "Mẫu vận chuyển nội địa đã bị khoá, không thể chỉnh sửa"
         );
     }

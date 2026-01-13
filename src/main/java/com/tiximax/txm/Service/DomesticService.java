@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
+import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTOResponse.Domestic.CheckInDomestic;
 import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticDelivery;
@@ -69,23 +70,23 @@ public class DomesticService {
     Staff staff = getCurrentStaffWithLocation();
     List<Packing> packings = packingRepository.findAllByPackingCodeIn(packingCodes);
     if (packings.isEmpty()) {
-        throw new IllegalArgumentException("Không tìm thấy packing nào trong danh sách cung cấp!");
+        throw new BadRequestException("Không tìm thấy packing nào trong danh sách cung cấp!");
     }
 
     for (Packing packing : packings) {
         if (packing.getStatus() != PackingStatus.DA_BAY) {
-            throw new IllegalArgumentException("Packing " + packing.getPackingCode() + " chưa đúng trạng thái nhập kho!");
+            throw new BadRequestException("Packing " + packing.getPackingCode() + " chưa đúng trạng thái nhập kho!");
         }
     }
     Packing firstPacking = packings.get(0);
     Set<Warehouse> warehouses = firstPacking.getWarehouses();
     if (warehouses.isEmpty()) {
-        throw new IllegalArgumentException("Packing " + firstPacking.getPackingCode() + " không được liên kết với kho nước ngoài!");
+        throw new BadRequestException("Packing " + firstPacking.getPackingCode() + " không được liên kết với kho nước ngoài!");
     }
     Warehouse firstWarehouse = warehouses.iterator().next();
     WarehouseLocation fromLocation = firstWarehouse.getLocation();
     if (fromLocation == null) {
-        throw new IllegalArgumentException("Kho nước ngoài của packing " + firstPacking.getPackingCode() + " không được tìm thấy!");
+        throw new BadRequestException("Kho nước ngoài của packing " + firstPacking.getPackingCode() + " không được tìm thấy!");
     }
         List<String> shipmentCodes = packings.stream()
                 .flatMap(p -> p.getPackingList().stream())
@@ -128,22 +129,22 @@ public class DomesticService {
      Staff staff = getCurrentStaffWithLocation();
 
     WarehouseLocation toLocation = warehouseLocationRepository.findById(toLocationId)
-        .orElseThrow(() -> new IllegalArgumentException("Địa điểm kho đích không tồn tại!"));
+        .orElseThrow(() -> new BadRequestException("Địa điểm kho đích không tồn tại!"));
 
     List<Packing> packings = packingRepository.findAllByPackingCodeIn(packingCodes);
     if (packings.isEmpty()) {
-        throw new IllegalArgumentException("Không tìm thấy packing nào trong danh sách cung cấp!");
+        throw new BadRequestException("Không tìm thấy packing nào trong danh sách cung cấp!");
     }
 
     Packing firstPacking = packings.get(0);
     Set<Warehouse> warehouses = firstPacking.getWarehouses();
     if (warehouses.isEmpty()) {
-        throw new IllegalArgumentException("Packing " + firstPacking.getPackingCode() + " không được liên kết với kho nước ngoài!");
+        throw new BadRequestException("Packing " + firstPacking.getPackingCode() + " không được liên kết với kho nước ngoài!");
     }
     Warehouse firstWarehouse = warehouses.iterator().next();
     WarehouseLocation fromLocation = firstWarehouse.getLocation();
     if (fromLocation == null) {
-        throw new IllegalArgumentException("Kho nước ngoài của packing " + firstPacking.getPackingCode() + " không được tìm thấy!");
+        throw new BadRequestException("Kho nước ngoài của packing " + firstPacking.getPackingCode() + " không được tìm thấy!");
     }
 
     List<String> shipmentCodes = packings.stream()
@@ -158,7 +159,7 @@ public class DomesticService {
         .getDestinationName()
         .toLowerCase()
         .contains(toLocation.getName().toLowerCase())) {
-            throw new IllegalArgumentException("Packing " + orderLink.getShipmentCode() + " thuộc đơn hàng có điểm đến Sài Gòn, vui lòng sử dụng chức năng chuyển kho Sài Gòn!");
+            throw new BadRequestException("Packing " + orderLink.getShipmentCode() + " thuộc đơn hàng có điểm đến Sài Gòn, vui lòng sử dụng chức năng chuyển kho Sài Gòn!");
         }
     } 
     Domestic domestic = createDomestic(
@@ -183,11 +184,11 @@ public class DomesticService {
 }
     public Domestic RecievedPackingFromWarehouse(Long domesticId) {
     Staff staff = getCurrentStaffWithLocation();
-    var domestic = domesticRepository.findById(domesticId).orElseThrow(() -> new IllegalArgumentException("Domestic không tồn tại!"));
+    var domestic = domesticRepository.findById(domesticId).orElseThrow(() -> new BadRequestException("Domestic không tồn tại!"));
     List<String> shipmentCodes = domestic.getShippingList();
     List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCodeIn(shipmentCodes);
     if (orderLinks.isEmpty()) {
-        throw new IllegalArgumentException("Không tìm thấy đơn hàng trong danh sách cung cấp!"); 
+        throw new BadRequestException("Không tìm thấy đơn hàng trong danh sách cung cấp!"); 
     }
     for (OrderLinks orderLink : orderLinks) {
         if (orderLink.getStatus() == OrderLinkStatus.CHO_TRUNG_CHUYEN) {
@@ -345,7 +346,7 @@ public class DomesticService {
             throw new NotFoundException("Không tìm thấy đơn hàng trong danh sách cung cấp!");
         }
         if(orderLinks.get(0).getStatus() != OrderLinkStatus.CHO_NHAP_KHO_VN) {
-            throw new IllegalArgumentException("Đơn hàng đã được nhập kho Việt Nam!");
+            throw new BadRequestException("Đơn hàng đã được nhập kho Việt Nam!");
         }
         boolean updated = false;
 
@@ -368,28 +369,28 @@ public class DomesticService {
                 orderLinksRepository.findByShipmentCode(shipmentCode);
 
         if (orderLinks.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new NotFoundException(
                     "Không tìm thấy đơn hàng trong danh sách cung cấp!"
             );
         }
         OrderLinks orderLink = orderLinks.get(0);
         if (orderLink.getStatus() == OrderLinkStatus.DA_NHAP_KHO_VN) {
-            throw new IllegalStateException(
+            throw new BadRequestException(
                     "Đơn hàng đã được nhập kho Việt Nam!"
             );
         }
         if (orderLink.getStatus() == OrderLinkStatus.DANG_CHUYEN_VN) {
-            throw new IllegalStateException(
+            throw new BadRequestException(
                     "Đơn hàng đã đến Việt Nam nhưng bạn chưa nhận thùng hàng vào kho!"
             );
         }
         Warehouse warehouse = orderLink.getWarehouse();
         if (warehouse == null) {
-            throw new IllegalStateException("OrderLink chưa được gán kho!");
+            throw new BadRequestException("OrderLink chưa được gán kho!");
         }
         Packing packing = warehouse.getPacking();
         if (packing == null) {
-            throw new IllegalStateException("Warehouse chưa thuộc packing nào!");
+            throw new BadRequestException("Warehouse chưa thuộc packing nào!");
         }
         String flightCode = packing.getFlightCode();
 
@@ -453,7 +454,7 @@ public class DomesticService {
 
         if (filterCustomerCode != null &&
             !customerRepository.existsByCustomerCode(filterCustomerCode)) {
-            throw new IllegalArgumentException("Mã khách hàng không tồn tại!");
+            throw new BadRequestException("Mã khách hàng không tồn tại!");
         }
 
         Page<CustomerDeliveryRow> customerPage =
@@ -545,7 +546,7 @@ public class DomesticService {
     private Staff getCurrentStaffWithLocation() {
     Staff staff = (Staff) accountUtils.getAccountCurrent();
     if (staff == null || staff.getWarehouseLocation() == null) {
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
             "Nhân viên hiện tại chưa được gán địa điểm kho!"
         );
     }
@@ -556,7 +557,7 @@ public class DomesticService {
 
     List<String> trackingCodes = draftDomestic.getShippingList();
     if (trackingCodes == null || trackingCodes.isEmpty()) {
-        throw new IllegalArgumentException("Danh sách trackingCode trống");
+        throw new BadRequestException("Danh sách trackingCode trống");
     }
 
     List<Warehouse> warehouses =
@@ -574,14 +575,14 @@ public class DomesticService {
         Set<String> invalidCodes = new HashSet<>(trackingCodes);
         invalidCodes.removeAll(validCodes);
 
-        throw new IllegalStateException(
+        throw new BadRequestException(
                 "Warehouse không hợp lệ hoặc không ở CHO_GIAO: " + invalidCodes
         );
     }
 
     for (Warehouse w : warehouses) {
         if (!w.getOrders().getCustomer().equals(draftDomestic.getCustomer())) {
-            throw new IllegalStateException(
+            throw new BadRequestException(
                     "Warehouse không thuộc khách hàng hiện tại: "
                             + w.getTrackingCode()
             );
@@ -596,7 +597,7 @@ public class DomesticService {
             );
 
     if (updatedWarehouse != trackingCodes.size()) {
-        throw new IllegalStateException("Cập nhật Warehouse không đầy đủ");
+        throw new BadRequestException("Cập nhật Warehouse không đầy đủ");
     }
             orderLinksRepository.updateStatusByShipmentCodes(
                     trackingCodes,

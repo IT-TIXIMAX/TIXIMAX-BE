@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
+import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.DashboardResponse;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsCustomer;
@@ -27,6 +28,7 @@ import com.tiximax.txm.Utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -283,16 +285,16 @@ public class DashBoardService {
             BigDecimal inputCost) {
 
         if (flightCode == null || flightCode.isBlank()) {
-            throw new RuntimeException("Mã chuyến bay không được để trống");
+            throw new BadRequestException("Mã chuyến bay không được để trống");
         }
         boolean flightExists = packingRepository.existsByFlightCode(flightCode);
         if (!flightExists) {
-            throw new RuntimeException("Mã chuyến bay '" + flightCode + "' không tồn tại trong hệ thống!"
+            throw new BadRequestException("Mã chuyến bay '" + flightCode + "' không tồn tại trong hệ thống!"
             );
         }
 
         if (inputCost == null || inputCost.compareTo(BigDecimal.ZERO) < 0) {
-            throw new RuntimeException("Chi phí nhập vào phải phải từ 0 trở lên!");
+            throw new BadRequestException("Chi phí nhập vào phải phải từ 0 trở lên!");
         }
 
         BigDecimal effectiveMinWeight = packingRepository.findRouteMinWeightViaWarehouse(flightCode);
@@ -363,13 +365,13 @@ public class DashBoardService {
     @Transactional(readOnly = true)
     public PurchaseProfitResult calculateEstimatedPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
-            throw new RuntimeException("Ngày không hợp lệ!");
+            throw new BadRequestException("Ngày không hợp lệ!");
         }
 
         List<RouteExchangeRate> rates = routeExchangeRateRepository.findApplicableRates(routeId, startDate, endDate);
 
         if (rates.isEmpty()) {
-            throw new RuntimeException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
+            throw new BadRequestException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
         }
 
         BigDecimal totalProfit = BigDecimal.ZERO;
@@ -377,7 +379,7 @@ public class DashBoardService {
 
         RouteExchangeRate firstRate = rates.get(0);
         if (startDate.isBefore(firstRate.getStartDate())) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Ngày bắt đầu " + startDate + " nằm ngoài phạm vi mốc tỷ giá! " +
                             "Mốc sớm nhất bắt đầu từ " + firstRate.getStartDate()
             );
@@ -386,7 +388,7 @@ public class DashBoardService {
         RouteExchangeRate lastRate = rates.get(rates.size() - 1);
         LocalDate lastEnd = (lastRate.getEndDate() == null) ? LocalDate.MAX : lastRate.getEndDate();
         if (endDate.isAfter(lastEnd)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Ngày kết thúc " + endDate + " nằm ngoài phạm vi mốc tỷ giá! " +
                             "Mốc muộn nhất kết thúc vào " + lastEnd
             );
@@ -394,7 +396,7 @@ public class DashBoardService {
 
         for (RouteExchangeRate rate : rates) {
             if (cursor.isBefore(rate.getStartDate())) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Phát hiện khoảng thời gian bị gián đoạn từ " + cursor +
                                 " đến " + rate.getStartDate().minusDays(1) +
                                 " không được cover bởi bất kỳ mốc tỷ giá nào!"
@@ -416,7 +418,7 @@ public class DashBoardService {
         }
 
         if (cursor.isBefore(endDate.plusDays(1))) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Có khoảng thời gian gap từ " + cursor + " đến " + endDate + " không được cover bởi RouteExchangeRate!"
             );
         }
@@ -427,13 +429,13 @@ public class DashBoardService {
     @Transactional(readOnly = true)
     public PurchaseProfitResult calculateActualPurchaseProfit(LocalDate startDate, LocalDate endDate, Long routeId) {
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
-            throw new RuntimeException("Ngày không hợp lệ!");
+            throw new BadRequestException("Ngày không hợp lệ!");
         }
 
         List<RouteExchangeRate> rates = routeExchangeRateRepository.findApplicableRates(routeId, startDate, endDate);
 
         if (rates.isEmpty()) {
-            throw new RuntimeException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
+            throw new BadRequestException("Không có mốc tỷ giá nào cover khoảng thời gian yêu cầu cho tuyến này!");
         }
 
         BigDecimal totalProfit = BigDecimal.ZERO;
@@ -441,7 +443,7 @@ public class DashBoardService {
 
         RouteExchangeRate firstRate = rates.get(0);
         if (startDate.isBefore(firstRate.getStartDate())) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Ngày bắt đầu " + startDate + " nằm ngoài phạm vi mốc tỷ giá! " +
                             "Mốc sớm nhất bắt đầu từ " + firstRate.getStartDate()
             );
@@ -450,7 +452,7 @@ public class DashBoardService {
         RouteExchangeRate lastRate = rates.get(rates.size() - 1);
         LocalDate lastEnd = (lastRate.getEndDate() == null) ? LocalDate.MAX : lastRate.getEndDate();
         if (endDate.isAfter(lastEnd)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Ngày kết thúc " + endDate + " nằm ngoài phạm vi mốc tỷ giá! " +
                             "Mốc muộn nhất kết thúc vào " + lastEnd
             );
@@ -458,7 +460,7 @@ public class DashBoardService {
 
         for (RouteExchangeRate rate : rates) {
             if (cursor.isBefore(rate.getStartDate())) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Phát hiện khoảng thời gian bị gián đoạn từ " + cursor +
                                 " đến " + rate.getStartDate().minusDays(1) +
                                 " không được cover bởi bất kỳ mốc tỷ giá nào!"
@@ -484,7 +486,7 @@ public class DashBoardService {
         }
 
         if (cursor.isBefore(endDate.plusDays(1))) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Có khoảng thời gian gap từ " + cursor + " đến " + endDate + " không được cover bởi RouteExchangeRate!"
             );
         }
@@ -506,7 +508,7 @@ public class DashBoardService {
         LocalDateTime end = finalEnd.plusDays(1).atStartOfDay();
 
         if (status == null) {
-            throw new RuntimeException("Hãy chọn một loại thanh toán!");
+            throw new BadRequestException("Hãy chọn một loại thanh toán!");
         }
 
         List<Object[]> rawResults = paymentRepository.sumCollectedAmountByRouteNativeRaw(status.name(), start, end);
@@ -593,7 +595,7 @@ public class DashBoardService {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (currentAccount.getRole() != AccountRoles.ADMIN &&
                 currentAccount.getRole() != AccountRoles.MANAGER) {
-            throw new SecurityException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
+            throw new AccessDeniedException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
         }
 
         StartEndDate dateRange = getDateStartEnd(filterType);

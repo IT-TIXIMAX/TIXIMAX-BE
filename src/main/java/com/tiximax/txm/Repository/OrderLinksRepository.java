@@ -153,5 +153,12 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
     List<Long> findOrderIdsByShipmentCodes(
             @Param("shipmentCodes") List<String> shipmentCodes
     );
+
+    long countByShipmentCodeIn(Collection<String> shipmentCodes);
+
+    long countByShipmentCodeInAndStatus(
+            Collection<String> shipmentCodes,
+            OrderLinkStatus status
+    );
 }
 

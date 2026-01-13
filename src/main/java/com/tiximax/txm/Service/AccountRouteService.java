@@ -3,12 +3,14 @@ package com.tiximax.txm.Service;
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.AccountRoute;
 import com.tiximax.txm.Entity.Route;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Repository.AccountRouteRepository;
 import com.tiximax.txm.Repository.AuthenticationRepository;
 import com.tiximax.txm.Repository.RouteRepository;
 import com.tiximax.txm.Utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException.NotFound;
 
 import java.util.List;
 
@@ -29,9 +31,9 @@ public class AccountRouteService {
 
     public AccountRoute createAccountRoute(Long accountId, Long routeId) {
         Account account = authenticationRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với ID: " + accountId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài khoản với ID: " + accountId));
         Route route = routeRepository.findById(routeId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tuyến hàng với ID: " + routeId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tuyến hàng với ID: " + routeId));
 
         AccountRoute accountRoute = new AccountRoute();
         accountRoute.setAccount(account);
@@ -41,12 +43,12 @@ public class AccountRouteService {
 
     public AccountRoute getAccountRouteById(Long accountRouteId) {
         return accountRouteRepository.findById(accountRouteId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy AccountRoute với ID: " + accountRouteId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy AccountRoute với ID: " + accountRouteId));
     }
 
     public void deleteAccountRoute(Long accountRouteId) {
         if (!accountRouteRepository.existsById(accountRouteId)) {
-            throw new IllegalArgumentException("Không tìm thấy AccountRoute với ID: " + accountRouteId);
+            throw new NotFoundException("Không tìm thấy AccountRoute với ID: " + accountRouteId);
         }
         accountRouteRepository.deleteById(accountRouteId);
     }
