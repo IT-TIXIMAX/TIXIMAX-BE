@@ -3,6 +3,8 @@ package com.tiximax.txm.Service;
 import com.tiximax.txm.Config.SecurityConfig;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTORequest.Auth.ChangePasswordRequest;
 import com.tiximax.txm.Model.DTORequest.Auth.LoginRequest;
@@ -27,6 +29,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -38,6 +41,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException.NotFound;
 import org.springframework.security.core.Authentication;
 
 
@@ -388,7 +392,7 @@ public class AuthenticationService implements UserDetailsService {
     public Page<Staff> getSalesInSameRoute(Pageable pageable) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (currentAccount.getRole() != AccountRoles.LEAD_SALE) {
-            throw new SecurityException("Vị trí của bạn không được phép cho chức năng này!");
+            throw new AccessDeniedException("Vị trí của bạn không được phép cho chức năng này!");
         }
 
         List<AccountRoute> leadSaleRoutes = accountRouteRepository.findByAccount_AccountId(currentAccount.getAccountId());
@@ -442,25 +446,25 @@ public class AuthenticationService implements UserDetailsService {
         if (timeFrame != null && year != null && month != null) {
             if (timeFrame.equalsIgnoreCase("MONTH")) {
                 if (month < 1 || month > 12) {
-                    throw new IllegalArgumentException("Tháng phải từ 1 đến 12");
+                    throw new BadRequestException("Tháng phải từ 1 đến 12");
                 }
                 startDate = LocalDateTime.of(year, month, 1, 0, 0);
                 endDate = startDate.plusMonths(1);
             } else if (timeFrame.equalsIgnoreCase("WEEK")) {
                 if (month < 1 || month > 12) {
-                    throw new IllegalArgumentException("Tháng phải từ 1 đến 12");
+                    throw new BadRequestException("Tháng phải từ 1 đến 12");
                 }
                 if (week == null || week < 1 || week > 5) {
-                    throw new IllegalArgumentException("Tuần phải từ 1 đến 5");
+                    throw new BadRequestException("Tuần phải từ 1 đến 5");
                 }
                 LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
                 startDate = firstDayOfMonth.plusWeeks(week - 1).atStartOfDay();
                 endDate = startDate.plusWeeks(1);
             } else {
-                throw new IllegalArgumentException("timeFrame không hợp lệ. Sử dụng MONTH hoặc WEEK");
+                throw new BadRequestException("timeFrame không hợp lệ. Sử dụng MONTH hoặc WEEK");
             }
         } else if (timeFrame != null || year != null || month != null || week != null) {
-            throw new IllegalArgumentException("Thiếu tham số bắt buộc: MONTH cần timeFrame, year, month; WEEK cần thêm week");
+            throw new BadRequestException("Thiếu tham số bắt buộc: MONTH cần timeFrame, year, month; WEEK cần thêm week");
         }
 
         // Tính thống kê cho từng nhân viên
@@ -543,7 +547,6 @@ public class AuthenticationService implements UserDetailsService {
             customer.getAddresses().add(address);
 
             authenticationRepository.save(customer);
-            System.out.println("New customer saved: " + email);
             return customer;
         }
     }
@@ -581,7 +584,7 @@ public class AuthenticationService implements UserDetailsService {
 
         if (!(currentAccount instanceof Staff staff) ||
                 (staff.getRole() != AccountRoles.STAFF_SALE && staff.getRole() != AccountRoles.LEAD_SALE)) {
-            throw new SecurityException("Bạn không có quyền xem hiệu suất cá nhân!");
+            throw new AccessDeniedException("Bạn không có quyền xem hiệu suất cá nhân!");
         }
 
         LocalDate now = LocalDate.now();
@@ -650,104 +653,11 @@ public class AuthenticationService implements UserDetailsService {
         return result;
     }
 
-//    public Map<String, StaffPerformance> getMyPerformanceByDateRange(LocalDate start, LocalDate end) {
-//        Account currentAccount = accountUtils.getAccountCurrent();
-//        if (!(currentAccount instanceof Staff staff) ||
-//                (staff.getRole() != AccountRoles.STAFF_SALE && staff.getRole() != AccountRoles.LEAD_SALE)) {
-//            throw new SecurityException("Bạn không có quyền xem hiệu suất cá nhân!");
-//        }
-//
-//        LocalDateTime startDateTime = start.atStartOfDay();
-//        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
-//
-//        StaffPerformance perf = new StaffPerformance();
-//        perf.setStaffCode(staff.getStaffCode());
-//        perf.setName(staff.getName());
-//        perf.setDepartment(staff.getDepartment());
-//
-//        List<Orders> orders = ordersRepository.findByStaff_AccountIdAndCreatedAtBetween(
-//                staff.getAccountId(), startDateTime, endDateTime);
-//
-//        long totalOrders = orders.size();
-//        perf.setTotalOrders(totalOrders);
-//
-//        Set<OrderStatus> excludedStatuses = Set.of(
-//                OrderStatus.CHO_XAC_NHAN,
-//                OrderStatus.DA_XAC_NHAN,
-//                OrderStatus.CHO_THANH_TOAN,
-//                OrderStatus.DA_HUY
-//        );
-//
-//        BigDecimal totalGoods = orders.stream()
-//                .filter(order -> !excludedStatuses.contains(order.getStatus()))
-//                .flatMap(order -> order.getOrderLinks().stream())
-//                .filter(link -> link.getStatus() != OrderLinkStatus.DA_HUY)
-//                .map(OrderLinks::getFinalPriceVnd)
-//                .reduce(BigDecimal.ZERO, BigDecimal::add);
-//
-////        String orderLinkString = orders.stream()
-////                .filter(order -> !excludedStatuses.contains(order.getStatus()))
-////                .filter(order -> order.getOrderLinks() != null && !order.getOrderLinks().isEmpty())
-////                .flatMap(order -> order.getOrderLinks().stream())
-////                .filter(link -> link.getStatus() != null
-////                        && link.getStatus() == OrderLinkStatus.DA_HUY)
-////                .map(link -> String.valueOf(link.getLinkId()))
-////                .collect(Collectors.joining(","));
-//
-//        perf.setTotalGoods(totalGoods);
-//
-//        BigDecimal totalShip = paymentRepository.findByStaff_AccountIdAndStatusAndActionAtBetween(
-//                        staff.getAccountId(),
-//                        PaymentStatus.DA_THANH_TOAN_SHIP,
-//                        startDateTime,
-//                        endDateTime)
-//                .stream()
-//                .map(Payment::getAmount)
-//                .filter(Objects::nonNull)
-//                .reduce(BigDecimal.ZERO, BigDecimal::add);
-//        perf.setTotalShip(totalShip);
-//
-//        long totalParcels = orders.stream()
-//                .flatMap(o -> o.getOrderLinks().stream())
-//                .count();
-//        perf.setTotalParcels(totalParcels);
-//
-//        Double totalNetWeight = orders.stream()
-//                .flatMap(o -> o.getWarehouses().stream())
-//                .map(Warehouse::getNetWeight)
-//                .filter(Objects::nonNull)
-//                .mapToDouble(Double::doubleValue)
-//                .sum();
-//        perf.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
-//
-//        long completedOrders = orders.stream()
-//                .filter(o -> o.getStatus() == OrderStatus.DA_GIAO)
-//                .count();
-//        double completionRate = totalOrders > 0 ? (completedOrders * 100.0 / totalOrders) : 0.0;
-//        perf.setCompletionRate(Math.round(completionRate * 100.0) / 100.0);
-//
-//        long newCustomersInPeriod = customerRepository.countByStaffIdAndCreatedAtBetween(
-//                currentAccount.getAccountId(), startDateTime, endDateTime);
-//        perf.setNewCustomersInPeriod(newCustomersInPeriod);
-//
-//        long badFeedback = orders.stream()
-//                .map(Orders::getFeedback)
-//                .filter(Objects::nonNull)
-//                .filter(f -> f.getRating() < 3)
-//                .count();
-//        perf.setBadFeedbackCount(badFeedback);
-//
-//        Map<String, StaffPerformance> result = new HashMap<>();
-//        result.put(staff.getStaffCode(), perf);
-//
-//        return result;
-//    }
-
     public Map<String, StaffPerformance> getMyPerformanceByDateRange(LocalDate start, LocalDate end) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff staff) ||
                 (staff.getRole() != AccountRoles.STAFF_SALE && staff.getRole() != AccountRoles.LEAD_SALE)) {
-            throw new SecurityException("Bạn không có quyền xem hiệu suất cá nhân!");
+            throw new AccessDeniedException("Bạn không có quyền xem hiệu suất cá nhân!");
         }
 
         LocalDateTime startDateTime = start.atStartOfDay();
@@ -837,20 +747,20 @@ public class AuthenticationService implements UserDetailsService {
         Account currentAccount = accountUtils.getAccountCurrent();
 
         if (!passwordEncoder.matches(request.getOldPassword(), currentAccount.getPassword())) {
-            throw new IllegalArgumentException("Mật khẩu cũ không chính xác!");
+            throw new BadRequestException("Mật khẩu cũ không chính xác!");
         }
 
         if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
-            throw new IllegalArgumentException("Mật khẩu xác nhận không khớp!");
+            throw new BadRequestException("Mật khẩu xác nhận không khớp!");
         }
 
         if (request.getNewPassword().length() < 6) {
-            throw new IllegalArgumentException("Mật khẩu mới phải có ít nhất 6 ký tự!");
+            throw new BadRequestException("Mật khẩu mới phải có ít nhất 6 ký tự!");
         }
 
 
         if (passwordEncoder.matches(request.getNewPassword(), currentAccount.getPassword())) {
-            throw new IllegalArgumentException("Mật khẩu mới không được trùng với mật khẩu cũ!");
+            throw new BadRequestException("Mật khẩu mới không được trùng với mật khẩu cũ!");
         }
         currentAccount.setPassword(passwordEncoder.encode(request.getNewPassword()));
         authenticationRepository.save(currentAccount);
@@ -899,17 +809,17 @@ public class AuthenticationService implements UserDetailsService {
             if (request.getName() != null) customer.setName(request.getName());
             return customerRepository.save(customer);
         } else {
-            throw new RuntimeException("Bạn không có quyền sửa thông tin khách hàng này!");
+            throw new AccessDeniedException("Bạn không có quyền sửa thông tin khách hàng này!");
         }
     }
 
     public Staff partialUpdateStaff(Long staffId, StaffPatchRequest request) {
         Account account = accountUtils.getAccountCurrent();
         if (!account.getRole().equals(AccountRoles.MANAGER)){
-            throw new IllegalArgumentException("Chỉ manager mới được phép chỉnh sửa!");
+            throw new AccessDeniedException("Chỉ manager mới được phép chỉnh sửa!");
         }
         Staff staff = staffRepository.findById(staffId)
-                .orElseThrow(() -> new IllegalArgumentException("Nhân viên này không tồn tại!"));
+                .orElseThrow(() -> new NotFoundException("Nhân viên này không tồn tại!"));
         if (request.getEmail() != null) staff.setEmail(request.getEmail());
         if (request.getPhone() != null) staff.setPhone(request.getPhone());
         if (request.getStatus() != null) staff.setStatus(request.getStatus());
@@ -920,7 +830,7 @@ public class AuthenticationService implements UserDetailsService {
         if (request.getWarehouseLocationId() != null) {
             WarehouseLocation location = warehouseLocationRepository
                     .findById(request.getWarehouseLocationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Địa điểm kho không tồn tại!"));
+                    .orElseThrow(() -> new BadRequestException("Địa điểm kho không tồn tại!"));
             staff.setWarehouseLocation(location);
         }
 

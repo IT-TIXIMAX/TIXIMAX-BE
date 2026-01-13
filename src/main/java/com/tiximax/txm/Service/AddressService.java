@@ -4,12 +4,15 @@ import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Address;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.Staff;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.Address.AddressRequest;
 import com.tiximax.txm.Repository.AddressRepository;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.util.Optional;
@@ -37,24 +40,24 @@ public class AddressService {
         Optional<Customer> customerOptional = customerRepository.findByCustomerCode(customerCode);
 
         if (!customerOptional.isPresent()) {
-            throw new IllegalArgumentException("Không tìm thấy khách hàng với mã: " + customerCode);
+            throw new NotFoundException("Không tìm thấy khách hàng với mã: " + customerCode);
         }
         Customer customer = customerOptional.get();
 
         if (currentAccount instanceof Customer) {
             if (!customer.getCustomerCode().equals(((Customer) currentAccount).getCustomerCode())) {
-                throw new SecurityException("Bạn không có quyền xem địa chỉ của khách hàng này!");
+                throw new AccessDeniedException("Bạn không có quyền xem địa chỉ của khách hàng này!");
             }
         } else if (currentAccount instanceof Staff) {
             if (customer.getStaffId() == null || !customer.getStaffId().equals(currentAccount.getAccountId())) {
-                throw new SecurityException("Bạn không có quyền xem địa chỉ của khách hàng này!");
+                throw new AccessDeniedException("Bạn không có quyền xem địa chỉ của khách hàng này!");
             }
         } else {
-            throw new SecurityException("Loại tài khoản không hợp lệ!");
+            throw new AccessDeniedException("Loại tài khoản không hợp lệ!");
         }
 
         if (customer.getAddresses() == null || customer.getAddresses().isEmpty()) {
-            throw new IllegalArgumentException("Khách hàng này chưa có địa chỉ nào!");
+            throw new BadRequestException("Khách hàng này chưa có địa chỉ nào!");
         }
 
         return customer.getAddresses();
@@ -64,7 +67,7 @@ public class AddressService {
         Account currentAccount = accountUtils.getAccountCurrent();
         Optional<Customer> customerOptional = customerRepository.findByCustomerCode(customerCode);
         if (!customerOptional.isPresent()) {
-            throw new IllegalArgumentException("Không tìm thấy khách hàng với mã: " + customerCode);
+            throw new NotFoundException("Không tìm thấy khách hàng với mã: " + customerCode);
         }
         Customer customer = customerOptional.get();
 
