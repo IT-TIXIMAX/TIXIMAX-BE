@@ -53,8 +53,8 @@ public class DraftDomestic{
     @Column(name = "is_locked",nullable = false)
     private Boolean isLocked;; 
 
-   //@Column(nullable = false)
-  //  private Boolean isExported = false;
+   @Column(nullable = false)
+    private Boolean isExported = false;
 
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = false)

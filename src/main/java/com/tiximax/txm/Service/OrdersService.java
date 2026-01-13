@@ -624,15 +624,15 @@ public Orders addConsignment(
                 .collect(Collectors.toList());
     }
 
-   public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCode) {
+public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCode) {
 
     Customer customer = authenticationRepository.findByCustomerCode(customerCode);
     if (customer == null) {
-        throw new NotFoundException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
+        throw new NotFoundException("Mã khách hàng không được tìm thấy!");
     }
 
     if (!customer.getStaffId().equals(accountUtils.getAccountCurrent().getAccountId())) {
-        throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
+        throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng này!");
     }
 
     List<OrderLinks> orderLinks =
@@ -645,37 +645,53 @@ public Orders addConsignment(
         return Collections.emptyList();
     }
 
-    orderLinks.forEach(link -> Hibernate.initialize(link.getWarehouse()));
+    orderLinks.forEach(l -> Hibernate.initialize(l.getWarehouse()));
+
+    // === LẤY WAREHOUSE KHÔNG TRÙNG TRACKING ===
+    Map<String, Warehouse> warehouseMap = new LinkedHashMap<>();
+    for (OrderLinks link : orderLinks) {
+        Warehouse wh = link.getWarehouse();
+        warehouseMap.putIfAbsent(wh.getTrackingCode(), wh);
+    }
+
+    List<Warehouse> warehouses = new ArrayList<>(warehouseMap.values());
+
+    // === TÍNH TỔNG PHÍ SHIP (CHUẨN NHƯ CREATE) ===
+    BigDecimal totalShippingFee = partialShipmentService.calculateTotalShippingFee(
+            warehouses.stream()
+                    .map(Warehouse::getTrackingCode)
+                    .toList()
+    );
+
+    BigDecimal totalNetWeight = warehouses.stream()
+            .map(w -> BigDecimal.valueOf(w.getNetWeight()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    // === ĐÁNH DẤU SHIPMENT ĐÃ TÍNH ===
+    Set<String> calculatedShipmentCodes = new HashSet<>();
 
     return orderLinks.stream()
             .map(link -> {
 
                 Warehouse wh = link.getWarehouse();
+                String shipmentCode = link.getShipmentCode();
 
-                if (wh.getNetWeight() == null) {
-                    throw new BadRequestException(
-                            "Thiếu netWeight cho kiện " + wh.getTrackingCode()
-                    );
+                BigDecimal finalShip = BigDecimal.ZERO;
+
+                if (!calculatedShipmentCodes.contains(shipmentCode)) {
+
+                    BigDecimal ratio = BigDecimal.valueOf(wh.getNetWeight())
+                            .divide(totalNetWeight, 6, RoundingMode.HALF_UP);
+
+                   finalShip = roundToHundreds(totalShippingFee.multiply(ratio));
+
+
+                    calculatedShipmentCodes.add(shipmentCode);
                 }
 
-                BigDecimal basePriceShip = wh.getOrders().getPriceShip();
-
-                // ✅ LOGIC CHUẨN THEO YÊU CẦU:
-                // finalShip = netWeight × basePriceShip
-                BigDecimal finalShip =
-                        BigDecimal.valueOf(wh.getNetWeight())
-                                .multiply(basePriceShip)
-                                .setScale(0, RoundingMode.HALF_UP);
-
-                // 👉 CONSOLE RÕ TỪNG KIỆN
-                System.out.println("--------------------------------------------------");
-                System.out.println("TRACKING        : " + wh.getTrackingCode());
-                System.out.println("NET WEIGHT      : " + wh.getNetWeight());
-                System.out.println("BASE PRICE SHIP : " + basePriceShip);
-                System.out.println("FINAL SHIP      : " + finalShip);
-                System.out.println("--------------------------------------------------");
-
                 WareHouseOrderLink dto = new WareHouseOrderLink();
+
+                // warehouse
                 dto.setWarehouseId(wh.getWarehouseId());
                 dto.setLength(wh.getLength());
                 dto.setWidth(wh.getWidth());
@@ -684,6 +700,7 @@ public Orders addConsignment(
                 dto.setDim(wh.getDim());
                 dto.setNetWeight(wh.getNetWeight());
 
+                // link
                 dto.setLinkId(link.getLinkId());
                 dto.setProductLink(link.getProductLink());
                 dto.setProductName(link.getProductName());
@@ -695,14 +712,11 @@ public Orders addConsignment(
                 dto.setExtraCharge(link.getExtraCharge());
                 dto.setFinalPriceVnd(link.getFinalPriceVnd());
 
-                // ✅ TIỀN SHIP CUỐI
+                // ✅ ship đồng bộ 100%
                 dto.setFinalPriceShip(finalShip);
 
                 dto.setTrackingCode(link.getTrackingCode());
-                dto.setClassify(link.getClassify());
-                dto.setPurchaseImage(link.getPurchaseImage());
-                dto.setWebsite(link.getWebsite());
-                dto.setShipmentCode(link.getShipmentCode());
+                dto.setShipmentCode(shipmentCode);
                 dto.setStatus(link.getStatus());
                 dto.setNote(link.getNote());
                 dto.setGroupTag(link.getGroupTag());
@@ -711,6 +725,7 @@ public Orders addConsignment(
             })
             .collect(Collectors.toList());
 }
+
 
     public List<OrderPayment> getOrdersShippingByCustomerCode(String customerCode) {
         Customer customer = authenticationRepository.findByCustomerCode(customerCode);
@@ -957,7 +972,7 @@ public Orders addConsignment(
         Account currentAccount = accountUtils.getAccountCurrent();
 
         if (!currentAccount.getRole().equals(AccountRoles.STAFF_PURCHASER)) {
-            throw new IllegalStateException("Chỉ nhân viên mua hàng mới có quyền truy cập!");
+            throw new AccessDeniedException("Chỉ nhân viên mua hàng mới có quyền truy cập!");
         }
 
         List<AccountRoute> accountRoutes = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
@@ -1006,7 +1021,7 @@ public Orders addConsignment(
     ) {
     Account currentAccount = accountUtils.getAccountCurrent();
     if (!currentAccount.getRole().equals(AccountRoles.STAFF_WAREHOUSE_FOREIGN)) {
-        throw new IllegalStateException("Chỉ nhân viên kho nước ngoài mới có quyền truy cập!");
+        throw new AccessDeniedException("Chỉ nhân viên kho nước ngoài mới có quyền truy cập!");
     }
       List<AccountRoute> accountRoutes = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
         Set<Long> routeIds = accountRoutes.stream()
@@ -1066,7 +1081,7 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
 ) {
     Account currentAccount = accountUtils.getAccountCurrent();
     if (!currentAccount.getRole().equals(AccountRoles.STAFF_WAREHOUSE_DOMESTIC)) {
-        throw new IllegalStateException("Chỉ nhân viên kho mới có quyền truy cập!");
+        throw new AccessDeniedException("Chỉ nhân viên kho mới có quyền truy cập!");
     }
     List<OrderLinkStatus> statuses =
             (status == null) ? DEFAULT_SHIP_STATUSES : List.of(convert(status));
@@ -1126,14 +1141,14 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
             infoShipmentCode.setDestinationName(infoShipmentCode.getOrders().getDestination().getDestinationName());
             infoShipmentCode.setCustomerCode(customerCode);
         } else {
-            throw new IllegalStateException("Không tìm thấy mã vận đơn này, vui lòng thử lại!");
+            throw new NotFoundException("Không tìm thấy mã vận đơn này, vui lòng thử lại!");
         }
         return infoShipmentCode;
     }
 
     public CustomerBalanceAndOrders getOrdersWithNegativeLeftoverByCustomerCode(String customerCode) {
         Customer customer = customerRepository.findByCustomerCode(customerCode)
-                .orElseThrow(() -> new RuntimeException("Customer not found with code: " + customerCode));
+                .orElseThrow(() -> new NotFoundException("không tìm thấy khách hàng với mã khách hàng: " + customerCode));
 
         List<Orders> orders = ordersRepository.findByCustomerAndLeftoverMoneyGreaterThan(
                 customer, BigDecimal.ZERO);
@@ -1158,7 +1173,7 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
         List<OrderLinks> links = orderLinksRepository.findByShipmentCode(shipmentCode);
 
         if (links.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy mã vận đơn: " + shipmentCode);
+            throw new NotFoundException("Không tìm thấy mã vận đơn: " + shipmentCode);
         }
 
         Orders order = links.get(0).getOrders();
@@ -1169,25 +1184,25 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
     @Transactional
     public List<Orders> updateDestinationByShipmentCodes(List<String> shipmentCodes, Long newDestinationId) {
         if (shipmentCodes == null || shipmentCodes.isEmpty()) {
-            throw new IllegalArgumentException("Danh sách mã vận đơn không được để trống!");
+            throw new BadRequestException("Danh sách mã vận đơn không được để trống!");
         }
         
         Destination newDestination = destinationRepository.findById(newDestinationId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy điểm đến với ID: " + newDestinationId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy điểm đến với ID: " + newDestinationId));
         
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff staff)) {
-            throw new IllegalStateException("Chỉ nhân viên mới được phép thực hiện thao tác này!");
+            throw new AccessDeniedException("Chỉ nhân viên mới được phép thực hiện thao tác này!");
         }
         Set<AccountRoles> allowedRoles = Set.of(AccountRoles.ADMIN, AccountRoles.MANAGER, AccountRoles.STAFF_SALE, AccountRoles.LEAD_SALE);
         if (!allowedRoles.contains(staff.getRole())) {
-            throw new IllegalStateException("Bạn không có quyền thay đổi điểm đến!");
+            throw new AccessDeniedException("Bạn không có quyền thay đổi điểm đến!");
         }
         
         List<OrderLinks> allLinks = orderLinksRepository.findAllByShipmentCodeIn(shipmentCodes);
 
         if (allLinks.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy bất kỳ mã vận đơn nào trong danh sách!");
+            throw new NotFoundException("Không tìm thấy bất kỳ mã vận đơn nào trong danh sách!");
         }
         
         Map<Orders, List<OrderLinks>> orderToLinksMap = allLinks.stream()
@@ -1207,7 +1222,7 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
         }
         
         if (!invalidCodes.isEmpty()) {
-            throw new IllegalArgumentException("Không thể cập nhật điểm đến cho các đơn đã giao/hủy: " + String.join(", ", invalidCodes));
+            throw new BadRequestException("Không thể cập nhật điểm đến cho các đơn đã giao/hủy: " + String.join(", ", invalidCodes));
         }
         return ordersRepository.saveAll(updatedOrders);
     }
@@ -1240,12 +1255,12 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
         }
     
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng: " + orderId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng: " + orderId));
 
         OrderLinks link = order.getOrderLinks().stream()
                 .filter(l -> l.getLinkId().equals(orderLinkId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy link với ID: " + orderLinkId));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy link với ID: " + orderLinkId));
 
         String oldCode = link.getShipmentCode();
         link.setShipmentCode(shipmentCode);
@@ -1303,19 +1318,18 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
     public void deleteOrder(Long orderId) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff staff)) {
-            throw new IllegalStateException("Chỉ nhân viên mới được phép thực hiện thao tác này!");
+            throw new AccessDeniedException("Chỉ nhân viên mới được phép thực hiện thao tác này!");
         }
 
         Set<AccountRoles> allowedRoles = Set.of(AccountRoles.ADMIN, AccountRoles.MANAGER, AccountRoles.STAFF_SALE, AccountRoles.LEAD_SALE);
         if (!allowedRoles.contains(staff.getRole())) {
-            throw new IllegalStateException("Bạn không có quyền xóa đơn hàng!");
+            throw new AccessDeniedException("Bạn không có quyền xóa đơn hàng!");
         }
 
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng với ID: " + orderId));
-
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng với ID: " + orderId));
         if (!order.getStatus().equals(OrderStatus.DA_XAC_NHAN)) {
-            throw new IllegalStateException("Không được xóa đơn hàng ở giai đoạn này!");
+            throw new BadRequestException("Không được xóa đơn hàng ở giai đoạn này!");
         }
 
         if (order.getOrderProcessLogs() != null) {
@@ -1340,25 +1354,25 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
     }
    public Orders MoneyExchange(String customerCode, Long routeId, MoneyExchangeRequest ordersRequest) throws IOException {
     if (customerCode == null) {
-        throw new IllegalArgumentException("Bạn phải nhập mã khách hàng để thực hiện hành động này!");
+        throw new BadRequestException("Bạn phải nhập mã khách hàng để thực hiện hành động này!");
     }
 
     if (routeId == null) {
-        throw new IllegalArgumentException("Bạn phải chọn tuyến hàng để tiếp tục!");
+        throw new BadRequestException("Bạn phải chọn tuyến hàng để tiếp tục!");
     }
 
     Customer customer = authenticationRepository.findByCustomerCode(customerCode);
     if (customer == null) {
-        throw new IllegalArgumentException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
+        throw new NotFoundException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
     }
 
     Route route = routeRepository.findById(routeId)
-        .orElseThrow(() -> new RuntimeException("Route not found for ID: " + routeId));
+        .orElseThrow(() -> new NotFoundException("không tìm thấy tuyến với id : " + routeId));
    Destination destination = destinationRepository.findById(1L)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy điểm đến!"));
+        .orElseThrow(() -> new NotFoundException("Không tìm thấy điểm đến!"));
 
     if (ordersRequest.getExchangeRate().compareTo(route.getExchangeRate()) < 0) {
-        throw new IllegalArgumentException("Tỉ giá không được nhỏ hơn giá cố định, liên hệ quản lý để được hỗ trợ thay đổi tỉ giá!");
+        throw new BadRequestException("Tỉ giá không được nhỏ hơn giá cố định, liên hệ quản lý để được hỗ trợ thay đổi tỉ giá!");
     }
 
     Orders order = new Orders();
@@ -1429,7 +1443,7 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
     public List<ShipmentGroup> getShipmentsByCustomerPhone(String phone) {
         Account account = authenticationRepository.findByPhone(phone);
         if (account == null || !(account instanceof Customer customer)) {
-            throw new IllegalArgumentException("Không tìm thấy khách hàng với số điện thoại: " + phone);
+            throw new NotFoundException("Không tìm thấy khách hàng với số điện thoại: " + phone);
         }
 
         List<OrderLinks> links = orderLinksRepository.findByCustomerWithShipment(customer);
@@ -1503,25 +1517,25 @@ private OrderValidation validateAndGetOrder(
         Long destinationId
 ) {
     if (customerCode == null || customerCode.isBlank()) {
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
                 "Bạn phải nhập mã khách hàng!"
         );
     }
 
     if (routeId == null) {
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
                 "Bạn phải chọn tuyến hàng!"
         );
     }
 
     if (addressId == null) {
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
                 "Bạn phải chọn địa chỉ giao hàng!"
         );
     }
 
     if (destinationId == null) {
-        throw new IllegalArgumentException(
+        throw new BadRequestException(
                 "Bạn phải chọn điểm đến!"
         );
     }
@@ -1529,21 +1543,21 @@ private OrderValidation validateAndGetOrder(
     Customer customer =
             authenticationRepository.findByCustomerCode(customerCode);
     if (customer == null) {
-        throw new IllegalArgumentException(
+        throw new NotFoundException(
                 "Mã khách hàng không được tìm thấy!"
         );
     }
 
     Route route = routeRepository.findById(routeId)
             .orElseThrow(() ->
-                    new IllegalArgumentException(
+                    new NotFoundException(
                             "Không tìm thấy tuyến hàng!"
                     )
             );
 
     Address address = addressRepository.findById(addressId)
             .orElseThrow(() ->
-                    new IllegalArgumentException(
+                    new BadRequestException(
                             "Địa chỉ giao hàng không phù hợp!"
                     )
             );
@@ -1551,7 +1565,7 @@ private OrderValidation validateAndGetOrder(
     Destination destination =
             destinationRepository.findById(destinationId)
                     .orElseThrow(() ->
-                            new IllegalArgumentException(
+                            new NotFoundException(
                                     "Không tìm thấy điểm đến!"
                             )
                     );
@@ -1602,7 +1616,7 @@ private List<OrderLinks> buildOrderLinks(
         ProductType productType =
                 productTypeRepository.findById(r.getProductTypeId())
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
+                                new NotFoundException(
                                         "Kiểu sản phẩm không được tìm thấy!"
                                 )
                         );
@@ -1690,7 +1704,7 @@ private List<OrderLinks> buildConsignmentLinks(
         ProductType productType =
                 productTypeRepository.findById(r.getProductTypeId())
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
+                                new NotFoundException(
                                         "Kiểu sản phẩm không được tìm thấy!"
                                 )
                         );
@@ -1744,7 +1758,7 @@ public void updateOrderStatusIfCompleted(Long orderId) {
                 );
         if (totalLinks == finishedLinks) {
             Orders order = ordersRepository.findById(orderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Order không tồn tại"));
+                    .orElseThrow(() -> new NotFoundException("Order không tồn tại"));
             if (order.getStatus() != OrderStatus.DA_GIAO) {
                 order.setStatus(OrderStatus.DA_GIAO);
                 ordersRepository.save(order);
@@ -1762,4 +1776,12 @@ public void updateOrdersStatusAfterDeliveryByShipmentCodes(
         updateOrderStatusIfCompleted(orderId);
     }
 }
+    private BigDecimal roundToHundreds(BigDecimal amount) {
+        if (amount == null) return BigDecimal.ZERO;
+
+        return amount
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
+    }
+
 }
