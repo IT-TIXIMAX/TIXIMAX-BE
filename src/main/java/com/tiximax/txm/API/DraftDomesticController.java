@@ -47,26 +47,30 @@ public class DraftDomesticController {
         var response = draftDomesticService.addDraftDomestic(draft);
         return ResponseEntity.ok(response);
     }
-    @GetMapping("/{page}/{size}")
-        public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
-                @RequestParam(required = false) String customerCode,
-                @RequestParam(required = false) String shipmentCode,
-                @RequestParam(required = false) Boolean lock,
-                @PathVariable int page,
-                @PathVariable int size
-        ){
-        
-        Pageable pageable = PageRequest.of(page, size);
-          Page<DraftDomesticResponse> result =
+  @GetMapping("/{page}/{size}")
+public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
+        @RequestParam(required = false) String customerCode,
+        @RequestParam(required = false) String shipmentCode,
+        @RequestParam(required = false) Boolean lock,
+        @RequestParam(required = false) Boolean isExported,
+        @PathVariable int page,
+        @PathVariable int size
+) {
+
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<DraftDomesticResponse> result =
             draftDomesticService.getAllDraftDomestic(
                     customerCode,
                     shipmentCode,
                     lock,
+                 //   isExported,
                     pageable
             );
 
     return ResponseEntity.ok(result);
 }
+
      @PatchMapping("/{id}/info")
         public ResponseEntity<?> updateDraftInfo(
                 @PathVariable Long id,
@@ -127,19 +131,19 @@ public class DraftDomesticController {
         );
 }
 
-        @PostMapping("/lock/ids")
-       public ResponseEntity<Map<String, Object>> lockDraftDomestic(
-                @RequestBody List<Long> draftIds
-        ) {
-        Boolean result = draftDomesticService.lockDraftDomestic(draftIds);
-          return ResponseEntity.ok(
-            Map.of(
-                    "success", result,
-                    "message", "Lock danh sách thành công"
+//         @PostMapping("/lock/ids")
+//        public ResponseEntity<Map<String, Object>> lockDraftDomestic(
+//                 @RequestBody List<Long> draftIds
+//         ) {
+//         Boolean result = draftDomesticService.lockDraftDomestic(draftIds);
+//           return ResponseEntity.ok(
+//             Map.of(
+//                     "success", result,
+//                     "message", "Lock danh sách thành công"
                     
-            )
-    );
-}
+//             )
+//     );
+// }
 @GetMapping("/available-to-ship/{page}/{size}")
 public ResponseEntity<Page<DraftDomesticResponse>> getAvailableToShip(
         @RequestParam(required = false) Long routeId,

@@ -296,7 +296,7 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
  public Optional<PartialShipment> getById(Long id) {
         return partialShipmentRepository.findById(id);
     }
-    public BigDecimal calculateTotalShippingFee(List<String> selectedTrackingCodes) {
+   public BigDecimal calculateTotalShippingFee(List<String> selectedTrackingCodes) {
 
     List<Warehouse> warehouses =
             warehousereRepository.findByTrackingCodeIn(selectedTrackingCodes);
@@ -307,12 +307,12 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
 
     Route baseRoute = warehouses.get(0).getOrders().getRoute();
     boolean sameRoute = warehouses.stream()
-        .allMatch(w ->
-            w.getOrders() != null &&
-            w.getOrders().getRoute() != null &&
-            w.getOrders().getRoute().getRouteId()
-                .equals(baseRoute.getRouteId())
-        );
+            .allMatch(w ->
+                    w.getOrders() != null &&
+                    w.getOrders().getRoute() != null &&
+                    w.getOrders().getRoute().getRouteId()
+                            .equals(baseRoute.getRouteId())
+            );
 
     if (!sameRoute) {
         throw new IllegalArgumentException("Các order thuộc tuyến khác nhau");
@@ -321,45 +321,45 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
     BigDecimal basePriceShip = warehouses.get(0).getOrders().getPriceShip();
 
     boolean samePrice = warehouses.stream()
-        .allMatch(w ->
-            w.getOrders().getPriceShip() != null &&
-            w.getOrders().getPriceShip().compareTo(basePriceShip) == 0
-        );
+            .allMatch(w ->
+                    w.getOrders().getPriceShip() != null &&
+                    w.getOrders().getPriceShip().compareTo(basePriceShip) == 0
+            );
 
     if (!samePrice) {
         throw new IllegalArgumentException(
-            "Không thể gộp: các order có priceShip khác nhau"
+                "Không thể gộp: các order có priceShip khác nhau"
         );
     }
 
     BigDecimal totalNetWeight = warehouses.stream()
-        .map(w -> {
-            if (w.getNetWeight() == null) {
-                throw new IllegalArgumentException(
-                    "Thiếu netWeight cho kiện " + w.getTrackingCode()
-                );
-            }
-            return BigDecimal.valueOf(w.getNetWeight());
-        })
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .map(w -> {
+                if (w.getNetWeight() == null) {
+                    throw new IllegalArgumentException(
+                            "Thiếu netWeight cho kiện " + w.getTrackingCode()
+                    );
+                }
+                return BigDecimal.valueOf(w.getNetWeight());
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    // 4️⃣ Áp min theo route
     BigDecimal chargeableWeight;
 
     if ("Tuyến Nhật".equals(baseRoute.getNote())) {
         chargeableWeight =
-            totalNetWeight.compareTo(BigDecimal.valueOf(0.5)) < 0
-                ? BigDecimal.valueOf(0.5)
-                : totalNetWeight;
+                totalNetWeight.compareTo(BigDecimal.valueOf(0.5)) < 0
+                        ? BigDecimal.valueOf(0.5)
+                        : totalNetWeight;
     } else {
         chargeableWeight =
-            totalNetWeight.compareTo(BigDecimal.ONE) < 0
-                ? BigDecimal.ONE
-                : totalNetWeight;
+                totalNetWeight.compareTo(BigDecimal.ONE) < 0
+                        ? BigDecimal.ONE
+                        : totalNetWeight;
     }
 
     return chargeableWeight.multiply(basePriceShip);
 }
+
 private BigDecimal roundUp(BigDecimal value) {
     return value
             .divide(BigDecimal.valueOf(500), 0, RoundingMode.CEILING)  

@@ -50,9 +50,11 @@ Page<DraftDomestic> findAllWithFilter(
         @Param("customerCode") String customerCode,
         @Param("shipmentCode") String shipmentCode,
         @Param("isLocked") Boolean isLocked,
+//  @Param("isExported") Boolean isExported,
         @Param("staffId") Long staffId,
         Pageable pageable
 );
+
 
 @Query(
     value = """

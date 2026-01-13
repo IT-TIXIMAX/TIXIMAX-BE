@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
+import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.Order.ConsignmentRequest;
 import com.tiximax.txm.Model.DTORequest.Order.MoneyExchangeRequest;
@@ -38,6 +39,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -190,7 +192,7 @@ public Orders addConsignment(
 
     public Orders updateShipFee(Long orderId, BigDecimal shipFee) {
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng này!"));
    //     order.setShipFee(shipFee);
         ordersRepository.save(order);
         return order;
@@ -203,7 +205,7 @@ public Orders addConsignment(
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng link"));
         
         if(orderLink.getStatus() == OrderLinkStatus.DA_HUY){
-            throw new IllegalArgumentException("Đơn hàng link đã bị hủy, không thể hủy lại!");
+            throw new BadRequestException("Đơn hàng link đã bị hủy, không thể hủy lại!");
         }
         orderLink.setStatus(OrderLinkStatus.DA_HUY);
         BigDecimal currentLeftover = order.getLeftoverMoney() != null ? order.getLeftoverMoney() : BigDecimal.ZERO;
@@ -256,7 +258,7 @@ public Orders addConsignment(
             } else if (orderType.equals(OrderType.CHUYEN_TIEN)) {
                 orderCode = "CT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();;
             } else {
-                throw new IllegalStateException("Không có kiểu đơn hàng " + orderType);
+                throw new BadRequestException("Không có kiểu đơn hàng " + orderType);
             }
         } while (ordersRepository.existsByOrderCode(orderCode));
         return orderCode;
@@ -301,7 +303,7 @@ public Orders addConsignment(
         }
         return ordersRepository.findByRouteRouteIdInWithFilters(routeIds, shipmentCode, customerCode, orderCode, pageable);
     } else {
-        throw new IllegalStateException("Vai trò không hợp lệ!");
+        throw new AccessDeniedException("Vai trò không hợp lệ!");
     }
 }
 
@@ -323,7 +325,7 @@ public Orders addConsignment(
             }
             return ordersRepository.findByRouteRouteIdInAndStatus(routeIds, status, pageable);
         } else {
-            throw new IllegalStateException("Vai trò không hợp lệ!");
+            throw new AccessDeniedException("Vai trò không hợp lệ!");
         }
     }
 
@@ -331,7 +333,7 @@ public Orders addConsignment(
 
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff)) {
-            throw new IllegalStateException("Tài khoản hiện tại không phải là nhân viên!");
+            throw new AccessDeniedException("Tài khoản hiện tại không phải là nhân viên!");
         }
 
         List<AccountRoute> accountRoutes = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
@@ -365,7 +367,7 @@ public Orders addConsignment(
     );
 
     if (status == null || !validStatuses.contains(status)) {
-        throw new IllegalArgumentException("Trạng thái không hợp lệ!");
+        throw new BadRequestException("Trạng thái không hợp lệ!");
     }
 
      if (orderCode != null && orderCode.trim().isEmpty()) {
@@ -438,7 +440,7 @@ public Orders addConsignment(
     @Transactional(readOnly = true)
     public OrderDetail getOrderDetail(Long orderId) {
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng này!"));
 
         Hibernate.initialize(order.getOrderLinks());
         order.getOrderLinks().forEach(link -> {
@@ -478,7 +480,7 @@ public Orders addConsignment(
     Account currentAccount = accountUtils.getAccountCurrent();
 
     if (!currentAccount.getRole().equals(AccountRoles.STAFF_PURCHASER)) {
-        throw new IllegalStateException("Chỉ nhân viên mua hàng mới có quyền truy cập!");
+        throw new AccessDeniedException("Chỉ nhân viên mua hàng mới có quyền truy cập!");
     }
 
     List<AccountRoute> accountRoutes =
@@ -542,14 +544,14 @@ public Orders addConsignment(
 //                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm này!"));
 //        return orderLink;
         OrderLinks orderLink = orderLinksRepository.findById(orderLinkId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm này!"));
 
         Staff staff = orderLink.getOrders().getStaff();
 
         Customer customer = orderLink.getOrders().getCustomer();
 
         if (staff == null) {
-            throw new IllegalArgumentException("Không tìm thấy thông tin nhân viên liên quan!");
+            throw new NotFoundException("Không tìm thấy thông tin nhân viên liên quan!");
         }
         OrderLinkWithStaff orderLinkWithStaff = new OrderLinkWithStaff();
         orderLinkWithStaff.setOrderLink(orderLink);
@@ -561,7 +563,7 @@ public Orders addConsignment(
     public Map<String, Long> getOrderStatusStatistics() {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff)) {
-            throw new IllegalStateException("Chỉ nhân viên mới có quyền truy cập thống kê này!");
+            throw new AccessDeniedException("Chỉ nhân viên mới có quyền truy cập thống kê này!");
         }
         Long staffId = currentAccount.getAccountId();
 
@@ -585,11 +587,11 @@ public Orders addConsignment(
     public List<OrderPayment> getOrdersByCustomerCode(String customerCode) {
         Customer customer = authenticationRepository.findByCustomerCode(customerCode);
         if (customer == null) {
-            throw new IllegalArgumentException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
+            throw new NotFoundException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
         }
 
         if (!customer.getStaffId().equals(accountUtils.getAccountCurrent().getAccountId())) {
-            throw new IllegalStateException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
+            throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
         }
 
         List<Orders> orders = ordersRepository.findByCustomerCodeAndStatus(customerCode, OrderStatus.DA_XAC_NHAN);
@@ -605,11 +607,11 @@ public Orders addConsignment(
     public List<OrderPayment> getAfterPaymentAuctionsByCustomerCode(String customerCode) {
         Customer customer = authenticationRepository.findByCustomerCode(customerCode);
         if (customer == null) {
-            throw new IllegalArgumentException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
+            throw new NotFoundException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
         }
 
         if (!customer.getStaffId().equals(accountUtils.getAccountCurrent().getAccountId())) {
-            throw new IllegalStateException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
+            throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
         }
 
         List<Orders> orders = ordersRepository.findByCustomerCodeAndStatus(customerCode, OrderStatus.DAU_GIA_THANH_CONG);
@@ -626,18 +628,18 @@ public Orders addConsignment(
 
     Customer customer = authenticationRepository.findByCustomerCode(customerCode);
     if (customer == null) {
-        throw new IllegalArgumentException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
+        throw new NotFoundException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
     }
 
     if (!customer.getStaffId().equals(accountUtils.getAccountCurrent().getAccountId())) {
-        throw new IllegalStateException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
+        throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
     }
 
     List<OrderLinks> orderLinks =
             orderLinksRepository.findLinksInWarehouseWithoutPartialShipment(
                     customerCode,
                     OrderLinkStatus.DA_NHAP_KHO_VN
-        );
+            );
 
     if (orderLinks.isEmpty()) {
         return Collections.emptyList();
@@ -645,32 +647,33 @@ public Orders addConsignment(
 
     orderLinks.forEach(link -> Hibernate.initialize(link.getWarehouse()));
 
-    List<String> trackingCodes = orderLinks.stream()
-            .map(OrderLinks::getShipmentCode)
-            .filter(Objects::nonNull)
-            .distinct()
-            .collect(Collectors.toList());
-
-    // 3️⃣ Tính tổng phí ship (LOGIC CHUẨN)
-    BigDecimal totalShippingFee = partialShipmentService.calculateTotalShippingFee(trackingCodes);
-
-    // 4️⃣ Tổng netWeight
-    BigDecimal totalNetWeight = orderLinks.stream()
-            .map(l -> {
-                if (l.getWarehouse().getNetWeight() == null) {
-                    throw new IllegalArgumentException(
-                            "Thiếu netWeight cho kiện " + l.getTrackingCode()
-                    );
-                }
-                return BigDecimal.valueOf(l.getWarehouse().getNetWeight());
-            })
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-    // 5️⃣ Map sang DTO + phân bổ phí ship
     return orderLinks.stream()
             .map(link -> {
 
                 Warehouse wh = link.getWarehouse();
+
+                if (wh.getNetWeight() == null) {
+                    throw new BadRequestException(
+                            "Thiếu netWeight cho kiện " + wh.getTrackingCode()
+                    );
+                }
+
+                BigDecimal basePriceShip = wh.getOrders().getPriceShip();
+
+                // ✅ LOGIC CHUẨN THEO YÊU CẦU:
+                // finalShip = netWeight × basePriceShip
+                BigDecimal finalShip =
+                        BigDecimal.valueOf(wh.getNetWeight())
+                                .multiply(basePriceShip)
+                                .setScale(0, RoundingMode.HALF_UP);
+
+                // 👉 CONSOLE RÕ TỪNG KIỆN
+                System.out.println("--------------------------------------------------");
+                System.out.println("TRACKING        : " + wh.getTrackingCode());
+                System.out.println("NET WEIGHT      : " + wh.getNetWeight());
+                System.out.println("BASE PRICE SHIP : " + basePriceShip);
+                System.out.println("FINAL SHIP      : " + finalShip);
+                System.out.println("--------------------------------------------------");
 
                 WareHouseOrderLink dto = new WareHouseOrderLink();
                 dto.setWarehouseId(wh.getWarehouseId());
@@ -680,6 +683,7 @@ public Orders addConsignment(
                 dto.setWeight(wh.getWeight());
                 dto.setDim(wh.getDim());
                 dto.setNetWeight(wh.getNetWeight());
+
                 dto.setLinkId(link.getLinkId());
                 dto.setProductLink(link.getProductLink());
                 dto.setProductName(link.getProductName());
@@ -691,16 +695,9 @@ public Orders addConsignment(
                 dto.setExtraCharge(link.getExtraCharge());
                 dto.setFinalPriceVnd(link.getFinalPriceVnd());
 
-                // ✅ Phân bổ ship theo netWeight
-                BigDecimal allocatedShipFee = BigDecimal.ZERO;
-                if (totalNetWeight.compareTo(BigDecimal.ZERO) > 0) {
-                    allocatedShipFee = totalShippingFee
-                            .multiply(BigDecimal.valueOf(wh.getNetWeight()))
-                            .divide(totalNetWeight, 2, RoundingMode.HALF_UP);
+                // ✅ TIỀN SHIP CUỐI
+                dto.setFinalPriceShip(finalShip);
 
-                    allocatedShipFee = roundUp(allocatedShipFee);
-                }
-                dto.setFinalPriceShip(allocatedShipFee);
                 dto.setTrackingCode(link.getTrackingCode());
                 dto.setClassify(link.getClassify());
                 dto.setPurchaseImage(link.getPurchaseImage());
@@ -718,11 +715,11 @@ public Orders addConsignment(
     public List<OrderPayment> getOrdersShippingByCustomerCode(String customerCode) {
         Customer customer = authenticationRepository.findByCustomerCode(customerCode);
         if (customer == null) {
-            throw new IllegalArgumentException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
+            throw new NotFoundException("Mã khách hàng không được tìm thấy, vui lòng thử lại!");
         }
 
         if (!customer.getStaffId().equals(accountUtils.getAccountCurrent().getAccountId())) {
-            throw new IllegalStateException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
+            throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của khách hàng này!");
         }
 
         List<Orders> orders = ordersRepository.findByCustomerCodeAndStatus(customerCode, OrderStatus.DA_DU_HANG);
@@ -767,13 +764,13 @@ public Orders addConsignment(
 
     public Orders updateOrderLinkToBuyLater(Long orderId, Long orderLinkId) {
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng này!"));
 
         OrderLinks orderLink = orderLinksRepository.findById(orderLinkId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy link sản phẩm!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy link sản phẩm!"));
 
         if (!orderLink.getStatus().equals(OrderLinkStatus.CHO_MUA)) {
-            throw new IllegalArgumentException("Chỉ có thể chuyển sang MUA SAU nếu trạng thái hiện tại là CHỜ MUA!");
+            throw new BadRequestException("Chỉ có thể chuyển sang MUA SAU nếu trạng thái hiện tại là CHỜ MUA!");
         }
         orderLink.setStatus(OrderLinkStatus.MUA_SAU);
         orderLinksRepository.save(orderLink);
@@ -806,7 +803,7 @@ public Orders addConsignment(
 
     public void pinOrder(Long orderId, boolean pin) {
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng!"));
         order.setPinnedAt(pin ? LocalDateTime.now() : null);
         messagingTemplate.convertAndSend(
                 "/topic/Tiximax",
@@ -879,7 +876,7 @@ public Orders addConsignment(
     public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(Pageable pageable) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff)) {
-            throw new IllegalStateException("Chỉ nhân viên mới có quyền truy cập danh sách đơn hàng này!");
+            throw new AccessDeniedException("Chỉ nhân viên mới có quyền truy cập danh sách đơn hàng này!");
         }
         Staff staff = (Staff) currentAccount;
         Long staffId = staff.getAccountId();
@@ -894,7 +891,7 @@ public Orders addConsignment(
             ordersPage = ordersRepository.findByStaffIdAndRefundableCancelledLinks(
                     staffId, BigDecimal.ZERO, pageable);
         } else {
-            throw new IllegalStateException("Vai trò không hợp lệ!");
+            throw new AccessDeniedException("Vai trò không hợp lệ!");
         }
 
         // Map sang RefundResponse, chỉ lấy các link DA_HUY
@@ -915,10 +912,10 @@ public Orders addConsignment(
 
     public Orders processNegativeLeftoverMoney(Long orderId, String image, boolean refundToCustomer) {
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng này!"));
 
         if (order.getLeftoverMoney() == null || order.getLeftoverMoney().compareTo(BigDecimal.ZERO) >= 0) {
-            throw new IllegalArgumentException("Đơn hàng này không có tiền hoàn trả!");
+            throw new BadRequestException("Đơn hàng này không có tiền hoàn trả!");
         }
 
         BigDecimal amountToProcess = order.getLeftoverMoney().abs();

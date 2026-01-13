@@ -76,23 +76,32 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
         String customerCode,
         String shipmentCode,
         Boolean lock,
+    //   Boolean isExported,
         Pageable pageable
-        
 ) {
     Account account = accountUtils.getAccountCurrent();
     Long staffId = null;
+
     if (account instanceof Staff staff) {
         AccountRoles role = staff.getRole();
-
         if (role == AccountRoles.STAFF_SALE
                 || role == AccountRoles.LEAD_SALE) {
             staffId = staff.getAccountId();
         }
     }
+
     return draftDomesticRepository
-            .findAllWithFilter(customerCode, shipmentCode, lock, staffId, pageable)
+            .findAllWithFilter(
+                    customerCode,
+                    shipmentCode,
+                    lock,
+                 //   isExported,
+                    staffId,
+                    pageable
+            )
             .map(DraftDomesticResponse::new);
 }
+
 
 
     public Page<DraftDomesticResponse> getAvailableToShip(
@@ -301,70 +310,69 @@ public Boolean deleteDraftDomestic(Long draftId) {
 }
 
 
-@Transactional
-public Boolean lockDraftDomestic(List<Long> draftIds) {
+// @Transactional
+// public Boolean lockDraftDomestic(List<Long> draftIds) {
 
-    if (draftIds == null || draftIds.isEmpty()) {
-        throw new BadRequestException("Danh sách draftId không được rỗng");
-    }
+//     if (draftIds == null || draftIds.isEmpty()) {
+//         throw new BadRequestException("Danh sách draftId không được rỗng");
+//     }
 
-    List<DraftDomestic> drafts = draftDomesticRepository.findAllById(draftIds);
-  if (drafts.size() != draftIds.size()) {
-        throw new BadRequestException("Có mẫu vận chuyển nội địa không tồn tại");
-    }
+//     List<DraftDomestic> drafts = draftDomesticRepository.findAllById(draftIds);
+//   if (drafts.size() != draftIds.size()) {
+//         throw new BadRequestException("Có mẫu vận chuyển nội địa không tồn tại");
+//     }
 
-    // 2. Gom toàn bộ trackingCode
-    Set<String> allTrackingCodes = new HashSet<>();
+//     // 2. Gom toàn bộ trackingCode
+//     Set<String> allTrackingCodes = new HashSet<>();
 
-    for (DraftDomestic draft : drafts) {
+//     for (DraftDomestic draft : drafts) {
 
-        if (Boolean.TRUE.equals(draft.getIsLocked())) {
-            throw new BadRequestException(
-                "DraftDomestic ID " + draft.getId() + " đã bị khóa"
-            );
-        }
-        List<String> shippingList = draft.getShippingList();
+//         if (Boolean.TRUE.equals(draft.getIsExported())) {
+//             throw new BadRequestException(
+//                 "DraftDomestic ID " + draft.getId() + " đã xuất file, không thể khóa"
+//             );
+//         }
+//         List<String> shippingList = draft.getShippingList();
 
-        if (shippingList == null || shippingList.isEmpty()) {
-            throw new BadRequestException(
-                "DraftDomestic ID " + draft.getId() + " có danh sách trackingCode trống"
-            );
-        }
+//         if (shippingList == null || shippingList.isEmpty()) {
+//             throw new BadRequestException(
+//                 "DraftDomestic ID " + draft.getId() + " có danh sách trackingCode trống"
+//             );
+//         }
 
-        shippingList.forEach(code -> {
-            if (code != null && !code.trim().isEmpty()) {
-                allTrackingCodes.add(code.trim());
-            }
-        });
-    }
+//         shippingList.forEach(code -> {
+//             if (code != null && !code.trim().isEmpty()) {
+//                 allTrackingCodes.add(code.trim());
+//             }
+//         });
+//     }
 
-    List<Warehouse> warehouses =
-            warehouseRepository.findByTrackingCodeInAndStatus(
-                    new ArrayList<>(allTrackingCodes),
-                    WarehouseStatus.CHO_GIAO
-            );
+//     List<Warehouse> warehouses =
+//             warehouseRepository.findByTrackingCodeInAndStatus(
+//                     new ArrayList<>(allTrackingCodes),
+//                     WarehouseStatus.CHO_GIAO
+//             );
 
-    if (warehouses.size() != allTrackingCodes.size()) {
+//     if (warehouses.size() != allTrackingCodes.size()) {
 
-        Set<String> validCodes = warehouses.stream()
-                .map(Warehouse::getTrackingCode)
-                .collect(Collectors.toSet());
+//         Set<String> validCodes = warehouses.stream()
+//                 .map(Warehouse::getTrackingCode)
+//                 .collect(Collectors.toSet());
 
-        Set<String> invalidCodes = new HashSet<>(allTrackingCodes);
-        invalidCodes.removeAll(validCodes); 
+//         Set<String> invalidCodes = new HashSet<>(allTrackingCodes);
+//         invalidCodes.removeAll(validCodes); 
 
-        throw new BadRequestException(
-            "Các trackingCode không hợp lệ hoặc không ở CHO_GIAO: " + invalidCodes
-        );
-    }
+//         throw new BadRequestException(
+//             "Các trackingCode không hợp lệ hoặc không ở CHO_GIAO: " + invalidCodes
+//         );
+//     }
 
-    drafts.forEach(d -> d.setIsLocked(true));
-    draftDomesticRepository.saveAll(drafts);
+//     drafts.forEach(d -> d.setIsExported(true));
+//     draftDomesticRepository.saveAll(drafts);
 
-    return true;
-}
+//     return true;
+// }
 
-// Get list đủ điều kiện để lock và xuất file 
     public Page<DraftDomesticResponse> getDraftsToLock(
         Long routeId,
         LocalDateTime startDate,
