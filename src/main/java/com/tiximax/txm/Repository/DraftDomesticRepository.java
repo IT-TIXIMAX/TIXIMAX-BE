@@ -65,6 +65,18 @@ Page<DraftDomestic> findAllWithFilter(
         ORDER BY d.shipCode DESC
     """)
     List<String> findShipCodesByBaseCode(@Param("baseCode") String baseCode);
+    @Query("""
+        SELECT d
+        FROM DraftDomestic d
+        WHERE d.isLocked = true
+        AND d.isExported = false
+        AND d.createdAt BETWEEN :startDate AND :endDate
+        ORDER BY d.createdAt DESC
+    """)
+    List<DraftDomestic> findLockedNotExportedBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 
 
 @Query(
