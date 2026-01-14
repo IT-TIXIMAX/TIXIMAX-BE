@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -215,6 +216,13 @@ public class DashBoardService {
             case DAY -> {
                 startDate = now;
                 endDate = now;
+            }
+            case WEEK -> {
+                startDate = now.with(DayOfWeek.MONDAY);
+                if (startDate.isAfter(now)) {
+                    startDate = startDate.minusWeeks(1);
+                }
+                endDate = startDate.plusDays(6);
             }
             case MONTH -> {
                 startDate = now.withDayOfMonth(1);

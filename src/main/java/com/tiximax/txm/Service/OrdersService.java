@@ -955,7 +955,7 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
         } else {
             customer.setBalance(customer.getBalance().add(amountToProcess));
             refundPayment.setContent("Chuyển vào số dư cho đơn " + order.getOrderCode());
-            refundPayment.setCollectedAmount(amountToProcess.negate());
+            refundPayment.setCollectedAmount(BigDecimal.ZERO);
             paymentRepository.save(refundPayment);
         }
 
