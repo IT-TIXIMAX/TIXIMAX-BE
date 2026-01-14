@@ -320,8 +320,10 @@ public class AuthenticationController {
         return ResponseEntity.ok(performanceMap);
     }
 
-    @GetMapping("/my-performance")
+    @GetMapping("/my-performance/{routeId}/{staffId}")
     public ResponseEntity<Map<String, StaffPerformance>> getMyPerformance(
+            @RequestParam(required = false) Long routeId,
+            @PathVariable Long staffId,
             @RequestParam String startDate,
             @RequestParam String endDate) {
 
@@ -339,7 +341,7 @@ public class AuthenticationController {
         }
 
         Map<String, StaffPerformance> performanceMap =
-                authenticationService.getMyPerformanceByDateRange(start, end);
+                authenticationService.getMyPerformanceByDateRange(staffId, start, end, routeId);
 
         return ResponseEntity.ok(performanceMap);
     }
