@@ -391,7 +391,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("end") LocalDateTime end);
 
     @Query(value = """
-            goods_by_staff_route AS (
+           With goods_by_staff_route AS (
                 SELECT
                     o.route_id,
                     o.staff_id,
@@ -414,7 +414,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
                 COALESCE(r.name, 'Không xác định') AS route_name,
                 s.staff_code AS staff_code,
                 a.name AS staff_name,
-                COALESCE(g.total_goods, 0) AS total_goods,
+                COALESCE(g.total_goods, 0) AS total_goods
             FROM orders o
             JOIN staff s ON o.staff_id = s.account_id
             JOIN account a ON s.account_id = a.account_id
