@@ -639,9 +639,13 @@ public class DashBoardService {
         return new RouteInventorySummary(totalWeight, totalNetWeight);
     }
 
-    public Map<String, StaffPerformanceSummary> getPerformanceSummary(LocalDate start, LocalDate end, Long routeId) {
-        LocalDateTime startDateTime = start.atStartOfDay();
-        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+    public Map<String, StaffPerformanceSummary> getPerformanceSummary(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
 
@@ -669,9 +673,13 @@ public class DashBoardService {
         return resultMap;
     }
 
-    public Map<String, GoodsAndWeight> getGoodsAndWeight(LocalDate start, LocalDate end, Long routeId) {
-        LocalDateTime startDateTime = start.atStartOfDay();
-        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+    public Map<String, GoodsAndWeight> getGoodsAndWeight(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
 
@@ -705,14 +713,18 @@ public class DashBoardService {
         return resultMap;
     }
 
-    public long getBadFeedback(LocalDate start, LocalDate end, Long routeId) {
-        LocalDateTime startDate = start.atStartOfDay();
-        LocalDateTime endDate = end.plusDays(1).atStartOfDay();
+    public long getBadFeedback(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
 
         List<Object[]> badFeedbackRows = ordersRepository.getBadFeedbacks(
-                staff.getAccountId(), startDate, endDate, routeId);
+                staff.getAccountId(), startDateTime, endDateTime, routeId);
 
         long totalBad = 0L;
 
@@ -722,14 +734,18 @@ public class DashBoardService {
     return totalBad;
     }
 
-    public long getNewCustomers(LocalDate start, LocalDate end) {
-        LocalDateTime startDate = start.atStartOfDay();
-        LocalDateTime endDate = end.plusDays(1).atStartOfDay();
+    public long getNewCustomers(LocalDate start, LocalDate end, DashboardFilterType filterType) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
 
         Object[] newCustomer = ordersRepository.getNewCustomers(
-                staff.getAccountId(), startDate, endDate);
+                staff.getAccountId(), startDateTime, endDateTime);
         return newCustomer != null && newCustomer[0] != null
                 ? ((Number) newCustomer[0]).longValue()
                 : 0L;

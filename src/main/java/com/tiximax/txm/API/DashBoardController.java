@@ -189,43 +189,48 @@ public class DashBoardController {
 
     @GetMapping("/summary-staff")
     public ResponseEntity<Map<String, StaffPerformanceSummary>> getPerformanceSummary(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
             @RequestParam(required = false) Long routeId) {
 
         Map<String, StaffPerformanceSummary> data =
-                dashBoardService.getPerformanceSummary(startDate, endDate, routeId);
+                dashBoardService.getPerformanceSummary(startDate, endDate, filterType, routeId);
 
         return ResponseEntity.ok(data);
     }
 
     @GetMapping("/goods-and-weight")
     public ResponseEntity<Map<String, GoodsAndWeight>> getGoodsAndWeight(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
             @RequestParam(required = false) Long routeId) {
 
         Map<String, GoodsAndWeight> data =
-                dashBoardService.getGoodsAndWeight(startDate, endDate, routeId);
+                dashBoardService.getGoodsAndWeight(startDate, endDate, filterType, routeId);
 
         return ResponseEntity.ok(data);
     }
 
     @GetMapping("/feedbacks")
     public long getBadFeedbacks(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
             @RequestParam(required = false) Long routeId) {
 
-        return dashBoardService.getBadFeedback(startDate, endDate, routeId);
+        return dashBoardService.getBadFeedback(startDate, endDate, filterType, routeId);
     }
 
     @GetMapping("/new-customers")
     public long getNewCustomers(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType
+    ) {
 
-        return dashBoardService.getNewCustomers(startDate, endDate);
+        return dashBoardService.getNewCustomers(startDate, endDate, filterType);
     }
 
 }
