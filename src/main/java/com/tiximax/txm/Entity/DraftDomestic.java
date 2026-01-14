@@ -51,7 +51,10 @@ public class DraftDomestic{
     private LocalDateTime createdAt;
     
     @Column(name = "is_locked",nullable = false)
-    private Boolean isLocked;;  
+    private Boolean isLocked;; 
+
+   @Column(nullable = false)
+    private Boolean isExported = false;
 
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = false)

@@ -5,14 +5,14 @@ import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.ProcessLogAction;
 import com.tiximax.txm.Enums.WarehouseStatus;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.Warehouse.WarehouseRequest;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.WarehouseSummary;
 import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.OrdersRepository;
-import com.tiximax.txm.Repository.PurchasesRepository;
 import com.tiximax.txm.Repository.WarehouseRepository;
 import com.tiximax.txm.Utils.AccountUtils;
-import org.hibernate.query.Order;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -51,30 +51,30 @@ public class WarehouseService {
     public Warehouse createWarehouseEntryByShipmentCode(String shipmentCode, WarehouseRequest warehouseRequest) {
         List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCode(shipmentCode);
         if (orderLinks.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy mã sản phẩm với mã vận đơn " + shipmentCode + "!");
+            throw new NotFoundException("Không tìm thấy mã sản phẩm với mã vận đơn " + shipmentCode + "!");
         }
         Orders order = orderLinks.get(0).getOrders();
         if (order == null) {
-            throw new IllegalArgumentException("Không tìm thấy đơn hàng liên quan đến mã vận đơn này!");
+            throw new NotFoundException("Không tìm thấy đơn hàng liên quan đến mã vận đơn này!");
         }
 
         if (!(order.getStatus().equals(OrderStatus.CHO_NHAP_KHO_NN) ||
                 order.getStatus().equals(OrderStatus.CHO_DONG_GOI) ||
                 order.getStatus().equals(OrderStatus.DANG_XU_LY))) {
-            throw new RuntimeException("Đơn hàng chưa đủ điều kiện để nhập kho!");
+            throw new BadRequestException("Đơn hàng chưa đủ điều kiện để nhập kho!");
         }
 
         if (order.getCheckRequired() && warehouseRequest.getImageCheck().isEmpty()){
-            throw new RuntimeException("Đơn hàng này cần được kiểm tra trước khi nhập kho!");
+            throw new BadRequestException("Đơn hàng này cần được kiểm tra trước khi nhập kho!");
         }
 
         if (warehouseRepository.existsByTrackingCode(shipmentCode)) {
-            throw new IllegalArgumentException("Mục kho đã tồn tại cho mã vận đơn này!");
+            throw new BadRequestException("Mục kho đã tồn tại cho mã vận đơn này!");
         }
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
         if (staff.getWarehouseLocation() == null) {
-            throw new IllegalArgumentException("Nhân viên hiện tại chưa được gán địa điểm kho!");
+            throw new BadRequestException("Nhân viên hiện tại chưa được gán địa điểm kho!");
         }
 
         WarehouseLocation location = new WarehouseLocation();
@@ -141,7 +141,7 @@ public class WarehouseService {
     public String createWarehouseEntryByListShipmentCodes(List<String> shipmentCodes) {
         Staff staff = (Staff) accountUtils.getAccountCurrent();
         if (staff.getWarehouseLocation() == null) {
-            throw new IllegalArgumentException("Nhân viên hiện tại chưa được gán địa điểm kho!");
+            throw new BadRequestException("Nhân viên hiện tại chưa được gán địa điểm kho!");
         }
 
         WarehouseLocation location = new WarehouseLocation();
@@ -150,12 +150,12 @@ public class WarehouseService {
         for (String shipmentCode : shipmentCodes) {
             List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCode(shipmentCode);
             if (orderLinks.isEmpty()) {
-                throw new IllegalArgumentException("Không tìm thấy mã sản phẩm với mã vận đơn " + shipmentCode + "!");
+                throw new NotFoundException("Không tìm thấy mã sản phẩm với mã vận đơn " + shipmentCode + "!");
             }
 
             Orders order = orderLinks.get(0).getOrders();
             if (order == null) {
-                throw new IllegalArgumentException("Không tìm thấy đơn hàng liên quan đến mã vận đơn này!");
+                throw new NotFoundException("Không tìm thấy đơn hàng liên quan đến mã vận đơn này!");
             }
 
             if (!(order.getStatus().equals(OrderStatus.CHO_NHAP_KHO_NN) ||
@@ -165,7 +165,7 @@ public class WarehouseService {
             }
 
             if (warehouseRepository.existsByTrackingCode(shipmentCode)) {
-                throw new IllegalArgumentException("Mục kho đã tồn tại cho mã vận đơn này!");
+                throw new BadRequestException("Mục kho đã tồn tại cho mã vận đơn này!");
             }
 
             if (order.getStatus().equals(OrderStatus.CHO_NHAP_KHO_NN)) {
@@ -209,7 +209,7 @@ public class WarehouseService {
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
         if (staff.getWarehouseLocation() == null) {
-            throw new IllegalArgumentException("Nhân viên hiện tại chưa được gán địa điểm kho!");
+            throw new BadRequestException("Nhân viên hiện tại chưa được gán địa điểm kho!");
         }
          WarehouseLocation location = new WarehouseLocation();
         location.setLocationId(staff.getWarehouseLocation().getLocationId());
@@ -270,21 +270,21 @@ public class WarehouseService {
     public Warehouse updateWarehouseNetWeight(String trackingCode, WarehouseRequest request) {
         Optional<Warehouse> warehouseOptional = warehouseRepository.findByTrackingCode(trackingCode);
         if (warehouseOptional.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy kho với mã tracking: " + trackingCode);
+            throw new NotFoundException("Không tìm thấy kho với mã tracking: " + trackingCode);
         }
         Warehouse warehouse = warehouseOptional.get();
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
         if (staff.getWarehouseLocation() == null) {
-            throw new IllegalArgumentException("Nhân viên hiện tại chưa được gán địa điểm kho!");
+            throw new BadRequestException("Nhân viên hiện tại chưa được gán địa điểm kho!");
         }
 
         if (warehouse.getNetWeight() != null) {
-            throw new IllegalArgumentException("Kho này đã có số cân, không thể cập nhật!");
+            throw new BadRequestException("Kho này đã có số cân, không thể cập nhật!");
         }
 
         if (request.getLength() == null || request.getWidth() == null || request.getHeight() == null || request.getWeight() == null) {
-            throw new IllegalArgumentException("Vui lòng nhập đầy đủ kích thước và cân nặng!");
+            throw new BadRequestException("Vui lòng nhập đầy đủ kích thước và cân nặng!");
         }
 
         Double dim = (request.getLength() * request.getWidth() * request.getHeight()) / 6000;
@@ -312,13 +312,13 @@ public class WarehouseService {
     public Warehouse updateWarehouse(String trackingCode, WarehouseRequest request) {
         Optional<Warehouse> warehouseOptional = warehouseRepository.findByTrackingCode(trackingCode);
         if (warehouseOptional.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy kho với mã tracking: " + trackingCode);
+            throw new NotFoundException("Không tìm thấy kho với mã tracking: " + trackingCode);
         }
         Warehouse warehouse = warehouseOptional.get();
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
         if (staff.getWarehouseLocation() == null) {
-            throw new IllegalArgumentException("Nhân viên hiện tại chưa được gán địa điểm kho!");
+            throw new BadRequestException("Nhân viên hiện tại chưa được gán địa điểm kho!");
         }
 
         boolean recalculateDim = false;
@@ -356,7 +356,7 @@ public class WarehouseService {
         if (warehouse.getWeight() != null && warehouse.getDim() != null) {
             warehouse.setNetWeight(Math.max(warehouse.getDim(), warehouse.getWeight()));
         } else if (warehouse.getWeight() != null || warehouse.getDim() != null) {
-            throw new IllegalArgumentException("Không đủ dữ liệu để tính netWeight!");
+            throw new BadRequestException("Không đủ dữ liệu để tính netWeight!");
         }
 
         return warehouseRepository.save(warehouse);

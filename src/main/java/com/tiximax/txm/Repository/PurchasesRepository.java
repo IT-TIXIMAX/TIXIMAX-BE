@@ -68,6 +68,10 @@ public interface PurchasesRepository extends JpaRepository<Purchases, Long> {
                     (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
                     OR (:status IS NOT NULL AND ol.status = :status)
                   )
+              AND (
+                    ol.status <> 'DAU_GIA_THANH_CONG'
+                    OR o.status = 'CHO_NHAP_KHO_NN'
+                  )
               AND p.is_purchased = true
               AND NOT EXISTS (
                     SELECT 1
@@ -97,6 +101,11 @@ public interface PurchasesRepository extends JpaRepository<Purchases, Long> {
           AND (
                 (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
                 OR (:status IS NOT NULL AND ol.status = :status)
+              )
+         
+          AND (
+                ol.status <> 'DAU_GIA_THANH_CONG'
+                OR o.status = 'CHO_NHAP_KHO_NN'
               )
           AND p.is_purchased = true
           AND NOT EXISTS (

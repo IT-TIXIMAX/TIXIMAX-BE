@@ -5,9 +5,12 @@ import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException.NotFound;
 
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Otp;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTOResponse.Auth.EmailDetail;
 import com.tiximax.txm.Repository.AuthenticationRepository;
 import com.tiximax.txm.Repository.OtpRepository;
@@ -40,7 +43,7 @@ public class OtpService {
      public void sendOtpToEmail(String email) throws Exception {
         Account account = authenticationRepository.findByEmail(email);
         if (account == null) {
-            throw new Exception("User not found");
+            throw new NotFoundException("User not found");
         }
         Otp otp = generateOtp(account);
 
@@ -57,7 +60,7 @@ public class OtpService {
         email);
         var account = authenticationRepository.findByEmail(email);
         if (account == null) {
-            throw new Exception("User not found");
+            throw new NotFoundException("User not found");
         }
         account.setVerify(true);
 
@@ -66,11 +69,11 @@ public class OtpService {
 
         
         if ( otp.isExpired()){
-            throw new Exception("mã OTP của bạn đã hết hạn");
+            throw new BadRequestException("mã OTP của bạn đã hết hạn");
         }
          
         if (!otp.getCode().equals(code)) {
-            throw new Exception("mã OTP của bạn không đúng");
+            throw new BadRequestException("mã OTP của bạn không đúng");
         }
         otpRepository.delete(otp);
         authenticationRepository.save(account);

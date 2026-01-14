@@ -2,11 +2,11 @@ package com.tiximax.txm.API;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,9 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.repository.query.Param;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Page;
-
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
@@ -45,26 +44,30 @@ public class DraftDomesticController {
         var response = draftDomesticService.addDraftDomestic(draft);
         return ResponseEntity.ok(response);
     }
-    @GetMapping("/{page}/{size}")
-        public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
-                @RequestParam(required = false) String customerCode,
-                @RequestParam(required = false) String shipmentCode,
-                @RequestParam(required = false) Boolean lock,
-                @PathVariable int page,
-                @PathVariable int size
-        ){
-        
-        Pageable pageable = PageRequest.of(page, size);
-          Page<DraftDomesticResponse> result =
+@GetMapping("/{page}/{size}")
+public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
+        @RequestParam(required = false) String customerCode,
+        @RequestParam(required = false) String shipmentCode,
+        @RequestParam(required = false) Boolean lock,
+        @RequestParam(required = false) Boolean isExported,
+        @PathVariable int page,
+        @PathVariable int size
+) {
+
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<DraftDomesticResponse> result =
             draftDomesticService.getAllDraftDomestic(
                     customerCode,
                     shipmentCode,
                     lock,
+                    isExported,
                     pageable
             );
 
     return ResponseEntity.ok(result);
 }
+
      @PatchMapping("/{id}/info")
         public ResponseEntity<?> updateDraftInfo(
                 @PathVariable Long id,
@@ -125,7 +128,7 @@ public class DraftDomesticController {
         );
 }
 
-        @PostMapping("/lock/ids")
+        @PostMapping("/export/ids")
        public ResponseEntity<Map<String, Object>> lockDraftDomestic(
                 @RequestBody List<Long> draftIds
         ) {
@@ -134,20 +137,28 @@ public class DraftDomesticController {
             Map.of(
                     "success", result,
                     "message", "Lock danh sách thành công"
-                    
             )
     );
 }
 @GetMapping("/available-to-ship/{page}/{size}")
 public ResponseEntity<Page<DraftDomesticResponse>> getAvailableToShip(
         @RequestParam(required = false) Long routeId,
-        @Param("startDateTime") LocalDateTime startDateTime,
-        @Param("endDateTime") LocalDateTime endDateTime,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        LocalDateTime startDateTime,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        LocalDateTime endDateTime,
         @PathVariable int page,
         @PathVariable int size
 ) {
          Pageable pageable = PageRequest.of(page, size);
     return ResponseEntity.ok(draftDomesticService.getAvailableToShip(routeId, startDateTime, endDateTime, pageable));
+}
+@DeleteMapping("/{id}")
+public ResponseEntity<?> deleteDraftDomestic(@PathVariable Long id) {
+    draftDomesticService.deleteDraftDomestic(id);
+    return ResponseEntity.ok("Xóa mẫu vận chuyển nội địa thành công");
 }
 }
 

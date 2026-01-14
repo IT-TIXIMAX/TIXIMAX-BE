@@ -4,12 +4,15 @@ import com.tiximax.txm.Entity.ExpenseRequest;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.ExpenseStatus;
 import com.tiximax.txm.Enums.PaymentMethod;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.Route.CreateExpenseRequest;
 import com.tiximax.txm.Repository.ExpenseRequestRepository;
 import com.tiximax.txm.Utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,11 +32,11 @@ public class ExpenseRequestService {
         Staff currentStaff = (Staff) accountUtils.getAccountCurrent();
 
         if (!currentStaff.getCanRequestExpenses()) {
-            throw new IllegalArgumentException("Bạn không có quyền gửi đề nghị thanh toán");
+            throw new AccessDeniedException("Bạn không có quyền gửi đề nghị thanh toán");
         }
 
         if (request.getPaymentMethod() == PaymentMethod.CHUYEN_KHOAN && (request.getBankInfo() == null || request.getBankInfo().isBlank())) {
-            throw new IllegalArgumentException("Vui lòng cung cấp thông tin tài khoản ngân hàng khi chọn chuyển khoản");
+            throw new BadRequestException("Vui lòng cung cấp thông tin tài khoản ngân hàng khi chọn chuyển khoản");
         }
 
         ExpenseRequest expenseRequest = new ExpenseRequest();
@@ -57,14 +60,14 @@ public class ExpenseRequestService {
         Staff currentStaff = (Staff) accountUtils.getAccountCurrent();
 
         if (!currentStaff.getCanApproveExpenses()) {
-            throw new IllegalArgumentException("Bạn không có quyền phê duyệt đề nghị thanh toán");
+            throw new AccessDeniedException("Bạn không có quyền phê duyệt đề nghị thanh toán");
         }
 
         ExpenseRequest request = expenseRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đề nghị thanh toán"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đề nghị thanh toán"));
 
         if (request.getStatus() != ExpenseStatus.CHO_DUYET) {
-            throw new IllegalStateException("Chỉ có thể duyệt đề nghị đang chờ xử lý");
+            throw new BadRequestException("Chỉ có thể duyệt đề nghị đang chờ xử lý");
         }
 
         request.setStatus(ExpenseStatus.DA_DUYET);
@@ -72,7 +75,7 @@ public class ExpenseRequestService {
 
         if (request.getPaymentMethod() == PaymentMethod.CHUYEN_KHOAN) {
             if (image == null) {
-                throw new IllegalArgumentException("Vui lòng cung cấp ảnh chuyển khoản khi duyệt thanh toán chuyển khoản");
+                throw new BadRequestException("Vui lòng cung cấp ảnh chuyển khoản khi duyệt thanh toán chuyển khoản");
             }
             request.setTransferImage(image);
         }

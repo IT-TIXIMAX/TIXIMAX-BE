@@ -4,6 +4,7 @@ package com.tiximax.txm.Repository;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +27,7 @@ public interface DraftDomesticRepository extends JpaRepository<DraftDomestic, Lo
           (:customerCode IS NULL OR c.customerCode = :customerCode)
           AND (:shipmentCode IS NULL OR sl = :shipmentCode)
           AND (:isLocked IS NULL OR d.isLocked = :isLocked)
+          AND (:isExported IS NULL OR d.isExported = :isExported)
           AND (:staffId IS NULL OR s.id = :staffId)
     """,
     countQuery = """
@@ -36,6 +38,7 @@ public interface DraftDomesticRepository extends JpaRepository<DraftDomestic, Lo
         WHERE
           (:customerCode IS NULL OR c.customerCode = :customerCode)
           AND (:isLocked IS NULL OR d.isLocked = :isLocked)
+          AND (:isExported IS NULL OR d.isExported = :isExported)
           AND (:staffId IS NULL OR s.id = :staffId)
           AND (
               :shipmentCode IS NULL
@@ -49,9 +52,20 @@ Page<DraftDomestic> findAllWithFilter(
         @Param("customerCode") String customerCode,
         @Param("shipmentCode") String shipmentCode,
         @Param("isLocked") Boolean isLocked,
+        @Param("isExported") Boolean isExported,
         @Param("staffId") Long staffId,
         Pageable pageable
 );
+    boolean existsByShipCode(String shipCode);
+
+    @Query("""
+        SELECT d.shipCode
+        FROM DraftDomestic d
+        WHERE d.shipCode LIKE CONCAT(:baseCode, '-%')
+        ORDER BY d.shipCode DESC
+    """)
+    List<String> findShipCodesByBaseCode(@Param("baseCode") String baseCode);
+
 
 @Query(
     value = """
@@ -60,10 +74,10 @@ Page<DraftDomestic> findAllWithFilter(
         JOIN d.shippingList s
         JOIN Warehouse w ON w.trackingCode = s
         WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
-          AND d.isLocked = false
+          AND d.isLocked = true
           AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
-          AND (:startDateTime IS NULL OR d.createdAt >= :startDateTime)
-          AND (:endDateTime IS NULL OR d.createdAt <= :endDateTime)
+          AND d.createdAt >= COALESCE(:startDateTime, d.createdAt)
+          AND d.createdAt <= COALESCE(:endDateTime, d.createdAt)
     """,
     countQuery = """
         SELECT COUNT(DISTINCT d)
@@ -73,8 +87,8 @@ Page<DraftDomestic> findAllWithFilter(
         WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
           AND d.isLocked = true
           AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
-          AND (:startDateTime IS NULL OR d.createdAt >= :startDateTime)
-          AND (:endDateTime IS NULL OR d.createdAt <= :endDateTime)
+          AND d.createdAt >= COALESCE(:startDateTime, d.createdAt)
+          AND d.createdAt <= COALESCE(:endDateTime, d.createdAt)
     """
 )
 Page<DraftDomestic> getDraftToExport(
@@ -130,6 +144,17 @@ Boolean isDraftLocked(@Param("draftId") Long draftId);
             @Param("status") WarehouseStatus status,
             @Param("routeId") Long routeId,
             Pageable pageable
+    );
+
+      @Query("""
+        SELECT DISTINCT d
+        FROM DraftDomestic d
+        JOIN d.shippingList sl
+        WHERE d.isLocked = false
+          AND sl IN :shipmentCodes
+    """)
+    List<DraftDomestic> findDraftByShipmentCodes(
+            @Param("shipmentCodes") Collection<String> shipmentCodes
     );
 
 }

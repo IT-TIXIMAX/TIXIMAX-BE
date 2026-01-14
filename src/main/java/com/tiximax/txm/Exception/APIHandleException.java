@@ -75,15 +75,16 @@ public ResponseEntity<Map<String, Object>> handleAccessDeniedException(
         );
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(
-            IllegalArgumentException e
-    ) {
+    @ExceptionHandler(BadRequestException.class)
+        public ResponseEntity<Map<String, Object>> handleBadRequest(
+                BadRequestException e
+        ) {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 e.getMessage()
         );
-    }
+        }
+
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFoundException(

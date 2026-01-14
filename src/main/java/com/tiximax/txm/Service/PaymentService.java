@@ -3,6 +3,8 @@ package com.tiximax.txm.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.Payment.SmsRequest;
 import com.tiximax.txm.Model.DTOResponse.Payment.PaymentAuctionResponse;
 import com.tiximax.txm.Repository.*;
@@ -40,6 +42,8 @@ public class PaymentService {
 
     @Autowired
     private OrdersRepository ordersRepository;
+    @Autowired
+    private DraftDomesticService draftDomesticService;
 
     @Autowired
     private OrdersService ordersService;
@@ -49,9 +53,6 @@ public class PaymentService {
 
     @Autowired
     private OrderLinksRepository orderLinksRepository;
-
-    @Autowired
-    private ProcessLogRepository processLogRepository;
 
     @Autowired
     private AuthenticationRepository authenticationRepository;
@@ -80,7 +81,7 @@ public class PaymentService {
     public List<Payment> getPaymentsByOrderCode(String orderCode) {
         List<Payment> payments = paymentRepository.findByOrdersOrderCode(orderCode);
         if (payments == null){
-            throw new RuntimeException("Không tìm thấy đơn hàng này!");
+            throw new NotFoundException("Không tìm thấy đơn hàng này!");
         }
         return payments;
     }
@@ -88,7 +89,7 @@ public class PaymentService {
     public Optional<Payment> getPaymentByCode(String paymentCode) {
         Optional<Payment> payment = paymentRepository.findByPaymentCode(paymentCode);
         if (payment.isEmpty()){
-            throw new RuntimeException("Không tìm thấy giao dịch này!");
+            throw new NotFoundException("Không tìm thấy giao dịch này!");
         }
         return paymentRepository.findByPaymentCode(paymentCode);
     }
@@ -104,11 +105,11 @@ public class PaymentService {
     public Payment confirmedPayment(String paymentCode) {
         Optional<Payment> paymentOptional = paymentRepository.findByPaymentCode(paymentCode);
         if (paymentOptional.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy giao dịch này!");
+            throw new NotFoundException("Không tìm thấy giao dịch này!");
         }
         Payment payment = paymentOptional.get();
         if (!payment.getStatus().equals(PaymentStatus.CHO_THANH_TOAN)) {
-            throw new RuntimeException("Trạng thái đơn hàng không phải chờ thanh toán!");
+            throw new BadRequestException("Trạng thái đơn hàng không phải chờ thanh toán!");
         }
         payment.setStatus(PaymentStatus.DA_THANH_TOAN);
         payment.setCollectedAmount(payment.getAmount());
@@ -155,20 +156,20 @@ public class PaymentService {
 
     public Payment createMergedPaymentShipping(Set<String> orderCodes, boolean isUseBalance, long bankId, BigDecimal priceShipDos, Long customerVoucherId) {
         if (orderCodes == null || orderCodes.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy đơn hàng nào!");
+            throw new NotFoundException("Không tìm thấy đơn hàng nào!");
         }
 
         List<Orders> ordersList = ordersRepository.findAllByOrderCodeIn(new ArrayList<>(orderCodes));
         if (ordersList.size() != orderCodes.size()) {
-            throw new RuntimeException("Một hoặc một số đơn hàng không được tìm thấy!");
+            throw new NotFoundException("Một hoặc một số đơn hàng không được tìm thấy!");
         }
         if (ordersList.stream().anyMatch(o -> !o.getStatus().equals(OrderStatus.DA_DU_HANG))) {
-            throw new RuntimeException("Một hoặc một số đơn hàng chưa đủ điều kiện để thanh toán!");
+            throw new BadRequestException("Một hoặc một số đơn hàng chưa đủ điều kiện để thanh toán!");
         }
 
         Customer commonCustomer = ordersList.get(0).getCustomer();
         if (ordersList.stream().anyMatch(o -> !o.getCustomer().equals(commonCustomer))) {
-            throw new RuntimeException("Các đơn hàng phải thuộc cùng một khách hàng để thanh toán gộp!");
+            throw new BadRequestException("Các đơn hàng phải thuộc cùng một khách hàng để thanh toán gộp!");
         }
 
         BigDecimal unitPrice = ordersList.get(0).getPriceShip();
@@ -177,7 +178,7 @@ public class PaymentService {
                 .flatMap(order -> order.getWarehouses().stream())
                 .anyMatch(warehouse -> warehouse != null && warehouse.getNetWeight() == null);
         if (hasNullWeight) {
-            throw new RuntimeException("Một hoặc nhiều đơn hàng chưa được cân, vui lòng kiểm tra lại!");
+            throw new BadRequestException("Một hoặc nhiều đơn hàng chưa được cân, vui lòng kiểm tra lại!");
         }
 
         BigDecimal rawTotalWeight = ordersList.stream()
@@ -220,20 +221,20 @@ public class PaymentService {
             customerVoucher = customerVoucherRepository.findById(customerVoucherId).orElseThrow(() -> new RuntimeException("Voucher không tồn tại!"));
             voucher = customerVoucher.getVoucher();
             if (customerVoucher.isUsed()) {
-                throw new RuntimeException("Voucher đã sử dụng!");
+                throw new BadRequestException("Voucher đã sử dụng!");
             }
             if (voucher.getEndDate() != null && LocalDateTime.now().isAfter(voucher.getEndDate())) {
-                throw new RuntimeException("Voucher đã hết hạn!");
+                throw new BadRequestException("Voucher đã hết hạn!");
             }
             if (voucher.getMinOrderValue() != null && totalAmount.compareTo(voucher.getMinOrderValue()) < 0) {
-                throw new RuntimeException("Tổng giá trị đơn hàng chưa đạt yêu cầu của voucher!");
+                throw new BadRequestException("Tổng giá trị đơn hàng chưa đạt yêu cầu của voucher!");
             }
             Set<Route> applicableRoutes = voucher.getApplicableRoutes();
             if (!applicableRoutes.isEmpty()) {
                 boolean allRoutesMatch = ordersList.stream()
                         .allMatch(order -> applicableRoutes.contains(order.getRoute()));
                 if (!allRoutesMatch) {
-                    throw new RuntimeException("Voucher không áp dụng cho tuyến của một số đơn hàng!");
+                    throw new BadRequestException("Voucher không áp dụng cho tuyến của một số đơn hàng!");
                 }
             }
             if (voucher.getType() == VoucherType.PHAN_TRAM) {
@@ -244,7 +245,7 @@ public class PaymentService {
             if (voucherService.usedVoucher(commonCustomer.getAccountId(), voucher.getVoucherId())){
                 totalAmount = totalAmount.subtract(discount);
             } else {
-                throw new RuntimeException("Lỗi khi áp voucher!");
+                throw new BadRequestException("Lỗi khi áp voucher!");
             }
         }
 
@@ -282,7 +283,7 @@ public class PaymentService {
 
         BankAccount bankAccount = bankAccountService.getAccountById(bankId);
         if (bankAccount == null) {
-            throw new RuntimeException("Thông tin thẻ ngân hàng không được tìm thấy!");
+            throw new NotFoundException("Thông tin thẻ ngân hàng không được tìm thấy!");
         }
 
         String qrCodeUrl = "https://img.vietqr.io/image/" + bankAccount.getBankName() + "-" + bankAccount.getAccountNumber() + "-print.png?amount=" + qrAmount + "&addInfo=" + payment.getPaymentCode() + "&accountName=" + bankAccount.getAccountHolder();
@@ -325,15 +326,17 @@ public class PaymentService {
   public Payment confirmedPaymentShipment(String paymentCode) {
 
     Payment payment = paymentRepository.findByPaymentCode(paymentCode)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy giao dịch này!"));
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy giao dịch này!"));
 
     if (!payment.getStatus().equals(PaymentStatus.CHO_THANH_TOAN_SHIP)) {
-        throw new RuntimeException("Trạng thái đơn hàng không phải chờ thanh toán!");
+        throw new BadRequestException("Trạng thái đơn hàng không phải chờ thanh toán!");
     }
 
     payment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
     payment.setCollectedAmount(payment.getAmount());
     payment.setActionAt(LocalDateTime.now());
+
+    Set<String> paidShipmentCodes = new HashSet<>();
 
     if (payment.getIsMergedPayment()) {
 
@@ -343,6 +346,9 @@ public class PaymentService {
             for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
                 if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
+                if (link.getShipmentCode() != null) {
+                    paidShipmentCodes.add(link.getShipmentCode());
+                }
                 syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
             ordersRepository.save(order);
@@ -356,6 +362,9 @@ public class PaymentService {
         for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
              if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
+                if (link.getShipmentCode() != null) {
+                    paidShipmentCodes.add(link.getShipmentCode());
+                }
             syncWarehouseIfAllLinksReady(link.getShipmentCode());
         }
 
@@ -377,6 +386,9 @@ public class PaymentService {
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
                 link.setPartialShipment(shipment);
                 orderLinksRepository.save(link);
+                if (link.getShipmentCode() != null) {
+                    paidShipmentCodes.add(link.getShipmentCode());
+                }
                 syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
 
@@ -398,6 +410,8 @@ public class PaymentService {
             ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
         }
     }
+       draftDomesticService
+            .checkAndLockDraftDomesticByShipmentCodes(paidShipmentCodes);
 
     messagingTemplate.convertAndSend(
             "/topic/Tiximax",
@@ -446,15 +460,15 @@ public class PaymentService {
     public Payment createMergedPayment(Set<String> orderCodes, Integer depositPercent, boolean isUseBalance, long bankId) {
         List<Orders> ordersList = ordersRepository.findAllByOrderCodeIn(new ArrayList<>(orderCodes));
         if (ordersList.size() != orderCodes.size()) {
-            throw new RuntimeException("Một hoặc một số đơn hàng không được tìm thấy!");
+            throw new NotFoundException("Một hoặc một số đơn hàng không được tìm thấy!");
         }
         if (ordersList.stream().anyMatch(o -> !o.getStatus().equals(OrderStatus.DA_XAC_NHAN))) {
-            throw new RuntimeException("Một hoặc một số đơn hàng chưa đủ điều kiện để thanh toán!");
+            throw new BadRequestException("Một hoặc một số đơn hàng chưa đủ điều kiện để thanh toán!");
         }
 
         Customer commonCustomer = ordersList.get(0).getCustomer();
         if (ordersList.stream().anyMatch(o -> !o.getCustomer().equals(commonCustomer))) {
-            throw new RuntimeException("Các đơn hàng phải thuộc cùng một khách hàng để thanh toán gộp!");
+            throw new BadRequestException("Các đơn hàng phải thuộc cùng một khách hàng để thanh toán gộp!");
         }
 
         BigDecimal totalAmount = ordersList.stream()
@@ -542,15 +556,15 @@ public class PaymentService {
     public Payment createMergedPaymentAfterAuction(Set<String> orderCodes, Integer depositPercent, boolean isUseBalance, long bankId) {
         List<Orders> ordersList = ordersRepository.findAllByOrderCodeIn(new ArrayList<>(orderCodes));
         if (ordersList.size() != orderCodes.size()) {
-            throw new RuntimeException("Một hoặc một số đơn hàng không được tìm thấy!");
+            throw new NotFoundException("Một hoặc một số đơn hàng không được tìm thấy!");
         }
         if (ordersList.stream().anyMatch(o -> !o.getStatus().equals(OrderStatus.DAU_GIA_THANH_CONG))) {
-            throw new RuntimeException("Một hoặc một số đơn hàng chưa đủ điều kiện để thanh toán!");
+            throw new BadRequestException("Một hoặc một số đơn hàng chưa đủ điều kiện để thanh toán!");
         }
 
         Customer commonCustomer = ordersList.get(0).getCustomer();
         if (ordersList.stream().anyMatch(o -> !o.getCustomer().equals(commonCustomer))) {
-            throw new RuntimeException("Các đơn hàng phải thuộc cùng một khách hàng để thanh toán gộp!");
+            throw new BadRequestException("Các đơn hàng phải thuộc cùng một khách hàng để thanh toán gộp!");
         }
 
         BigDecimal totalAmount = ordersList.stream()
@@ -597,7 +611,7 @@ public class PaymentService {
 
         BankAccount bankAccount = bankAccountService.getAccountById(bankId);
         if (bankAccount == null){
-            throw new RuntimeException("Thông tin thẻ ngân hàng không được tìm thấy!");
+            throw new NotFoundException("Thông tin thẻ ngân hàng không được tìm thấy!");
         }
         String qrCodeUrl = "https://img.vietqr.io/image/" + bankAccount.getBankName() + "-" + bankAccount.getAccountNumber() + "-print.png?amount=" + qrAmount + "&addInfo=" + payment.getPaymentCode() + "&accountName=" + bankAccount.getAccountHolder();
         payment.setQrCode(qrCodeUrl);
@@ -724,19 +738,19 @@ public class PaymentService {
     public Payment refundFromBalance(Long customerId, BigDecimal amount, String imageUrl) {
         Customer customer = customerRepository.getCustomerById(customerId);
         if (customer == null){
-            throw new RuntimeException("Không tìm thấy khách hàng này!");
+            throw new NotFoundException("Không tìm thấy khách hàng này!");
         }
         if (customer.getBalance().equals(BigDecimal.ZERO)){
-            throw new RuntimeException("Số dư phải lớn hơn 0 thì mới được sử dụng tính năng này!");
+            throw new BadRequestException("Số dư phải lớn hơn 0 thì mới được sử dụng tính năng này!");
         }
         if (amount.compareTo(BigDecimal.ZERO) < 0){
-            throw new RuntimeException("Không cho phép truyền vào số âm!");
+            throw new BadRequestException("Không cho phép truyền vào số âm!");
         }
         if (customer.getBalance().compareTo(amount) >= 0){
             customer.setBalance(customer.getBalance().subtract(amount));
             customerRepository.save(customer);
         } else {
-            throw new RuntimeException("Số tiền bạn chuyển lớn hơn số tiền trong ví của khách!");
+            throw new BadRequestException("Số tiền bạn chuyển lớn hơn số tiền trong ví của khách!");
         }
 
         Payment refundPayment = new Payment();

@@ -2,10 +2,14 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.FlightShipment;
 import com.tiximax.txm.Entity.Staff;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.FlightShipmentRequest;
 import com.tiximax.txm.Model.FlightShipmentResponse;
 import com.tiximax.txm.Repository.FlightShipmentRepository;
 import com.tiximax.txm.Repository.StaffRepository;
+
+import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -26,7 +30,7 @@ public class FlightShipmentService {
 
     public FlightShipmentResponse createFlightShipment(FlightShipmentRequest request) {
         if (flightShipmentRepository.existsByFlightCode(request.getFlightCode())) {
-            throw new IllegalArgumentException("Mã chuyến bay đã tồn tại: " + request.getFlightCode());
+            throw new BadRequestException("Mã chuyến bay đã tồn tại: " + request.getFlightCode());
         }
 
         FlightShipment entity = new FlightShipment();
@@ -39,7 +43,7 @@ public class FlightShipmentService {
 
     public FlightShipmentResponse getFlightShipmentId(Long id) {
         FlightShipment entity = flightShipmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến bay"));
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy chuyến bay"));
         calculateProfitIfNeeded(entity);
         return mapToResponse(entity);
     }
@@ -52,7 +56,7 @@ public class FlightShipmentService {
 
     public FlightShipmentResponse updateFlightShipment(Long id, FlightShipmentRequest request) {
         FlightShipment entity = flightShipmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến bay"));
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy chuyến bay"));
 
         // Cập nhật các field
         entity.setFlightCode(request.getFlightCode());
@@ -70,7 +74,7 @@ public class FlightShipmentService {
         entity.setCustomsPaidDate(request.getCustomsPaidDate());
 
         Staff staff = staffRepository.findById(request.getStaffId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên"));
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy nhân viên"));
         entity.setStaff(staff);
 
         calculateCosts(entity);
@@ -100,7 +104,7 @@ public class FlightShipmentService {
         entity.setCustomsPaidDate(request.getCustomsPaidDate());
 
         Staff staff = staffRepository.findById(request.getStaffId())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhân viên ID: " + request.getStaffId()));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên ID: " + request.getStaffId()));
         entity.setStaff(staff);
     }
 

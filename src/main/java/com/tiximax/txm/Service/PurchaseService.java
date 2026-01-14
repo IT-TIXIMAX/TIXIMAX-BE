@@ -6,6 +6,8 @@ import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Enums.PaymentType;
 import com.tiximax.txm.Enums.ProcessLogAction;
+import com.tiximax.txm.Exception.BadRequestException;
+import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTORequest.Order.AuctionRequest;
 import com.tiximax.txm.Model.DTORequest.Purchase.ExchangeRequest;
@@ -21,6 +23,7 @@ import com.tiximax.txm.Utils.AccountUtils;
 
 import jakarta.transaction.Transactional;
 
+import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -43,22 +46,10 @@ public class PurchaseService {
 
     @Autowired
     private OrdersRepository ordersRepository;
-
-    @Autowired
-    private PaymentRepository paymentRepository;
-
-    @Autowired
-    private PaymentService paymentService;
-
     @Autowired
     private OrdersService ordersService;
-
     @Autowired
     private AccountRouteRepository accountRouteRepository;
-
-    @Autowired
-    private BankAccountService bankAccountService;
-
     @Autowired
     private AccountUtils accountUtils;
 
@@ -66,12 +57,12 @@ public class PurchaseService {
         Orders order = ordersRepository.findByOrderCode(orderCode);
 
         if (order == null) {
-            throw new IllegalArgumentException("Không tìm thấy đơn hàng!");
+            throw new NotFoundException("Không tìm thấy đơn hàng!");
         }
 
         List<OrderLinks> orderLinks = orderLinksRepository.findByTrackingCodeIn(purchaseRequest.getTrackingCode());
         if (orderLinks.size() != purchaseRequest.getTrackingCode().size()) {
-            throw new IllegalArgumentException("Một hoặc nhiều mã không được tìm thấy!");
+            throw new NotFoundException("Một hoặc nhiều mã không được tìm thấy!");
         }
         BigDecimal priceLinks = BigDecimal.ZERO;
 
@@ -80,25 +71,25 @@ public class PurchaseService {
         }
 
         if (!(order.getStatus().equals(OrderStatus.CHO_MUA) || order.getStatus().equals(OrderStatus.CHO_NHAP_KHO_NN))){
-            throw new RuntimeException("Đơn hàng chưa đủ điều kiện để mua hàng!");
+            throw new BadRequestException("Đơn hàng chưa đủ điều kiện để mua hàng!");
         }
 
         boolean allBelongToOrder = orderLinks.stream()
                 .allMatch(link -> link.getOrders().getOrderId().equals(order.getOrderId()));
         if (!allBelongToOrder) {
-            throw new IllegalArgumentException("Tất cả mã phải thuộc cùng đơn hàng " + orderCode);
+            throw new BadRequestException("Tất cả mã phải thuộc cùng đơn hàng " + orderCode);
         }
 
         if(purchaseRequest.getShipmentCode() != ""){
             if (orderLinksRepository.existsByShipmentCode(purchaseRequest.getShipmentCode())) {
-                throw new IllegalArgumentException("Một hoặc nhiều mã đã có mã vận đơn, không thể mua lại!");
+                throw new BadRequestException("Một hoặc nhiều mã đã có mã vận đơn, không thể mua lại!");
             }
         }
 
         boolean allActive = orderLinks.stream()
                 .allMatch(link -> link.getStatus() == OrderLinkStatus.CHO_MUA || link.getStatus() == OrderLinkStatus.MUA_SAU);
         if (!allActive) {
-            throw new IllegalArgumentException("Tất cả mã phải ở trạng thái chờ mua!");
+            throw new BadRequestException("Tất cả mã phải ở trạng thái chờ mua!");
         }
         Purchases purchase = new Purchases();
         purchase.setPurchaseCode(generatePurchaseCode());
@@ -148,10 +139,10 @@ public class PurchaseService {
     public Purchases createMoneyExchange(String orderCode, ExchangeRequest exchangeRequest) {
          Orders order = ordersRepository.findByOrderCode(orderCode);
     if (order == null) {
-        throw new IllegalArgumentException("Không tìm thấy đơn hàng!");
+        throw new NotFoundException("Không tìm thấy đơn hàng!");
     }
       if (!order.getStatus().equals(OrderStatus.CHO_MUA)) {
-        throw new RuntimeException("Đơn hàng chưa đủ điều kiện để mua hàng!");
+        throw new BadRequestException("Đơn hàng chưa đủ điều kiện để mua hàng!");
     }
     Purchases purchase = new Purchases();
     purchase.setPurchaseCode(generatePurchaseCode());
@@ -179,34 +170,34 @@ public class PurchaseService {
 
     Orders order = ordersRepository.findByOrderCode(orderCode);
     if (order == null) {
-        throw new IllegalArgumentException("Không tìm thấy đơn hàng!");
+        throw new NotFoundException("Không tìm thấy đơn hàng!");
     }
 
     List<OrderLinks> orderLinks = orderLinksRepository.findByTrackingCodeIn(purchaseRequest.getTrackingCode());
     if (orderLinks.size() != purchaseRequest.getTrackingCode().size()) {
-        throw new IllegalArgumentException("Một hoặc nhiều mã không được tìm thấy!");
+        throw new NotFoundException("Một hoặc nhiều mã không được tìm thấy!");
     }
 
     boolean anyPurchased = orderLinks.stream().anyMatch(link -> link.getPurchase() != null);
     if (anyPurchased) {
-        throw new IllegalArgumentException("Một hoặc nhiều mã đã được mua, không thể mua lại!");
+        throw new BadRequestException("Một hoặc nhiều mã đã được mua, không thể mua lại!");
     }
 
     if (!order.getStatus().equals(OrderStatus.CHO_MUA)) {
-        throw new RuntimeException("Đơn hàng chưa đủ điều kiện để mua hàng!");
+        throw new BadRequestException("Đơn hàng chưa đủ điều kiện để mua hàng!");
     }
 
     boolean allBelongToOrder = orderLinks.stream()
             .allMatch(link -> link.getOrders().getOrderId().equals(order.getOrderId()));
     if (!allBelongToOrder) {
-        throw new IllegalArgumentException("Tất cả mã phải thuộc cùng đơn hàng " + orderCode);
+        throw new BadRequestException("Tất cả mã phải thuộc cùng đơn hàng " + orderCode);
     }
 
     boolean allActive = orderLinks.stream()
             .allMatch(link -> link.getStatus() == OrderLinkStatus.CHO_MUA ||
                               link.getStatus() == OrderLinkStatus.DAU_GIA_THANH_CONG);
     if (!allActive) {
-        throw new IllegalArgumentException("Tất cả mã phải ở trạng thái HOẠT ĐỘNG!");
+        throw new BadRequestException("Tất cả mã phải ở trạng thái HOẠT ĐỘNG!");
     }
 
     Purchases purchase = new Purchases();
@@ -315,13 +306,13 @@ public class PurchaseService {
 
     public PurchaseDetail getPurchaseById(Long purchaseId) {
         Purchases purchases = purchasesRepository.findById(purchaseId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng này!"));
         return new PurchaseDetail(purchases);
     }
 
     public void deletePurchase(Long id) {
         Purchases purchase = purchasesRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giao dịch mua này!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy giao dịch mua này!"));
 
         if (!purchase.getOrderLinks().isEmpty()) {
 
@@ -361,19 +352,18 @@ public class PurchaseService {
     public Purchases updateShipmentForPurchase(Long purchaseId, String shipmentCode) {
          System.out.println("=== METHOD CALLED ===");
         if (shipmentCode == null || shipmentCode.trim().isEmpty()) {
-            throw new IllegalArgumentException("Mã vận đơn không được để trống!");
+            throw new BadRequestException("Mã vận đơn không được để trống!");
         }
         shipmentCode = shipmentCode.trim();
 
         System.out.println("Checking for existing shipment code: " + shipmentCode);
 
         if (orderLinksRepository.existsByShipmentCode(shipmentCode)) {
-            throw new IllegalArgumentException("Mã vận đơn '" + shipmentCode + "' đã tồn tại!");
+            throw new BadRequestException("Mã vận đơn '" + shipmentCode + "' đã tồn tại!");
         }
 
         Purchases purchase = purchasesRepository.findById(purchaseId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giao dịch mua!"));
-
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy giao dịch mua!"));
         for (OrderLinks link : purchase.getOrderLinks()) {
             link.setShipmentCode(shipmentCode);
         }
@@ -384,19 +374,18 @@ public class PurchaseService {
 
     public Purchases updateShipmentForPurchaseAndShipFee(Long purchaseId, String shipmentCode, BigDecimal shipFee) {
         if (shipmentCode == null || shipmentCode.trim().isEmpty()) {
-            throw new IllegalArgumentException("Mã vận đơn không được để trống!");
+            throw new BadRequestException("Mã vận đơn không được để trống!");
         }
         shipmentCode = shipmentCode.trim();
 
          System.out.println("Checking for existing shipment code: " + shipmentCode);
 
         if (orderLinksRepository.existsByShipmentCode(shipmentCode)) {
-            throw new IllegalArgumentException("Mã vận đơn '" + shipmentCode + "' đã tồn tại!");
+            throw new BadRequestException("Mã vận đơn '" + shipmentCode + "' đã tồn tại!");
         }
 
         Purchases purchase = purchasesRepository.findById(purchaseId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giao dịch mua!"));
-
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy giao dịch mua!"));
         var exchangeRate = purchase.getOrders().getExchangeRate();
         var fee = shipFee.multiply(exchangeRate);
 
@@ -554,7 +543,7 @@ public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
     public Purchases updatePurchase(Long purchaseId, UpdatePurchaseRequest request) {
 
         Purchases purchase = purchasesRepository.findById(purchaseId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giao dịch mua!"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy giao dịch mua!"));
 
         if (request.getFinalPriceOrder() != null) {
             purchase.setFinalPriceOrder(request.getFinalPriceOrder());
@@ -574,7 +563,7 @@ public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
 
             Set<OrderLinks> orderLinks = purchase.getOrderLinks();
             if (orderLinks == null || orderLinks.isEmpty()) {
-                throw new IllegalArgumentException("Giao dịch mua chưa có OrderLinks để cập nhật mã vận đơn!");
+                throw new BadRequestException("Giao dịch mua chưa có OrderLinks để cập nhật mã vận đơn!");
             }
 
         if (shipmentCode.isEmpty()) {
@@ -588,14 +577,14 @@ public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
             OrderLinks firstLink = orderLinks.iterator().next();
             Orders order = firstLink.getOrders();
             if (order == null) {
-                throw new IllegalArgumentException("OrderLinks chưa gắn Orders!");
+                throw new BadRequestException("OrderLinks chưa gắn Orders!");
             }
 
             Long currentOrderId = order.getOrderId();
 
             if (orderLinksRepository
                     .existsByShipmentCodeAndOrders_OrderIdNot(shipmentCode, currentOrderId)) {
-                throw new IllegalArgumentException(
+                throw new BadRequestException(
                         "Mã vận đơn '" + shipmentCode + "' đã tồn tại ở đơn khác!"
                 );
             }
