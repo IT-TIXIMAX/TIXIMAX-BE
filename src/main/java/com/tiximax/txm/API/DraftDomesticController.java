@@ -1,4 +1,5 @@
 package com.tiximax.txm.API;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -96,6 +97,17 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.removeShipments(id, request.getShippingCodes())
         );
     }
+    @GetMapping("/draft-domestics/locked")
+public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
+        @RequestParam(required = false)
+        @DateTimeFormat(pattern = "yyyy/MM/dd")
+        LocalDate endDate
+) {
+    return ResponseEntity.ok(
+            draftDomesticService.getLockedDraftNotExported(endDate)
+    );
+}
+
     @GetMapping("/{id}")
         public ResponseEntity<DraftDomesticResponse> getDraftDomestic(
                 @PathVariable Long id

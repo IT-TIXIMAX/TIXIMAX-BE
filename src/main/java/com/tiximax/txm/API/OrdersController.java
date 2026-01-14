@@ -221,7 +221,8 @@ public class OrdersController {
         List<WareHouseOrderLink> links = ordersService.getLinksInWarehouseByCustomer(customerCode);
         return ResponseEntity.ok(links);
     }
-    @GetMapping("/warehouse-links/{page}/{size}")
+
+@GetMapping("/warehouse-links/{page}/{size}")
         public ResponseEntity<Page<ShipLinks>> getOrderLinksForWarehouse(
         @PathVariable int page,
         @PathVariable int size,

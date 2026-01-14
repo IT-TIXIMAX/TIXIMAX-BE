@@ -1,5 +1,8 @@
 package com.tiximax.txm.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,7 +60,8 @@ public DraftDomesticResponse addDraftDomestic(DraftDomesticRequest draft) {
             .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng"));
 
     validateAllTrackingCodesExist(draft.getShippingList());
-    Double weight =(warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList()) * 90) / 100;
+    Double sumWeight = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
+    Double weight = calculateAndRoundWeight(sumWeight);
 
     DraftDomestic draftDomestic = mapToEntity(draft, customer);
     draftDomestic.setWeight(weight);
@@ -100,18 +104,24 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
         }
     }
 
-    return draftDomesticRepository
-            .findAllWithFilter(
-                    customerCode,
-                    shipmentCode,
-                    lock,
-                    isExported,
-                    staffId,
-                    pageable
-            )
-            .map(DraftDomesticResponse::new);
-}
+    Page<DraftDomestic> page = draftDomesticRepository.findAllWithFilter(
+            customerCode,
+            shipmentCode,
+            lock,
+            isExported,
+            staffId,
+            pageable
+    );
 
+    return page.map(draft -> {
+        DraftDomesticResponse response = new DraftDomesticResponse(draft);
+
+        // 🔥 làm tròn weight khi trả về
+        response.setWeight(roundWeight(draft.getWeight()));
+
+        return response;
+    });
+}
 
 
     public Page<DraftDomesticResponse> getAvailableToShip(
@@ -158,7 +168,8 @@ public DraftDomesticResponse addShipments(
             draft.getShippingList().add(trimmed);
         }
     }
-    Double weight  = (warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList())*90)/100;
+    Double sumWeight = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
+    Double weight = calculateAndRoundWeight(sumWeight);
     draft.setWeight(weight);
     draft.setShipCode(draft.getCustomer().getCustomerCode() + "-" + draft.getShippingList().size());
     draftDomesticRepository.save(draft);
@@ -295,7 +306,8 @@ public DraftDomesticResponse removeShipments(
 
     draft.getShippingList()
             .removeIf(code -> removeSet.contains(code));
-    Double weight  = (warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList())*90)/100;
+    Double sumWeight = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
+    Double weight = calculateAndRoundWeight(sumWeight);
     draft.setWeight(weight);
     draft.setShipCode(draft.getCustomer().getCustomerCode() + "-" + draft.getShippingList().size());
     draftDomesticRepository.save(draft);
@@ -382,6 +394,28 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
 
     return true;
  }
+
+
+public List<DraftDomesticResponse> getLockedDraftNotExported(
+        LocalDate endDate
+) {
+
+    if (endDate == null) {
+        endDate = LocalDate.now();
+    }
+
+    LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
+    LocalDateTime startDateTime = endDateTime.minusDays(7);
+
+    return draftDomesticRepository
+        .findLockedNotExportedBetween(startDateTime, endDateTime)
+        .stream()
+        .map(DraftDomesticResponse::new)
+        .toList();
+}
+
+
+
 
     public Page<DraftDomesticResponse> getDraftsToLock(
         Long routeId,
@@ -527,6 +561,23 @@ private String generateShipCode(
 
     return baseCode + "-" + (char) (maxSuffix + 1);
 }
+
+private Double calculateAndRoundWeight(Double totalWeight) {
+    if (totalWeight == null) return 0.0;
+
+    return BigDecimal.valueOf(totalWeight)
+            .multiply(BigDecimal.valueOf(0.9)) 
+            .setScale(3, RoundingMode.HALF_UP)
+            .doubleValue();
+}
+private Double roundWeight(Double weight) {
+    if (weight == null) return 0.0;
+
+    return BigDecimal.valueOf(weight)
+            .setScale(3, RoundingMode.HALF_UP)
+            .doubleValue();
+}
+
 
 
 
