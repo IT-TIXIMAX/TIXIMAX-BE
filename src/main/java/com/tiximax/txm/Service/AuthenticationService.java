@@ -615,7 +615,7 @@ public class AuthenticationService implements UserDetailsService {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        perf.setTotalShip(totalShip);
+//        perf.setTotalShip(totalShip);
 
         long totalParcels = orders.stream()
                 .flatMap(o -> o.getOrderLinks().stream())
@@ -743,7 +743,7 @@ public class AuthenticationService implements UserDetailsService {
 //        return result;
 //    }
 
-    public Map<String, StaffPerformance> getMyPerformanceByDateRange(LocalDate start, LocalDate end) {
+    public Map<String, StaffPerformance> getMyPerformanceByDateRange(Long staffId, LocalDate start, LocalDate end, Long routeId) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff staff) ||
                 (staff.getRole() != AccountRoles.STAFF_SALE && staff.getRole() != AccountRoles.LEAD_SALE)) {
@@ -753,84 +753,54 @@ public class AuthenticationService implements UserDetailsService {
         LocalDateTime startDateTime = start.atStartOfDay();
         LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
 
-        List<Orders> orders = ordersRepository.findByStaffIdWithDetailsForPerformance(
-                staff.getAccountId(), startDateTime, endDateTime);
+        List<Object[]> results = ordersRepository.staffKPIByRoute(
+                staffId, startDateTime, endDateTime, routeId);
 
-        long totalOrders = orders.size();
+        Map<String, StaffPerformance> resultMap = new LinkedHashMap<>();
 
-        Set<OrderStatus> excludedStatuses = Set.of(
-                OrderStatus.CHO_XAC_NHAN,
-                OrderStatus.DA_XAC_NHAN,
-                OrderStatus.CHO_THANH_TOAN,
-                OrderStatus.DA_HUY
-        );
+        for (Object[] row : results) {
+            String routeName = (String) row[3];  // route_name
 
-        BigDecimal totalGoods = BigDecimal.ZERO;
-        long totalParcels = 0;
-        double totalNetWeight = 0.0;
-        long completedOrders = 0;
-        long badFeedback = 0;
+            StaffPerformance perf = new StaffPerformance();
+            perf.setStaffCode((String) row[0]);  // staff_code
+            perf.setName((String) row[1]);       // name
+            perf.setDepartment((String) row[2]); // department
 
-        for (Orders order : orders) {
-            if (order.getOrderLinks() != null) {
-                totalParcels += order.getOrderLinks().size();
+            // total_orders (Long)
+            perf.setTotalOrders(row[4] != null ? ((Number) row[4]).longValue() : 0L);
+
+            // total_goods (BigDecimal an toàn)
+            Object goodsObj = row[5];
+            BigDecimal totalGoods = goodsObj instanceof BigDecimal ? (BigDecimal) goodsObj :
+                    goodsObj instanceof Number ? new BigDecimal(((Number) goodsObj).longValue()) :
+                            BigDecimal.ZERO;
+            perf.setTotalGoods(totalGoods);
+
+            // total_parcels (Long)
+            perf.setTotalParcels(row[6] != null ? ((Number) row[6]).longValue() : 0L);
+
+            // total_net_weight (Double)
+            perf.setTotalNetWeight(row[7] != null ? Math.round(((Number) row[7]).doubleValue() * 10.0) / 10.0 : 0.0);
+
+            // completion_rate (Double) - dùng completed_orders từ row[8]
+            double completionRate = 0.0;
+            Long totalOrd = perf.getTotalOrders();
+            Long compOrd = row[8] != null ? ((Number) row[8]).longValue() : 0L;
+            if (totalOrd > 0) {
+                completionRate = (compOrd * 100.0 / totalOrd);
             }
-            if (order.getWarehouses() != null) {
-                for (Warehouse w : order.getWarehouses()) {
-                    if (w.getNetWeight() != null) {
-                        totalNetWeight += w.getNetWeight();
-                    }
-                }
-            }
+            perf.setCompletionRate(Math.round(completionRate * 100.0) / 100.0);
 
-            if (order.getStatus() == OrderStatus.DA_GIAO) {
-                completedOrders++;
-            }
-            if (order.getFeedback() != null && order.getFeedback().getRating() < 3) {
-                badFeedback++;
-            }
+            // bad_feedback_count (Long)
+            perf.setBadFeedbackCount(row[9] != null ? ((Number) row[9]).longValue() : 0L);
 
-            if (!excludedStatuses.contains(order.getStatus()) && order.getOrderLinks() != null) {
-                for (OrderLinks link : order.getOrderLinks()) {
-                    if (link.getStatus() != OrderLinkStatus.DA_HUY && link.getFinalPriceVnd() != null) {
-                        totalGoods = totalGoods.add(link.getFinalPriceVnd());
-                    }
-                }
-            }
+            // new_customers_in_period (long)
+            perf.setNewCustomersInPeriod(row[10] != null ? ((Number) row[10]).longValue() : 0L);
+
+            resultMap.put(routeName, perf);
         }
 
-        BigDecimal totalShip = paymentRepository.findByStaff_AccountIdAndStatusAndActionAtBetween(
-                        staff.getAccountId(),
-                        PaymentStatus.DA_THANH_TOAN_SHIP,
-                        startDateTime,
-                        endDateTime)
-                .stream()
-                .map(Payment::getAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        long newCustomersInPeriod = customerRepository.countByStaffIdAndCreatedAtBetween(
-                staff.getAccountId(), startDateTime, endDateTime);
-
-        double completionRate = totalOrders > 0 ? (completedOrders * 100.0 / totalOrders) : 0.0;
-
-        StaffPerformance perf = new StaffPerformance();
-        perf.setStaffCode(staff.getStaffCode());
-        perf.setName(staff.getName());
-        perf.setDepartment(staff.getDepartment());
-        perf.setTotalOrders(totalOrders);
-        perf.setTotalGoods(totalGoods);
-        perf.setTotalShip(totalShip);
-        perf.setTotalParcels(totalParcels);
-        perf.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
-        perf.setCompletionRate(Math.round(completionRate * 100.0) / 100.0);
-        perf.setNewCustomersInPeriod(newCustomersInPeriod);
-        perf.setBadFeedbackCount(badFeedback);
-
-        Map<String, StaffPerformance> result = new HashMap<>();
-        result.put(staff.getStaffCode(), perf);
-
-        return result;
+        return resultMap;
     }
 
     public void changePassword(ChangePasswordRequest request) {
