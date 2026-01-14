@@ -320,31 +320,31 @@ public class AuthenticationController {
         return ResponseEntity.ok(performanceMap);
     }
 
-    @GetMapping("/my-performance/{routeId}/{staffId}")
-    public ResponseEntity<Map<String, StaffPerformance>> getMyPerformance(
-            @RequestParam(required = false) Long routeId,
-            @PathVariable Long staffId,
-            @RequestParam String startDate,
-            @RequestParam String endDate) {
-
-        LocalDate start;
-        LocalDate end;
-        try {
-            start = LocalDate.parse(startDate);
-            end = LocalDate.parse(endDate);
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("startDate và endDate phải đúng định dạng YYYY-MM-DD");
-        }
-
-        if (end.isBefore(start)) {
-            throw new IllegalArgumentException("endDate phải sau hoặc bằng startDate");
-        }
-
-        Map<String, StaffPerformance> performanceMap =
-                authenticationService.getMyPerformanceByDateRange(staffId, start, end, routeId);
-
-        return ResponseEntity.ok(performanceMap);
-    }
+//    @GetMapping("/my-performance/{routeId}/{staffId}")
+//    public ResponseEntity<Map<String, StaffPerformance>> getMyPerformance(
+//            @RequestParam(required = false) Long routeId,
+//            @PathVariable Long staffId,
+//            @RequestParam String startDate,
+//            @RequestParam String endDate) {
+//
+//        LocalDate start;
+//        LocalDate end;
+//        try {
+//            start = LocalDate.parse(startDate);
+//            end = LocalDate.parse(endDate);
+//        } catch (DateTimeParseException e) {
+//            throw new IllegalArgumentException("startDate và endDate phải đúng định dạng YYYY-MM-DD");
+//        }
+//
+//        if (end.isBefore(start)) {
+//            throw new IllegalArgumentException("endDate phải sau hoặc bằng startDate");
+//        }
+//
+//        Map<String, StaffPerformance> performanceMap =
+//                authenticationService.getMyPerformanceByDateRange(start, end, routeId);
+//
+//        return ResponseEntity.ok(performanceMap);
+//    }
 
     @PutMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {

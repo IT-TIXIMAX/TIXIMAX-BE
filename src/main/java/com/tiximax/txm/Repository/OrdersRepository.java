@@ -5,9 +5,11 @@ import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.OrderType;
+import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,7 +32,7 @@ public interface OrdersRepository extends JpaRepository<Orders, Long> {
 
     @Query("SELECT o FROM Orders o WHERE :status IS NULL OR o.status = :status")
     Page<Orders> findByStatus(@Param("status") OrderStatus status, Pageable pageable);
-    
+
         @Query(value = "SELECT DISTINCT o FROM Orders o " +
                 "LEFT JOIN FETCH o.customer c " +
                 "WHERE o.status IN :statuses",
@@ -208,7 +210,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         @Param("statuses") List<OrderLinkStatus> statuses,
         @Param("shipmentCode") String shipmentCode,
         @Param("customerCode") String customerCode,
-        @Param("routeIds") Set<Long> routeIds,  
+        @Param("routeIds") Set<Long> routeIds,
         Pageable pageable
 );
 
@@ -389,7 +391,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("end") LocalDateTime end);
 
     @Query(value = """
-            WITH goods_by_staff_route AS (
+            goods_by_staff_route AS (
                 SELECT
                     o.route_id,
                     o.staff_id,
@@ -412,7 +414,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
                 COALESCE(r.name, 'Không xác định') AS route_name,
                 s.staff_code AS staff_code,
                 a.name AS staff_name,
-                COALESCE(g.total_goods, 0) AS total_goods
+                COALESCE(g.total_goods, 0) AS total_goods,
             FROM orders o
             JOIN staff s ON o.staff_id = s.account_id
             JOIN account a ON s.account_id = a.account_id
@@ -506,6 +508,160 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             @Param("routeId") Long routeId);
+
+    @Query(value = """
+        SELECT
+            r.name AS route_name,
+            COUNT(DISTINCT o.order_id) AS total_orders,
+            COUNT(DISTINCT CASE WHEN o.status = 'DA_GIAO' THEN o.order_id END) AS completed_orders,
+            COUNT(DISTINCT ol.link_id) AS total_parcels
+        FROM orders o
+        LEFT JOIN order_links ol ON ol.order_id = o.order_id
+        LEFT JOIN route r ON o.route_id = r.route_id
+        WHERE o.staff_id = :staffId
+          AND o.created_at >= :start
+          AND o.created_at < :end
+          AND (:routeId IS NULL OR o.route_id = :routeId)
+        GROUP BY r.name
+        ORDER BY r.name ASC
+    """, nativeQuery = true)
+    List<Object[]> getOrdersSummary(
+            @Param("staffId") Long staffId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId
+    );
+
+    // Query cho goods: total_goods
+    @Query(value = """
+        SELECT
+            r.name AS route_name,
+            COALESCE(SUM(ol.total_web), 0) AS total_goods
+        FROM order_links ol
+        LEFT JOIN warehouse w ON ol.warehouse_id = w.warehouse_id
+        LEFT JOIN purchases pu ON ol.purchase_id = pu.purchase_id
+        LEFT JOIN orders o ON o.order_id = COALESCE(w.order_id, pu.order_id)
+        LEFT JOIN route r ON o.route_id = r.route_id
+        WHERE o.staff_id = :staffId
+          AND COALESCE(w.created_at, pu.purchase_time) >= :start
+          AND COALESCE(w.created_at, pu.purchase_time) < :end
+          AND (:routeId IS NULL OR o.route_id = :routeId)
+          AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
+        GROUP BY r.name
+        ORDER BY r.name ASC
+    """, nativeQuery = true)
+    List<Object[]> getGoodsValue(
+            @Param("staffId") Long staffId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId
+    );
+
+    // Query cho shipping-weight: total_net_weight (với logic điều chỉnh min_weight)
+    @Query(value = """
+        WITH
+            payment_ship_qualified AS (
+                SELECT DISTINCT
+                    p.payment_id,
+                    w.warehouse_id,
+                    w.net_weight,
+                    r.route_id,
+                    r.name AS route_name,
+                    r.min_weight
+                FROM payment p
+                INNER JOIN payment_orders po ON po.payment_id = p.payment_id
+                INNER JOIN orders o ON o.order_id = po.order_id
+                INNER JOIN warehouse w ON w.order_id = o.order_id
+                INNER JOIN route r ON o.route_id = r.route_id
+                WHERE p.status = 'DA_THANH_TOAN_SHIP'
+                  AND p.staff_id = :staffId
+                  AND p.action_at >= :start
+                  AND p.action_at < :end
+                  AND (:routeId IS NULL OR r.route_id = :routeId)
+            ),
+            raw_weight_per_payment AS (
+                SELECT
+                    route_id,
+                    route_name,
+                    SUM(net_weight) AS raw_total_weight,
+                    min_weight
+                FROM payment_ship_qualified
+                GROUP BY route_id, route_name, payment_id, min_weight
+            ),
+            adjusted_weight AS (
+                SELECT
+                    route_name,
+                    SUM(
+                        CASE
+                            WHEN raw_total_weight < COALESCE(min_weight, 0)
+                            THEN COALESCE(min_weight, raw_total_weight)
+                            ELSE raw_total_weight
+                        END
+                    ) AS total_net_weight
+                FROM raw_weight_per_payment
+                GROUP BY route_name
+            )
+        SELECT route_name, total_net_weight FROM adjusted_weight
+        ORDER BY route_name ASC
+    """, nativeQuery = true)
+    List<Object[]> getShippingWeight(
+            @Param("staffId") Long staffId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId
+    );
+
+    // Query cho bad feedbacks
+    @Query(value = """
+        SELECT
+            r.name AS route_name,
+            COUNT(*) AS bad_feedback_count
+        FROM feedback f
+        INNER JOIN orders o ON f.order_id = o.order_id
+        LEFT JOIN route r ON o.route_id = r.route_id
+        WHERE o.staff_id = :staffId
+          AND f.rating < 3
+          AND o.created_at >= :start
+          AND o.created_at < :end
+          AND (:routeId IS NULL OR o.route_id = :routeId)
+        GROUP BY r.name
+        ORDER BY r.name ASC
+    """, nativeQuery = true)
+    List<Object[]> getBadFeedbacks(
+            @Param("staffId") Long staffId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId
+    );
+
+    // Query cho new customers (không theo route)
+    @Query(value = """
+        SELECT
+            COUNT(DISTINCT a.account_id) AS new_customers_in_period
+        FROM customer c
+        INNER JOIN account a ON a.account_id = c.account_id
+        WHERE c.staff_id = :staffId
+          AND a.created_at >= :start
+          AND a.created_at < :end
+    """, nativeQuery = true)
+    Object[] getNewCustomers(
+            @Param("staffId") Long staffId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    // Query phụ: Lấy basic info (staff_code, name, department) - có thể dùng JPA method nếu có entity
+    @Query(value = """
+        SELECT
+            s.staff_code,
+            a.name AS staff_name,
+            s.department
+        FROM staff s
+        INNER JOIN account a ON s.account_id = a.account_id
+        WHERE s.account_id = :staffId
+          AND a.role IN ('STAFF_SALE', 'LEAD_SALE')
+    """, nativeQuery = true)
+    Object[] getStaffBasicInfo(@Param("staffId") Long staffId);
 
 //    SELECT
 //    o.route_id,
