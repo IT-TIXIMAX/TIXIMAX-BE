@@ -104,7 +104,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                                      @Param("end") LocalDateTime end);
 
     @Query("""
-            SELECT COALESCE(SUM(p.amount), 0)
+            SELECT COALESCE(SUM(p.collectedAmount), 0)
             FROM Payment p
             WHERE p.status IN (
                 com.tiximax.txm.Enums.PaymentStatus.DA_THANH_TOAN,

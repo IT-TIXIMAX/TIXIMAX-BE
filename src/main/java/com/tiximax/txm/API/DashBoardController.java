@@ -7,21 +7,10 @@ import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.DashboardResponse;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsCustomer;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsOrder;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsPayment;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsWarehouse;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteInventorySummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteOrderSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RoutePaymentSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteStaffPerformance;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteWeightSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffNewCustomerSummary;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -196,6 +185,52 @@ public class DashBoardController {
 
         RouteInventorySummary summary = dashBoardService.getInventorySummaryByRoute(routeId);
         return ResponseEntity.ok(summary);
+    }
+
+    @GetMapping("/summary-staff")
+    public ResponseEntity<Map<String, StaffPerformanceSummary>> getPerformanceSummary(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) Long routeId) {
+
+        Map<String, StaffPerformanceSummary> data =
+                dashBoardService.getPerformanceSummary(startDate, endDate, filterType, routeId);
+
+        return ResponseEntity.ok(data);
+    }
+
+    @GetMapping("/goods-and-weight")
+    public ResponseEntity<Map<String, GoodsAndWeight>> getGoodsAndWeight(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) Long routeId) {
+
+        Map<String, GoodsAndWeight> data =
+                dashBoardService.getGoodsAndWeight(startDate, endDate, filterType, routeId);
+
+        return ResponseEntity.ok(data);
+    }
+
+    @GetMapping("/feedbacks")
+    public long getBadFeedbacks(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) Long routeId) {
+
+        return dashBoardService.getBadFeedback(startDate, endDate, filterType, routeId);
+    }
+
+    @GetMapping("/new-customers")
+    public long getNewCustomers(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType
+    ) {
+
+        return dashBoardService.getNewCustomers(startDate, endDate, filterType);
     }
 
 }

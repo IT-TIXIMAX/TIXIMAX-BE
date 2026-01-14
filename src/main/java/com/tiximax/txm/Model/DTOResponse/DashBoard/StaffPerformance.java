@@ -22,8 +22,6 @@ public class StaffPerformance {
 
     private BigDecimal totalGoods;
 
-    private BigDecimal totalShip;
-
     private Long totalParcels;
 
     private Double completionRate;

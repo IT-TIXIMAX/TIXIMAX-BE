@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -10,18 +11,7 @@ import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.DashboardResponse;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsCustomer;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsOrder;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsPayment;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.MonthlyStatsWarehouse;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteInventorySummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteOrderSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RoutePaymentSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteStaffPerformance;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.RouteWeightSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffNewCustomerSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformanceKPI;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
@@ -69,8 +59,6 @@ public class DashBoardService {
     private SimpMessagingTemplate messagingTemplate;
 
     public DashboardResponse getDashboard(LocalDate startDate, LocalDate endDate, DashboardFilterType filterType) {
-//        LocalDateTime start = startDate.atStartOfDay();
-//        LocalDateTime end = endDate.plusDays(1).atStartOfDay();
         StartEndDate dateRange = getDateStartEnd(filterType);
         LocalDate finalStart = (startDate != null) ? startDate : dateRange.getStartDate();
         LocalDate finalEnd = (endDate != null) ? endDate : dateRange.getEndDate();
@@ -79,7 +67,6 @@ public class DashBoardService {
         LocalDateTime end = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
 
         long totalOrders = ordersRepository.countByCreatedAtBetween(start, end);
-//        BigDecimal totalRevenue = paymentRepository.sumCollectedAmountBetween(start, end).setScale(0, RoundingMode.HALF_UP);;
         BigDecimal totalPurchase = paymentRepository.sumPurchaseBetween(start, end).setScale(0, RoundingMode.HALF_UP);;
         BigDecimal totalShip = paymentRepository.sumShipRevenueBetween(start, end).setScale(0, RoundingMode.HALF_UP);;
         BigDecimal totalRevenue = totalPurchase.add(totalShip);
@@ -119,8 +106,6 @@ public class DashBoardService {
 
     public Map<String, BigDecimal> getPaymentSummary() {
         Map<String, BigDecimal> map = new HashMap<>();
-//        BigDecimal hang = paymentRepository.sumCollectedAmountByStatusAndActionAtBetween(
-//                PaymentStatus.DA_THANH_TOAN, start(), end());
 
         BigDecimal hang = paymentRepository.sumCollectedAmountByStatusesAndActionAtBetween(
                 List.of(PaymentStatus.DA_THANH_TOAN, PaymentStatus.DA_HOAN_TIEN),
@@ -232,6 +217,13 @@ public class DashBoardService {
                 startDate = now;
                 endDate = now;
             }
+            case WEEK -> {
+                startDate = now.with(DayOfWeek.MONDAY);
+                if (startDate.isAfter(now)) {
+                    startDate = startDate.minusWeeks(1);
+                }
+                endDate = startDate.plusDays(6);
+            }
             case MONTH -> {
                 startDate = now.withDayOfMonth(1);
                 endDate = now.withDayOfMonth(now.lengthOfMonth());
@@ -330,14 +322,6 @@ public class DashBoardService {
             BigDecimal grossWeight = customerGrossWeight.getOrDefault(customerId, BigDecimal.ZERO);
             BigDecimal netWeight = customerNetWeight.getOrDefault(customerId, BigDecimal.ZERO);
             BigDecimal priceShip = customerPriceShip.getOrDefault(customerId, BigDecimal.ZERO);
-
-            System.out.println(
-                    "CustomerId=" + customerId +
-                            " | Gross=" + grossWeight +
-                            " | Net=" + netWeight +
-                            " | MinWeight=" + effectiveMinWeight +
-                            " | PriceShip=" + priceShip
-            );
 
             BigDecimal chargeableWeight = netWeight.max(effectiveMinWeight)
                     .setScale(1, RoundingMode.HALF_UP);
@@ -661,5 +645,117 @@ public class DashBoardService {
         double totalWeight = weight != null ? weight.doubleValue() : 0;
         double totalNetWeight = netWeight != null ? netWeight.doubleValue() : 0;
         return new RouteInventorySummary(totalWeight, totalNetWeight);
+    }
+
+    public Map<String, StaffPerformanceSummary> getPerformanceSummary(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+
+        List<Object[]> results = ordersRepository.getOrdersSummary(staff.getAccountId() ,startDateTime, endDateTime, routeId);
+        Map<String, StaffPerformanceSummary> resultMap = new LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            String routeName = (String) row[0];
+            Long totalOrders = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            Long completedOrders = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            Long totalParcels = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+
+            double completionRate = totalOrders > 0 ? Math.round((completedOrders * 100.0 / totalOrders) * 100.0) / 100.0 : 0.0;
+
+            resultMap.put(routeName, new StaffPerformanceSummary(
+                    staff.getStaffCode(),
+                    staff.getName(),
+                    staff.getDepartment(),
+                    totalOrders,
+                    completedOrders,
+                    completionRate,
+                    totalParcels
+            ));
+        }
+        return resultMap;
+    }
+
+    public Map<String, GoodsAndWeight> getGoodsAndWeight(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+
+        List<Object[]> goodsResults = ordersRepository.getGoodsValue(staff.getAccountId(), startDateTime, endDateTime, routeId);
+        Map<String, BigDecimal> goodsMap = new HashMap<>();
+        for (Object[] row : goodsResults) {
+            String routeName = (String) row[0];
+            BigDecimal totalGoods = row[1] instanceof BigDecimal ? (BigDecimal) row[1] :
+                    row[1] instanceof Number ? BigDecimal.valueOf(((Number) row[1]).doubleValue()) : BigDecimal.ZERO;
+            goodsMap.put(routeName, totalGoods);
+        }
+
+        List<Object[]> weightResults = ordersRepository.getShippingWeight(staff.getAccountId(), startDateTime, endDateTime, routeId);
+        Map<String, Double> weightMap = new HashMap<>();
+        for (Object[] row : weightResults) {
+            String routeName = (String) row[0];
+            Double totalNetWeight = row[1] != null ? Math.round(((Number) row[1]).doubleValue() * 10.0) / 10.0 : 0.0;
+            weightMap.put(routeName, totalNetWeight);
+        }
+
+        Map<String, GoodsAndWeight> resultMap = new LinkedHashMap<>();
+        Set<String> allRoutes = new HashSet<>();
+        allRoutes.addAll(goodsMap.keySet());
+        allRoutes.addAll(weightMap.keySet());
+
+        for (String routeName : allRoutes) {
+            BigDecimal goods = goodsMap.getOrDefault(routeName, BigDecimal.ZERO);
+            Double weight = weightMap.getOrDefault(routeName, 0.0);
+            resultMap.put(routeName, new GoodsAndWeight(goods, weight));
+        }
+        return resultMap;
+    }
+
+    public long getBadFeedback(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+
+        List<Object[]> badFeedbackRows = ordersRepository.getBadFeedbacks(
+                staff.getAccountId(), startDateTime, endDateTime, routeId);
+
+        long totalBad = 0L;
+
+        for (Object[] row : badFeedbackRows) {
+            totalBad += row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        }
+    return totalBad;
+    }
+
+    public long getNewCustomers(LocalDate start, LocalDate end, DashboardFilterType filterType) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+
+        Object[] newCustomer = ordersRepository.getNewCustomers(
+                staff.getAccountId(), startDateTime, endDateTime);
+        return newCustomer != null && newCustomer[0] != null
+                ? ((Number) newCustomer[0]).longValue()
+                : 0L;
     }
 }

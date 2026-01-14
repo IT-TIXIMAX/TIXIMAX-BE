@@ -757,7 +757,7 @@ public class PaymentService {
         refundPayment.setPaymentCode(generatePaymentCode());
         refundPayment.setContent("Hoàn tiền từ ví, số dư còn lại " + customer.getBalance());
         refundPayment.setPaymentType(PaymentType.MA_QR);
-        refundPayment.setAmount(BigDecimal.ZERO);
+        refundPayment.setAmount(amount.negate());
         refundPayment.setCollectedAmount(amount.negate());
         refundPayment.setStatus(PaymentStatus.DA_HOAN_TIEN);
         refundPayment.setQrCode(imageUrl);

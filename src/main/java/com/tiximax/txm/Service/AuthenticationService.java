@@ -618,7 +618,7 @@ public class AuthenticationService implements UserDetailsService {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        perf.setTotalShip(totalShip);
+//        perf.setTotalShip(totalShip);
 
         long totalParcels = orders.stream()
                 .flatMap(o -> o.getOrderLinks().stream())
@@ -730,7 +730,7 @@ public class AuthenticationService implements UserDetailsService {
         perf.setDepartment(staff.getDepartment());
         perf.setTotalOrders(totalOrders);
         perf.setTotalGoods(totalGoods);
-        perf.setTotalShip(totalShip);
+//        perf.setTotalShip(totalShip);
         perf.setTotalParcels(totalParcels);
         perf.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
         perf.setCompletionRate(Math.round(completionRate * 100.0) / 100.0);
