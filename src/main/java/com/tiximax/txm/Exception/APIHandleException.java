@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -119,7 +120,6 @@ public ResponseEntity<Map<String, Object>> handleAccessDeniedException(
         );
     }
 
-
     private ResponseEntity<Map<String, Object>> buildResponse(
             HttpStatus status,
             String message
@@ -133,4 +133,15 @@ public ResponseEntity<Map<String, Object>> handleAccessDeniedException(
                 .status(status)
                 .body(body);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(
+            IllegalArgumentException e
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                e.getMessage()
+        );
+    }
+
 }

@@ -721,7 +721,7 @@ public class DashBoardService {
         return resultMap;
     }
 
-    public long getBadFeedback(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+    public Map<String, Long> getBadFeedback(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         StartEndDate dateRange = getDateStartEnd(filterType);
         LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
         LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
@@ -739,10 +739,12 @@ public class DashBoardService {
         for (Object[] row : badFeedbackRows) {
             totalBad += row[1] != null ? ((Number) row[1]).longValue() : 0L;
         }
-    return totalBad;
+        Map<String, Long> totalBadFeedback = new LinkedHashMap<>();
+        totalBadFeedback.put("badFeedback", totalBad);
+    return totalBadFeedback;
     }
 
-    public long getNewCustomers(LocalDate start, LocalDate end, DashboardFilterType filterType) {
+    public Map<String, Long> getNewCustomers(LocalDate start, LocalDate end, DashboardFilterType filterType) {
         StartEndDate dateRange = getDateStartEnd(filterType);
         LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
         LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
@@ -754,8 +756,11 @@ public class DashBoardService {
 
         Object[] newCustomer = ordersRepository.getNewCustomers(
                 staff.getAccountId(), startDateTime, endDateTime);
-        return newCustomer != null && newCustomer[0] != null
+
+        Map<String, Long> totalCustomer = new LinkedHashMap<>();
+        totalCustomer.put("totalCustomer", newCustomer != null && newCustomer[0] != null
                 ? ((Number) newCustomer[0]).longValue()
-                : 0L;
+                : 0L);
+        return totalCustomer;
     }
 }

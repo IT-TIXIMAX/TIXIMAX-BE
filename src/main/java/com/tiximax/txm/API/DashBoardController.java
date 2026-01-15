@@ -214,7 +214,7 @@ public class DashBoardController {
     }
 
     @GetMapping("/feedbacks")
-    public long getBadFeedbacks(
+    public Map<String, Long> getBadFeedbacks(
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
@@ -224,7 +224,7 @@ public class DashBoardController {
     }
 
     @GetMapping("/new-customers")
-    public long getNewCustomers(
+    public Map<String, Long> getNewCustomers(
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType
