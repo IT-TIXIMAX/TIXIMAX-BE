@@ -5,6 +5,7 @@ import com.tiximax.txm.Entity.Domestic;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Model.DTORequest.Domestic.CreateDomesticRequest;
+import com.tiximax.txm.Model.DTORequest.Domestic.ScanToShip;
 import com.tiximax.txm.Model.DTORequest.Domestic.VNPostTrackingCode;
 import com.tiximax.txm.Model.DTOResponse.Domestic.CheckInDomestic;
 import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticDelivery;
@@ -116,16 +117,13 @@ public ResponseEntity<Domestic> receivedPackingFromWarehouse(@PathVariable Long 
 }
 
     @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
-    @PostMapping("/scan-vnpost/{trackingCode}/{shipCode}")
-    public ResponseEntity<DomesticDelivery> scanToShipByVNPost(
-            @PathVariable String trackingCode,
-            @PathVariable String shipCode
+    @PostMapping("/scan-to-ship")
+    public ResponseEntity<DomesticDelivery> scanToShip(
+           @RequestBody ScanToShip request
     ) {
-        if (trackingCode == null || trackingCode.trim().isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
+        
         DomesticDelivery result =
-                domesticService.ScanToShipByVNPOST(trackingCode.trim(), shipCode.trim());
+                domesticService.scanToShip(request);
         return ResponseEntity.ok(result);
     }
 

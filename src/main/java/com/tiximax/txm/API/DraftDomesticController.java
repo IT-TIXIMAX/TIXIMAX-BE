@@ -18,6 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Page;
 import com.tiximax.txm.Enums.AccountRoles;
+import com.tiximax.txm.Enums.Carrier;
+import com.tiximax.txm.Enums.DraftDomesticStatus;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftShipmentRequest;
@@ -49,8 +51,8 @@ public class DraftDomesticController {
 public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
         @RequestParam(required = false) String customerCode,
         @RequestParam(required = false) String shipmentCode,
-        @RequestParam(required = false) Boolean lock,
-        @RequestParam(required = false) Boolean isExported,
+        @RequestParam(required = false) DraftDomesticStatus status,
+        @RequestParam(required = false) Carrier carrier,   
         @PathVariable int page,
         @PathVariable int size
 ) {
@@ -61,8 +63,8 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
             draftDomesticService.getAllDraftDomestic(
                     customerCode,
                     shipmentCode,
-                    lock,
-                    isExported,
+                    status,
+                    carrier,
                     pageable
             );
 
@@ -144,11 +146,11 @@ public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
        public ResponseEntity<Map<String, Object>> lockDraftDomestic(
                 @RequestBody List<Long> draftIds
         ) {
-        Boolean result = draftDomesticService.lockDraftDomestic(draftIds);
+        Boolean result = draftDomesticService.ExportDraftDomestic(draftIds);
           return ResponseEntity.ok(
             Map.of(
                     "success", result,
-                    "message", "Lock danh sách thành công"
+                    "message", "Export danh sách thành công"
             )
     );
 }
