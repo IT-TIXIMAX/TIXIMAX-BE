@@ -1083,6 +1083,7 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
     if (!currentAccount.getRole().equals(AccountRoles.STAFF_WAREHOUSE_DOMESTIC)) {
         throw new AccessDeniedException("Chỉ nhân viên kho mới có quyền truy cập!");
     }
+
     List<OrderLinkStatus> statuses =
             (status == null) ? DEFAULT_SHIP_STATUSES : List.of(convert(status));
 
@@ -1095,35 +1096,50 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
 
     List<ShipLinks> result = new ArrayList<>();
 
+    // ✅ Set dùng để deduplicate shipmentCode
+    Set<String> seenShipmentCodes = new HashSet<>();
+
     for (Orders order : ordersPage.getContent()) {
 
         List<OrderLinks> validLinks = order.getOrderLinks().stream()
                 .filter(link -> statuses.contains(link.getStatus()))
-                .filter(link -> shipmentCode == null
-                        || link.getShipmentCode() != null
-                        || link.getShipmentCode().contains(shipmentCode)) // nếu muốn lọc lần 2
+                .filter(link ->
+                        shipmentCode == null
+                                || (link.getShipmentCode() != null
+                                && link.getShipmentCode().contains(shipmentCode))
+                )
+                // ❗ deduplicate theo shipmentCode
+                .filter(link -> {
+                    String code = link.getShipmentCode();
+                    if (code == null) return false;
+                    return seenShipmentCodes.add(code); // add() trả false nếu đã tồn tại
+                })
                 .sorted(Comparator.comparing(
                         OrderLinks::getGroupTag,
                         Comparator.nullsLast(Comparator.naturalOrder())
                 ))
                 .toList();
 
-        if (validLinks.isEmpty())
-            continue;
+        if (validLinks.isEmpty()) continue;
 
         List<OrderLinksShip> orderLinksShips = validLinks.stream()
                 .map(link -> {
-
                     Warehouse wh = link.getWarehouse();
-                    String packingCode = (wh != null && wh.getPacking() != null)
-                            ? wh.getPacking().getPackingCode()
-                            : null;
+                    String packingCode =
+                            (wh != null && wh.getPacking() != null)
+                                    ? wh.getPacking().getPackingCode()
+                                    : null;
 
                     return new OrderLinksShip(link, wh, packingCode);
                 })
                 .toList();
 
-        ShipLinks dto = new ShipLinks(order, orderLinksShips, order.getWarehouses().stream().toList());
+        ShipLinks dto = new ShipLinks(
+                order,
+                orderLinksShips,
+                order.getWarehouses().stream().toList()
+        );
+
         result.add(dto);
     }
 
