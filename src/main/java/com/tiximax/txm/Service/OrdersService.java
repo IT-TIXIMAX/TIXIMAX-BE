@@ -4,10 +4,7 @@ import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
-import com.tiximax.txm.Model.DTORequest.Order.ConsignmentRequest;
-import com.tiximax.txm.Model.DTORequest.Order.MoneyExchangeRequest;
-import com.tiximax.txm.Model.DTORequest.Order.OrderValidation;
-import com.tiximax.txm.Model.DTORequest.Order.OrdersRequest;
+import com.tiximax.txm.Model.DTORequest.Order.*;
 import com.tiximax.txm.Model.DTORequest.OrderLink.ConsignmentLinkRequest;
 import com.tiximax.txm.Model.DTORequest.OrderLink.OrderLinkRequest;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerBalanceAndOrders;
@@ -40,6 +37,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -306,7 +304,6 @@ public Orders addConsignment(
         throw new AccessDeniedException("Vai trò không hợp lệ!");
     }
 }
-
 
     public Page<Orders> getOrdersPaging(Pageable pageable, OrderStatus status) {
         Account currentAccount = accountUtils.getAccountCurrent();
@@ -1782,22 +1779,180 @@ public void updateOrderStatusIfCompleted(Long orderId) {
         }
     }
     @Transactional
-public void updateOrdersStatusAfterDeliveryByShipmentCodes(
-        List<String> shipmentCodes
-) {
-    List<Long> orderIds =
-            orderLinksRepository.findOrderIdsByShipmentCodes(shipmentCodes);
+    public void updateOrdersStatusAfterDeliveryByShipmentCodes(
+            List<String> shipmentCodes
+    ) {
+        List<Long> orderIds =
+                orderLinksRepository.findOrderIdsByShipmentCodes(shipmentCodes);
 
-    for (Long orderId : orderIds) {
-        updateOrderStatusIfCompleted(orderId);
+        for (Long orderId : orderIds) {
+            updateOrderStatusIfCompleted(orderId);
+        }
     }
-}
     private BigDecimal roundToHundreds(BigDecimal amount) {
         if (amount == null) return BigDecimal.ZERO;
 
         return amount
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
+    }
+
+    @Transactional
+    public Orders partialUpdate(Long orderId, OrdersPatchRequest patch) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng"));
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+
+        if (!order.getStatus().equals(OrderStatus.DA_XAC_NHAN)){
+            throw new IllegalArgumentException("Trạng thái đơn hiện tại không được phép chỉnh sửa!");
+        }
+
+        if (patch.getPriceShip() != null) {
+            if (!staff.getRole().equals(AccountRoles.MANAGER)){
+                if (order.getOrderType().equals(OrderType.MUA_HO)){
+                    if (patch.getPriceShip().compareTo(order.getRoute().getUnitBuyingPrice()) < 0) {
+                        throw new IllegalArgumentException("Giá cước không được nhỏ hơn giá cố định!");
+                    }
+                } else if (order.getOrderType().equals(OrderType.KY_GUI)){
+                    if (patch.getPriceShip().compareTo(order.getRoute().getUnitDepositPrice()) < 0) {
+                        throw new IllegalArgumentException("Giá cước không được nhỏ hơn giá cố định!");
+                    }
+                }
+            }
+
+            order.setPriceShip(patch.getPriceShip());
+        }
+
+        if (patch.getExchangeRate() != null) {
+            if (!staff.getRole().equals(AccountRoles.MANAGER)){
+                if (patch.getExchangeRate().compareTo(order.getRoute().getExchangeRate()) < 0) {
+                    throw new IllegalArgumentException("Tỉ giá không được nhỏ hơn giá cố định!");
+                }
+            }
+            order.setExchangeRate(patch.getExchangeRate());
+        }
+
+        if (patch.getCheckRequired() != null) {
+            order.setCheckRequired(patch.getCheckRequired());
+        }
+
+        if (patch.getNote() != null) {
+            order.setNote(patch.getNote());
+        }
+
+        if (patch.getOrderLinks() != null && !patch.getOrderLinks().isEmpty()) {
+            Set<OrderLinks> existingLinks = order.getOrderLinks();
+
+            for (OrderLinkPatch linkPatch : patch.getOrderLinks()) {
+                Long linkId = linkPatch.getOrderLinkId();
+                if (linkId == null) {
+                    throw new IllegalArgumentException("Không tìm thấy orderLink!");
+                }
+
+                OrderLinks link = existingLinks.stream()
+                        .filter(l -> l.getLinkId().equals(linkId))
+                        .findFirst()
+                        .orElseThrow(() -> new NotFoundException("Lỗi không tìm thấy link"));
+                if (linkPatch.getProductLink() != null){
+                    link.setProductLink(linkPatch.getProductLink());
+                }
+                if (linkPatch.getProductName() != null){
+                    link.setProductName(linkPatch.getProductName());
+                }
+                if (linkPatch.getPurchaseImage() != null){
+                    link.setPurchaseImage(linkPatch.getPurchaseImage());
+                }
+                if (linkPatch.getWebsite() != null){
+                    link.setWebsite(linkPatch.getWebsite());
+                }
+                if (linkPatch.getGroupTag() != null){
+                    link.setGroupTag(linkPatch.getGroupTag());
+                }
+
+                boolean recalculateNeeded = false;
+                if (linkPatch.getPriceWeb() != null) {
+                    link.setPriceWeb(linkPatch.getPriceWeb());
+                    recalculateNeeded = true;
+                }
+                if (linkPatch.getShipWeb() != null) {
+                    link.setShipWeb(linkPatch.getShipWeb());
+                    recalculateNeeded = true;
+                }
+                if (linkPatch.getPurchaseFee() != null) {
+                    link.setPurchaseFee(linkPatch.getPurchaseFee());
+                    recalculateNeeded = true;
+                }
+                if (linkPatch.getExtraCharge() != null) {
+                    link.setExtraCharge(linkPatch.getExtraCharge());
+                    recalculateNeeded = true;
+                }
+                if (linkPatch.getQuantity() != null) {
+                    link.setQuantity(linkPatch.getQuantity());
+                    recalculateNeeded = true;
+                }
+                if (linkPatch.getNote() != null) {
+                    link.setNote(linkPatch.getNote());
+                }
+                if (linkPatch.getClassify() != null) {
+                    link.setClassify(linkPatch.getClassify());
+                }
+
+                if (recalculateNeeded) {
+                    BigDecimal totalWeb = link.getPriceWeb()
+                            .multiply(BigDecimal.valueOf(link.getQuantity()))
+                            .add(link.getShipWeb())
+                            .setScale(2, RoundingMode.HALF_UP);
+
+                    link.setTotalWeb(totalWeb);
+
+                    BigDecimal finalPrice = totalWeb.multiply(order.getExchangeRate())
+                            .add(link.getExtraCharge().multiply(BigDecimal.valueOf(link.getQuantity())))
+                            .add(link.getPurchaseFee()
+                                    .multiply(BigDecimal.valueOf(0.01))
+                                    .multiply(totalWeb)
+                                    .multiply(order.getExchangeRate()))
+                            .setScale(2, RoundingMode.HALF_UP);
+
+                    link.setFinalPriceVnd(finalPrice);
+                }
+            }
+
+            BigDecimal newPriceBeforeFee = existingLinks.stream()
+                    .map(OrderLinks::getPriceWeb)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal newFinalPriceOrder = existingLinks.stream()
+                    .map(OrderLinks::getFinalPriceVnd)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            order.setFinalPriceOrder(newFinalPriceOrder);
+            order.setPriceBeforeFee(newPriceBeforeFee);
+        }
+        Orders saved = ordersRepository.save(order);
+        messagingTemplate.convertAndSend(
+                "/topic/Tiximax",
+                Map.of(
+                        "event", "UPDATE",
+                        "orderCode", saved.getOrderCode(),
+                        "message", "Đơn hàng được cập nhật!"
+                )
+        );
+
+        return saved;
+    }
+
+    public OrderWithLinks getOrderWithLinks(Long orderId) {
+        Orders order = ordersRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+
+//        Account current = accountUtils.getAccountCurrent();
+//        if (!current.getAccountId().equals(order.getStaff().getAccountId())) {
+//            throw new RuntimeException("Bạn không có quyền xem đơn hàng này");
+//        }
+
+        return new OrderWithLinks(order);
     }
 
 }
