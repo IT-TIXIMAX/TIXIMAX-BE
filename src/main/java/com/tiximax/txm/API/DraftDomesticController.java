@@ -100,7 +100,7 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
     @GetMapping("/draft-domestics/locked")
 public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
         @RequestParam(required = false)
-        @DateTimeFormat(pattern = "yyyy/MM/dd")
+        @DateTimeFormat(pattern = "yyyy-MM-dd")
         LocalDate endDate
 ) {
     return ResponseEntity.ok(
