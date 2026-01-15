@@ -113,14 +113,7 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
             pageable
     );
 
-    return page.map(draft -> {
-        DraftDomesticResponse response = new DraftDomesticResponse(draft);
-
-        // 🔥 làm tròn weight khi trả về
-        response.setWeight(roundWeight(draft.getWeight()));
-
-        return response;
-    });
+    return page.map(this::mapToResponseWithRoundedWeight);
 }
 
 
@@ -410,7 +403,7 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
     return draftDomesticRepository
         .findLockedNotExportedBetween(startDateTime, endDateTime)
         .stream()
-        .map(DraftDomesticResponse::new)
+        .map(this::mapToResponseWithRoundedWeight)
         .toList();
 }
 
@@ -578,6 +571,11 @@ private Double roundWeight(Double weight) {
             .doubleValue();
 }
 
+private DraftDomesticResponse mapToResponseWithRoundedWeight(DraftDomestic draft) {
+    DraftDomesticResponse response = new DraftDomesticResponse(draft);
+    response.setWeight(roundWeight(draft.getWeight()));
+    return response;
+}
 
 
 

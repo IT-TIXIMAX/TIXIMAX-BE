@@ -980,7 +980,6 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
                 .map(AccountRoute::getRoute)
                 .map(Route::getRouteId)
                 .collect(Collectors.toSet());
-
         if (routeIds.isEmpty()) {
             return Page.empty(pageable);
         }
@@ -1071,9 +1070,7 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
     return new PageImpl<>(result, pageable, ordersPage.getTotalElements());
 }
 
-    
-
-public Page<ShipLinks> getOrderLinksForWarehouse(
+    public Page<ShipLinks> getOrderLinksForWarehouse(
         Pageable pageable,
         ShipStatus status,
         String shipmentCode,
@@ -1096,7 +1093,6 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
 
     List<ShipLinks> result = new ArrayList<>();
 
-    // ✅ Set dùng để deduplicate shipmentCode
     Set<String> seenShipmentCodes = new HashSet<>();
 
     for (Orders order : ordersPage.getContent()) {
@@ -1108,11 +1104,11 @@ public Page<ShipLinks> getOrderLinksForWarehouse(
                                 || (link.getShipmentCode() != null
                                 && link.getShipmentCode().contains(shipmentCode))
                 )
-                // ❗ deduplicate theo shipmentCode
+                
                 .filter(link -> {
                     String code = link.getShipmentCode();
                     if (code == null) return false;
-                    return seenShipmentCodes.add(code); // add() trả false nếu đã tồn tại
+                    return seenShipmentCodes.add(code); 
                 })
                 .sorted(Comparator.comparing(
                         OrderLinks::getGroupTag,

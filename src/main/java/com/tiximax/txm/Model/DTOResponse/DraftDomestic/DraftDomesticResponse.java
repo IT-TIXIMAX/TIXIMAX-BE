@@ -15,6 +15,7 @@ public class DraftDomesticResponse {
     private String shipCode;
     private Double weight;
     private String VNPostTrackingCode;
+    private String staffCode;
    
     public DraftDomesticResponse(DraftDomestic draftDomestic) {
         this.id = draftDomestic.getId();
@@ -25,5 +26,6 @@ public class DraftDomesticResponse {
         this.weight = draftDomestic.getWeight();
         this.VNPostTrackingCode = draftDomestic.getVNPostTrackingCode();
         this.customerName = draftDomestic.getCustomer().getName();
+        this.staffCode = draftDomestic.getStaff().getStaffCode();
     }
 }

@@ -60,6 +60,7 @@ public class DraftDomestic{
     @JoinColumn(name="customer_id", nullable = false)
     @JsonManagedReference
     Customer customer;
+    
     @ManyToOne
     @JoinColumn(name = "staff_id", nullable = false)
     private Staff staff;
