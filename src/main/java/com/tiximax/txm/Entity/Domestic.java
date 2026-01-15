@@ -2,6 +2,7 @@ package com.tiximax.txm.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.DomesticStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -24,7 +25,7 @@ public class Domestic {
     private Long domesticId;
 
     @ManyToOne
-    @JoinColumn(name = "from_location_id", nullable = false)
+    @JoinColumn(name = "from_location_id", nullable = true)
     @JsonIgnore
     private WarehouseLocation fromLocation;
 
@@ -45,7 +46,6 @@ public class Domestic {
     @Column(nullable = true)
     private String phoneNumber;
 
-
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = true)
     @JsonManagedReference
@@ -62,8 +62,12 @@ public class Domestic {
     @Column(nullable = false)
     private List<String> shippingList = new ArrayList<>();
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = true)
-    private String VNPostTrackingCode;
+    private Carrier carrier;
+
+    @Column(nullable = true)
+    private String carrierTrackingCode;
 
     @ManyToOne
     @JoinColumn(name="staff_id", nullable = false)
@@ -71,7 +75,7 @@ public class Domestic {
     Staff staff;
 
     @ManyToOne
-    @JoinColumn(name="location_id", nullable = false)
+    @JoinColumn(name="location_id", nullable = true)
     @JsonIgnore
     WarehouseLocation location;
 

@@ -21,7 +21,7 @@ public class DomesticResponse {
     private String fromLocationName;
     private String toLocationName;
     private String toAddressName;
-    private String VNPostTrackingCode;
+    private String CarrierTrackingCode ;
 
     private List<String> shippingList;
 
@@ -31,7 +31,7 @@ public class DomesticResponse {
         response.setStatus(domestic.getStatus());
         response.setNote(domestic.getNote());
         response.setTimestamp(domestic.getTimestamp());
-        response.setVNPostTrackingCode(domestic.getVNPostTrackingCode());
+        response.setCarrierTrackingCode(domestic.getCarrierTrackingCode());
         if (domestic.getFromLocation() != null) {
             response.setFromLocationName(domestic.getFromLocation().getName());
         }
