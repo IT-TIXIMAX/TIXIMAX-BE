@@ -4,10 +4,7 @@ import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Enums.OrderDestination;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.OrderType;
-import com.tiximax.txm.Model.DTORequest.Order.ConsignmentRequest;
-import com.tiximax.txm.Model.DTORequest.Order.MoneyExchangeRequest;
-import com.tiximax.txm.Model.DTORequest.Order.OrdersRequest;
-import com.tiximax.txm.Model.DTORequest.Order.UpdateDestinationBatchRequest;
+import com.tiximax.txm.Model.DTORequest.Order.*;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerBalanceAndOrders;
 import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinkForegin;
 import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinks;
@@ -44,7 +41,6 @@ import java.util.Map;
 
 public class OrdersController {
 
-
     @Autowired
     private OrdersService ordersService;
 
@@ -57,6 +53,7 @@ public class OrdersController {
         Orders orders = ordersService.addOrder(customerCode, routeId, addressId,ordersRequest);
         return ResponseEntity.ok(orders);
     }
+
     @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
     @PostMapping("/money-exchange/{customerCode}/{routeId}")
     public ResponseEntity<Orders> moneyExchange(
@@ -128,7 +125,6 @@ public class OrdersController {
         Page<Orders> ordersPage = ordersService.getAllOrdersPaging(pageable, shipmentCode, customerCode, orderCode); // Pass filter params
         return ResponseEntity.ok(ordersPage);
     }
-
 
     @GetMapping("/{page}/{size}/{status}/paging")
     public ResponseEntity<Page<Orders>> getOrdersPaging(@PathVariable int page, int size, @PathVariable(required = false) OrderStatus status) {
@@ -394,4 +390,20 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
     public ResponseEntity<List<ShipmentGroup>> getShipmentsByPhone(@PathVariable String phone) {
         return ResponseEntity.ok(ordersService.getShipmentsByCustomerPhone(phone.trim()));
     }
+
+    @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE','MANAGER')")
+    @PatchMapping("/{orderId}")
+    public ResponseEntity<Orders> partialUpdateOrder(
+            @PathVariable Long orderId,
+            @RequestBody OrdersPatchRequest patchRequest) {
+        Orders updatedOrder = ordersService.partialUpdate(orderId, patchRequest);
+        return ResponseEntity.ok(updatedOrder);
+    }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderWithLinks> getOrderWithLinks(@PathVariable Long orderId) {
+        OrderWithLinks response = ordersService.getOrderWithLinks(orderId);
+        return ResponseEntity.ok(response);
+    }
+
 }
