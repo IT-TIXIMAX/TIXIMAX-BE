@@ -97,7 +97,7 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.removeShipments(id, request.getShippingCodes())
         );
     }
-    @GetMapping("/draft-domestics/locked")
+    @GetMapping("locked")
 public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
         @RequestParam(required = false)
         @DateTimeFormat(pattern = "yyyy-MM-dd")
