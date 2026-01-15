@@ -532,7 +532,6 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("routeId") Long routeId
     );
 
-    // Query cho goods: total_goods
     @Query(value = """
         SELECT
             r.name AS route_name,
@@ -557,7 +556,6 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("routeId") Long routeId
     );
 
-    // Query cho shipping-weight: total_net_weight (với logic điều chỉnh min_weight)
     @Query(value = """
         WITH
             payment_ship_qualified AS (
