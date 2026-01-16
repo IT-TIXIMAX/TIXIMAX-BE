@@ -13,16 +13,19 @@ import java.time.LocalDateTime;
 public class FlightShipmentRequest {
     private String flightCode;
     private String awbFilePath;
+    private String exportLicensePath;
+    private String singleInvoicePath;
     private String invoiceFilePath;
+    private String packingListPath;
     private BigDecimal totalVolumeWeight;
     private BigDecimal airFreightCost = BigDecimal.ZERO;
     private BigDecimal customsClearanceCost = BigDecimal.ZERO;
     private BigDecimal airportShippingCost = BigDecimal.ZERO;
     private BigDecimal otherCosts = BigDecimal.ZERO;
     private LocalDateTime arrivalDate;
-    private boolean airFreightPaid = false;
+    private Boolean airFreightPaid;
     private LocalDateTime airFreightPaidDate;
-    private boolean customsPaid = false;
+    private Boolean customsPaid;
     private LocalDateTime customsPaidDate;
     private Long staffId;
 }

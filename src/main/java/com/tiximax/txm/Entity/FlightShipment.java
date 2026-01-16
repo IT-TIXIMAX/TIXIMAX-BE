@@ -24,7 +24,13 @@ public class FlightShipment {
 
     private String awbFilePath;  // Đường dẫn file AWB upload
 
+    private String exportLicensePath; // Giấy phép xuất khẩu
+
+    private String singleInvoicePath; // Hóa đơn lẻ
+
     private String invoiceFilePath;  // Đường dẫn file Invoice upload
+
+    private String packingListPath;
 
     private BigDecimal totalVolumeWeight;  // (A) Tổng khối lượng tính cước (chargeable weight)
 
@@ -62,7 +68,7 @@ public class FlightShipment {
 
     @OneToMany(mappedBy = "flightShipment", cascade = CascadeType.ALL)
     @JsonIgnore
-    private Set<Warehouse> warehouses;  // Các kiện hàng thuộc chuyến này
+    private Set<Warehouse> warehouses;
 
     private LocalDateTime createdAt;
 
