@@ -635,18 +635,6 @@ public class DashBoardService {
         return result;
     }
 
-    public RouteInventorySummary getInventorySummaryByRoute(Long routeId) {
-        Object rawResult = warehouseRepository.sumCurrentStockWeightByRoute(routeId);
-        Object[] result = (Object[]) rawResult;
-
-        Number weight = (Number) result[0];
-        Number netWeight = (Number) result[1];
-
-        double totalWeight = weight != null ? weight.doubleValue() : 0;
-        double totalNetWeight = netWeight != null ? netWeight.doubleValue() : 0;
-        return new RouteInventorySummary(totalWeight, totalNetWeight);
-    }
-
     public Map<String, StaffPerformanceSummary> getPerformanceSummary(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         StartEndDate dateRange = getDateStartEnd(filterType);
         LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
@@ -762,5 +750,32 @@ public class DashBoardService {
                 ? ((Number) newCustomer[0]).longValue()
                 : 0L);
         return totalCustomer;
+    }
+
+    private RouteInventorySummary extractSummary(List<Object[]> results) {
+        double totalWeight = 0.0;
+        double totalNetWeight = 0.0;
+
+        if (results != null && !results.isEmpty()) {
+            Object[] row = results.get(0);  // aggregate chỉ trả về 1 hàng
+
+            Object weightObj = row.length > 0 ? row[0] : null;
+            Object netWeightObj = row.length > 1 ? row[1] : null;
+
+            totalWeight = (weightObj instanceof Number n) ? n.doubleValue() : 0.0;
+            totalNetWeight = (netWeightObj instanceof Number n) ? n.doubleValue() : 0.0;
+        }
+
+        return new RouteInventorySummary(totalWeight, totalNetWeight);
+    }
+
+    public RouteInventorySummary getUnpackedInventorySummaryByRoute(Long routeId) {
+        List<Object[]> results = warehouseRepository.sumUnpackedStockWeightByRoute(routeId);
+        return extractSummary(results);
+    }
+
+    public RouteInventorySummary getPackedInventorySummaryByRoute(Long routeId) {
+        List<Object[]> results = warehouseRepository.sumPackedStockWeightByRoute(routeId);
+        return extractSummary(results);
     }
 }

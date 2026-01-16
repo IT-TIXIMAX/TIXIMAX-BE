@@ -10,6 +10,5 @@ public class OrdersPatchRequest {
     private BigDecimal priceShip;
     private BigDecimal exchangeRate;
     private Boolean checkRequired;
-    private String note;
     private List<OrderLinkPatch> orderLinks;
 }

@@ -1838,10 +1838,6 @@ public void updateOrderStatusIfCompleted(Long orderId) {
             order.setCheckRequired(patch.getCheckRequired());
         }
 
-        if (patch.getNote() != null) {
-            order.setNote(patch.getNote());
-        }
-
         if (patch.getOrderLinks() != null && !patch.getOrderLinks().isEmpty()) {
             Set<OrderLinks> existingLinks = order.getOrderLinks();
 
