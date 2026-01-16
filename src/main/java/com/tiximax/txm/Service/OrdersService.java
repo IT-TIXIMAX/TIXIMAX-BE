@@ -202,12 +202,17 @@ public Orders addConsignment(
         OrderLinks orderLink = orderLinksRepository.findById(orderLinkId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng link"));
         
-        if(orderLink.getStatus() == OrderLinkStatus.DA_HUY){
+        if (orderLink.getStatus() == OrderLinkStatus.DA_HUY){
             throw new BadRequestException("Đơn hàng link đã bị hủy, không thể hủy lại!");
         }
+        if (!order.getStatus().equals(OrderStatus.CHO_XAC_NHAN) &&
+            !order.getStatus().equals(OrderStatus.DA_XAC_NHAN) &&
+            !order.getStatus().equals(OrderStatus.CHO_THANH_TOAN)){
+
+            BigDecimal currentLeftover = order.getLeftoverMoney() != null ? order.getLeftoverMoney() : BigDecimal.ZERO;
+            order.setLeftoverMoney(currentLeftover.subtract(orderLink.getFinalPriceVnd()));
+        }
         orderLink.setStatus(OrderLinkStatus.DA_HUY);
-        BigDecimal currentLeftover = order.getLeftoverMoney() != null ? order.getLeftoverMoney() : BigDecimal.ZERO;
-        order.setLeftoverMoney(currentLeftover.subtract(orderLink.getFinalPriceVnd()));
         orderLinksRepository.save(orderLink);
         ordersRepository.save(order);
         List<OrderLinks> allOrderLinks = orderLinksRepository.findByOrdersOrderId(order.getOrderId());
@@ -1361,6 +1366,7 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
                 )
         );
     }
+
    public Orders MoneyExchange(String customerCode, Long routeId, MoneyExchangeRequest ordersRequest) throws IOException {
     if (customerCode == null) {
         throw new BadRequestException("Bạn phải nhập mã khách hàng để thực hiện hành động này!");
@@ -1942,12 +1948,6 @@ public void updateOrderStatusIfCompleted(Long orderId) {
     public OrderWithLinks getOrderWithLinks(Long orderId) {
         Orders order = ordersRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
-
-//        Account current = accountUtils.getAccountCurrent();
-//        if (!current.getAccountId().equals(order.getStaff().getAccountId())) {
-//            throw new RuntimeException("Bạn không có quyền xem đơn hàng này");
-//        }
-
         return new OrderWithLinks(order);
     }
 

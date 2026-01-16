@@ -261,6 +261,7 @@ public class AuthenticationService implements UserDetailsService {
         customer.setStatus(AccountStatus.HOAT_DONG);
         customer.setCreatedAt(LocalDateTime.now());
         customer.setCustomerCode(generateCustomerCode());
+        customer.setBalance(BigDecimal.ZERO);
 
         Address address = new Address();
         address.setAddressName(registerRequest.getAddress().trim());
@@ -338,6 +339,7 @@ public class AuthenticationService implements UserDetailsService {
         customer.setCreatedAt(LocalDateTime.now());
         customer.setCustomerCode(generateCustomerCode());
         customer.setSource(registerRequest.getSource());
+        customer.setBalance(BigDecimal.ZERO);
         customer.setStaffId(accountUtils.getAccountCurrent().getAccountId());
 
         Address address = new Address();
