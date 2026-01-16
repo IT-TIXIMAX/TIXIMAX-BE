@@ -23,6 +23,8 @@ import com.tiximax.txm.Entity.DraftDomestic;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.AccountRoles;
+import com.tiximax.txm.Enums.Carrier;
+import com.tiximax.txm.Enums.DraftDomesticStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
@@ -89,10 +91,10 @@ public DraftDomesticResponse addDraftDomestic(DraftDomesticRequest draft) {
 public Page<DraftDomesticResponse> getAllDraftDomestic(
         String customerCode,
         String shipmentCode,
-        Boolean lock,
-        Boolean isExported,
+        DraftDomesticStatus status,
+        Carrier carrier,
         Pageable pageable
-) {
+){
     Account account = accountUtils.getAccountCurrent();
     Long staffId = null;
 
@@ -105,13 +107,13 @@ public Page<DraftDomesticResponse> getAllDraftDomestic(
     }
 
     Page<DraftDomestic> page = draftDomesticRepository.findAllWithFilter(
-            customerCode,
-            shipmentCode,
-            lock,
-            isExported,
-            staffId,
-            pageable
-    );
+        customerCode,
+        shipmentCode,
+        status,
+        carrier,
+        staffId,
+        pageable
+);
 
     return page.map(this::mapToResponseWithRoundedWeight);
 }
@@ -147,7 +149,7 @@ public DraftDomesticResponse addShipments(
     if (shippingCodes == null || shippingCodes.isEmpty()) {
         throw new BadRequestException("Danh sách mã vận đơn không được rỗng");
     }
-    checkDraftDomesticLocked(draftId);
+    checkDraftEditable(draft);
     validateAllTrackingCodesExist(shippingCodes);
 
     if (draft.getShippingList() == null) {
@@ -248,7 +250,7 @@ public DraftDomesticResponse updateDraftInfo(
 ) {
     DraftDomestic draft = draftDomesticRepository.findById(draftId)
             .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn mẫu vận chuyển nội địa"));
-    checkDraftDomesticLocked(draftId);
+    checkDraftEditable(draft);
     boolean updated = false;
 
     if (request.getPhoneNumber() != null) {
@@ -284,7 +286,7 @@ public DraftDomesticResponse removeShipments(
     DraftDomestic draft = draftDomesticRepository.findById(draftId)
             .orElseThrow(() -> new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa"));
 
-    checkDraftDomesticLocked(draftId);
+    checkDraftEditable(draft);
     if (draft.getShippingList() == null || draft.getShippingList().isEmpty()) {
         throw new BadRequestException("mẫu vận chuyển chưa có mã vận chuyển nào");
     }
@@ -313,20 +315,14 @@ public Boolean deleteDraftDomestic(Long draftId) {
             .orElseThrow(() ->
                     new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa")
             );
-    if (Boolean.TRUE.equals(draft.getIsLocked())) {
-        throw new BadRequestException(
-                "Mẫu vận chuyển nội địa đã bị khóa, không thể xóa"
-        );
-    }
-
-
+     checkDraftEditable(draft);
     draftDomesticRepository.delete(draft);
     return true;
 }
 
 
 @Transactional
-public Boolean lockDraftDomestic(List<Long> draftIds) {
+public Boolean ExportDraftDomestic(List<Long> draftIds) {
 
     if (draftIds == null || draftIds.isEmpty()) {
         throw new BadRequestException("Danh sách draftId không được rỗng");
@@ -342,9 +338,9 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
 
     for (DraftDomestic draft : drafts) {
 
-        if (Boolean.TRUE.equals(draft.getIsExported())) {
+        if (draft.getStatus() != DraftDomesticStatus.LOCKED) {
             throw new BadRequestException(
-                "DraftDomestic ID " + draft.getId() + " đã xuất file, không thể khóa"
+                "Draft " + draft.getId() + " không ở trạng thái LOCKED"
             );
         }
         List<String> shippingList = draft.getShippingList();
@@ -382,12 +378,11 @@ public Boolean lockDraftDomestic(List<Long> draftIds) {
         );
     }
 
-    drafts.forEach(d -> d.setIsExported(true));
+    drafts.forEach(d -> d.setStatus(DraftDomesticStatus.EXPORTED));
     draftDomesticRepository.saveAll(drafts);
 
     return true;
  }
-
 
 public List<DraftDomesticResponse> getLockedDraftNotExported(
         LocalDate endDate
@@ -401,13 +396,11 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
     LocalDateTime startDateTime = endDateTime.minusDays(7);
 
     return draftDomesticRepository
-        .findLockedNotExportedBetween(startDateTime, endDateTime)
+        .findLockedBetween(startDateTime, endDateTime)
         .stream()
         .map(this::mapToResponseWithRoundedWeight)
         .toList();
 }
-
-
 
 
     public Page<DraftDomesticResponse> getDraftsToLock(
@@ -452,7 +445,7 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
                     );
 
             if (total > 0 && total == ready) {
-                draft.setIsLocked(true);
+                draft.setStatus(DraftDomesticStatus.LOCKED);;
                 draftDomesticRepository.save(draft);
             }
         }
@@ -475,9 +468,8 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
         draft.setPhoneNumber(request.getPhoneNumber());
         draft.setAddress(request.getAddress());
         draft.setShippingList(request.getShippingList());
-        draft.setIsVNpost(request.getIsVNpost());
+        draft.setCarrier(request.getCarrier());
         draft.setStaff(staff);
-        draft.setIsLocked(false);
         return draft;
     }
  
@@ -517,32 +509,27 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
         );
     }
 }
-private void checkDraftDomesticLocked(Long draftId) {
-
-    Boolean isLocked = draftDomesticRepository.isDraftLocked(draftId);
-    if (isLocked != null && isLocked) {
+private void checkDraftEditable(DraftDomestic draft) {
+    if (draft.getStatus() != DraftDomesticStatus.DRAFT) {
         throw new BadRequestException(
-            "Mẫu vận chuyển nội địa đã bị khoá, không thể chỉnh sửa"
+            "Mẫu vận chuyển đã " + draft.getStatus() + ", không thể chỉnh sửa"
         );
     }
 }
+
 
 private String generateShipCode(
         String customerCode,
         int packageCount
 ) {
 
-    String baseCode = customerCode + "-" + packageCount;
-
-    // Lấy tất cả shipCode dạng C00001-1-*
     List<String> existingCodes =
-            draftDomesticRepository.findShipCodesByBaseCode(baseCode);
+            draftDomesticRepository.findShipCodesByCustomer(customerCode);
 
     if (existingCodes.isEmpty()) {
-        return baseCode + "-A";
+        return customerCode + "-" + packageCount + "-A";
     }
 
-    // Lấy suffix lớn nhất
     char maxSuffix = 'A' - 1;
 
     for (String code : existingCodes) {
@@ -551,9 +538,9 @@ private String generateShipCode(
             maxSuffix = suffix;
         }
     }
-
-    return baseCode + "-" + (char) (maxSuffix + 1);
+    return customerCode + "-" + packageCount + "-" + (char) (maxSuffix + 1);
 }
+
 
 private Double calculateAndRoundWeight(Double totalWeight) {
     if (totalWeight == null) return 0.0;

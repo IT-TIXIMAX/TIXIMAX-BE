@@ -2,6 +2,9 @@ package com.tiximax.txm.Model.DTORequest.DraftDomestic;
 
 
 import java.util.List;
+
+import com.tiximax.txm.Enums.Carrier;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
@@ -20,7 +23,7 @@ public class DraftDomesticRequest {
     @NotBlank(message = "Địa chỉ không được để trống")
     private String address;
 
-    private Boolean isVNpost; 
+    private Carrier carrier; 
 
     private List<String> shippingList;
 

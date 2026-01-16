@@ -4,6 +4,7 @@ import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
+import com.tiximax.txm.Model.DTORequest.Domestic.ScanToShip;
 import com.tiximax.txm.Model.DTOResponse.Domestic.CheckInDomestic;
 import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticDelivery;
 import com.tiximax.txm.Model.DTOResponse.Domestic.DomesticRecieve;
@@ -252,7 +253,8 @@ public class DomesticService {
         );
 
         domestic.setToAddress(address);
-        domestic.setVNPostTrackingCode(VNPostTrackingCode);
+        domestic.setCarrier(Carrier.VNPOST);
+        domestic.setCarrierTrackingCode(VNPostTrackingCode);
         domesticRepository.save(domestic);
         updateOrderLinksAndOrders(shippingList, domestic);
         domestics.add(domestic);
@@ -290,7 +292,6 @@ public class DomesticService {
         List<String> trackingCodes = ws.stream()
                 .map(Warehouse::getTrackingCode)
                 .toList();
-
         Domestic domestic = new Domestic();
         domestic.setToAddress(address);
         domestic.setShippingList(trackingCodes);
@@ -507,41 +508,69 @@ public class DomesticService {
 
 
     @Transactional
-    public DomesticDelivery ScanToShipByVNPOST( String VNPost, String shipCode){
-        DraftDomestic draftDomestic = draftDomesticRepository.findByVNPostTrackingCode(VNPost).orElse(null);
-        draftDomestic = draftDomesticRepository.findByShipCode(shipCode).orElse(null);
-        if(draftDomestic == null){
-            throw new NotFoundException("Không tìm thấy Draft Domestic với mã VNPost hoặc ShipCode đã quét!");
-        }
-        checkAndUpdateWarehousesAndOrderLinks(draftDomestic);
+public DomesticDelivery scanToShip(
+        ScanToShip request
+) {
+    DraftDomestic draftDomestic = null;
 
-        Domestic domestic = new Domestic();
-        domestic.setAddress(draftDomestic.getAddress());
-        domestic.setPhoneNumber(draftDomestic.getPhoneNumber());
-        domestic.setShippingList(draftDomestic.getShippingList());
-        domestic.setVNPostTrackingCode(draftDomestic.getVNPostTrackingCode());
-        domestic.setShipCode(draftDomestic.getShipCode());
-        domestic.setTimestamp(LocalDateTime.now());
-        domestic.setNote("Giao hàng cho khách bằng VNPost với mã vận đơn " + VNPost);
-        domestic.setStatus(DomesticStatus.DA_GIAO);
-        domestic.setCustomer(draftDomestic.getCustomer());
-        domestic.setStaff(getCurrentStaffWithLocation());
-        domesticRepository.save(domestic);
+    if (draftDomestic == null && request.getShipCode() != null && !request.getShipCode().isBlank()) {
+        draftDomestic =
+                draftDomesticRepository
+                        .findByShipCode(request.getShipCode())
+                        .orElse(null);
+    }
 
-        draftDomesticRepository.delete(draftDomestic);
-
-        return new DomesticDelivery(
-                domestic.getCustomer().getCustomerCode(),
-                domestic.getCustomer().getName(),
-                draftDomestic.getPhoneNumber(),
-                draftDomestic.getAddress(),
-                domestic.getStaff().getName(),
-                domestic.getStaff().getStaffCode(),
-                "DA_GIAO",
-                draftDomestic.getShippingList()
+    if (draftDomestic == null) {
+        throw new NotFoundException(
+                "Không tìm thấy Draft Domestic theo mã vận chuyển hoặc shipCode"
         );
     }
 
+    if (draftDomestic.getCarrier() != request.getCarrier()) {
+        throw new BadRequestException(
+                "Draft Domestic không thuộc carrier " + request.getCarrier()
+        );
+    }
+
+    Staff currentStaff = (Staff) accountUtils.getAccountCurrent();
+    WarehouseLocation currentLocation =
+            currentStaff != null ? currentStaff.getWarehouseLocation() : null;
+
+    checkAndUpdateWarehousesAndOrderLinks(draftDomestic);
+
+    Domestic domestic = new Domestic();
+    domestic.setAddress(draftDomestic.getAddress());
+    domestic.setPhoneNumber(draftDomestic.getPhoneNumber());
+    domestic.setShippingList(draftDomestic.getShippingList());
+    domestic.setFromLocation(currentLocation);
+    domestic.setCarrier(draftDomestic.getCarrier());
+    domestic.setCarrierTrackingCode(request.getTrackingCode());
+    domestic.setShipCode(draftDomestic.getShipCode());
+    domestic.setTimestamp(LocalDateTime.now());
+    domestic.setNote(
+            "Giao hàng cho khách bằng " + request.getCarrier() +
+            (request.getTrackingCode() != null ? " - mã " + request.getTrackingCode() : "")
+    );
+    domestic.setStatus(DomesticStatus.DA_GIAO);
+    domestic.setCustomer(draftDomestic.getCustomer());
+    domestic.setStaff(getCurrentStaffWithLocation());
+
+    domesticRepository.save(domestic);
+
+    // ===== CLEANUP =====
+    draftDomesticRepository.delete(draftDomestic);
+
+    return new DomesticDelivery(
+            domestic.getCustomer().getCustomerCode(),
+            domestic.getCustomer().getName(),
+            domestic.getPhoneNumber(),
+            domestic.getAddress(),
+            domestic.getStaff().getName(),
+            domestic.getStaff().getStaffCode(),
+            domestic.getStatus().name(),
+            domestic.getShippingList()
+    );
+}
 
     private Staff getCurrentStaffWithLocation() {
     Staff staff = (Staff) accountUtils.getAccountCurrent();

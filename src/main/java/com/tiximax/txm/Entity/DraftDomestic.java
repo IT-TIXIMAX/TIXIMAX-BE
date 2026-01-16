@@ -5,10 +5,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.tiximax.txm.Enums.Carrier;
+import com.tiximax.txm.Enums.DraftDomesticStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -38,8 +42,10 @@ public class DraftDomestic{
    @Column(nullable = true)
    private Double weight;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Boolean isVNpost ;  // true: VNPost, false: other
+    private Carrier carrier;
+
 
     @Column(nullable = true)
     private String noteTracking;
@@ -50,11 +56,9 @@ public class DraftDomestic{
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
     
-    @Column(name = "is_locked",nullable = false)
-    private Boolean isLocked;; 
-
-   @Column(nullable = false)
-    private Boolean isExported = false;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DraftDomesticStatus status;
 
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = false)
@@ -67,6 +71,10 @@ public class DraftDomestic{
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        if (this.status == null) {
+        this.status = DraftDomesticStatus.DRAFT;
     }
-
 }
+}
+
+
