@@ -178,7 +178,7 @@ public class DashBoardController {
         result.put("packed", dashBoardService.getPackedInventorySummaryByRoute(routeId));
         return ResponseEntity.ok(result);
     }
-   @GetMapping("/warehouse")
+   @GetMapping("/warehouse/domestic-summary")
 public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
         @RequestParam DashboardFilterType filter,
 
@@ -249,6 +249,17 @@ public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
     ) {
 
         return dashBoardService.getNewCustomers(startDate, endDate, filterType);
+    }
+    @GetMapping("/routes/kpi")
+    public ResponseEntity<Map<String, RouteStaffPerformance>> getWeightByRouteKpi(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) Long routeId) {
+
+        Map<String, RouteStaffPerformance> result = dashBoardService.getStaffPerformanceByRouteGrouped(startDate, endDate, filterType, routeId);
+
+        return ResponseEntity.ok(result);
     }
 
 }
