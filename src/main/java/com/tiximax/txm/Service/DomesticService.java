@@ -525,6 +525,11 @@ public DomesticDelivery scanToShip(
                 "Không tìm thấy Draft Domestic theo mã vận chuyển hoặc shipCode"
         );
     }
+    if( draftDomestic.getCarrier() != request.getCarrier()) {
+        throw new BadRequestException(
+                "Đơn hàng này giao theo vận chuyển " + request.getCarrier()
+        );
+    }
 
     if (draftDomestic.getCarrier() != request.getCarrier()) {
         throw new BadRequestException(

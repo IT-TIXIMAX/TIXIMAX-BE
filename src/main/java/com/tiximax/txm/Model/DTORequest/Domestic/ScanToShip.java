@@ -15,6 +15,6 @@ public class ScanToShip {
     private String trackingCode;
     @NotBlank(message = "Ship code không được để trống")
     private String shipCode;
-    @NotBlank(message = "Carrier không được để trống")
+    @NotBlank(message = "Carrier không được để trống") 
     private Carrier carrier;
 }
