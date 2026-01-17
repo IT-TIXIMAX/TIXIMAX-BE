@@ -15,7 +15,10 @@ public class FlightShipmentResponse {
     private Long flightShipmentId;
     private String flightCode;
     private String awbFilePath;
+    private String exportLicensePath;
+    private String singleInvoicePath;
     private String invoiceFilePath;
+    private String packingListPath;
     private BigDecimal totalVolumeWeight;
     private BigDecimal airFreightCost;
     private BigDecimal customsClearanceCost;

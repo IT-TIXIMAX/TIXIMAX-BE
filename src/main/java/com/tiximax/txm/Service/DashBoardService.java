@@ -589,6 +589,68 @@ public class DashBoardService {
         return new RouteInventorySummary(totalWeight, totalNetWeight);
     }
 
+    public Map<String, RouteStaffPerformance> getStaffPerformanceByRouteGrouped(
+            LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+
+        Account currentAccount = accountUtils.getAccountCurrent();
+        if (currentAccount.getRole() != AccountRoles.ADMIN &&
+                currentAccount.getRole() != AccountRoles.MANAGER) {
+            throw new AccessDeniedException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
+        }
+
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        List<Object[]> aggregates = ordersRepository.aggregateStaffKPIByRoute(
+                startDateTime, endDateTime, routeId);
+
+        Map<String, Map<String, StaffPerformanceKPI>> tempMap = new HashMap<>();
+
+        for (Object[] row : aggregates) {
+            String routeName = (String) row[0];
+            if (routeName == null) routeName = "Không xác định";
+            String staffCode = (String) row[1];
+            String staffName = (String) row[2];
+            BigDecimal totalGoods = row[3] == null ? BigDecimal.ZERO
+                            : BigDecimal.valueOf(((Number) row[3]).doubleValue());
+
+            Double totalNetWeight = row[4] == null ? 0.0 : ((Number) row[4]).doubleValue();
+
+            StaffPerformanceKPI kpi = tempMap
+                    .computeIfAbsent(routeName, k -> new HashMap<>())
+                    .computeIfAbsent(staffCode, k -> {
+                        StaffPerformanceKPI newKpi = new StaffPerformanceKPI();
+                        newKpi.setStaffCode(staffCode);
+                        newKpi.setName(staffName);
+                        newKpi.setTotalGoods(BigDecimal.ZERO);
+                        newKpi.setTotalNetWeight(0.0);
+                        return newKpi;
+                    });
+
+            kpi.setTotalGoods(totalGoods != null ? totalGoods : BigDecimal.ZERO);
+            kpi.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
+        }
+
+        Map<String, RouteStaffPerformance> result = new TreeMap<>();
+
+        tempMap.forEach((routeName, staffMap) -> {
+            RouteStaffPerformance routePerf = new RouteStaffPerformance();
+            routePerf.setRouteName(routeName);
+
+            List<StaffPerformanceKPI> staffList = new ArrayList<>(staffMap.values());
+            staffList.sort(Comparator.comparing(StaffPerformanceKPI::getTotalGoods).reversed());
+
+            routePerf.setStaffPerformances(staffList);
+            result.put(routeName, routePerf);
+        });
+
+        return result;
+    }
+
     public Map<String, StaffPerformanceSummary> getPerformanceSummary(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         StartEndDate dateRange = getDateStartEnd(filterType);
         LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
@@ -830,5 +892,32 @@ public WarehouseSummary getWarehouseDashboard(
         }
 
         return Pair.of(from, to);
+    }
+
+    private RouteInventorySummary extractSummary(List<Object[]> results) {
+        double totalWeight = 0.0;
+        double totalNetWeight = 0.0;
+
+        if (results != null && !results.isEmpty()) {
+            Object[] row = results.get(0);  // aggregate chỉ trả về 1 hàng
+
+            Object weightObj = row.length > 0 ? row[0] : null;
+            Object netWeightObj = row.length > 1 ? row[1] : null;
+
+            totalWeight = (weightObj instanceof Number n) ? n.doubleValue() : 0.0;
+            totalNetWeight = (netWeightObj instanceof Number n) ? n.doubleValue() : 0.0;
+        }
+
+        return new RouteInventorySummary(totalWeight, totalNetWeight);
+    }
+
+    public RouteInventorySummary getUnpackedInventorySummaryByRoute(Long routeId) {
+        List<Object[]> results = warehouseRepository.sumUnpackedStockWeightByRoute(routeId);
+        return extractSummary(results);
+    }
+
+    public RouteInventorySummary getPackedInventorySummaryByRoute(Long routeId) {
+        List<Object[]> results = warehouseRepository.sumPackedStockWeightByRoute(routeId);
+        return extractSummary(results);
     }
 }

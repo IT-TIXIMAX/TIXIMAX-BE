@@ -2,6 +2,7 @@ package com.tiximax.txm.API;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -170,12 +171,12 @@ public class DashBoardController {
     }
 
 
-    @GetMapping("/routes/inventory-summary")
-    public ResponseEntity<RouteInventorySummary> getInventorySummaryByRoute(
-            @RequestParam Long routeId) {
-
-        RouteInventorySummary summary = dashBoardService.getInventorySummaryByRoute(routeId);
-        return ResponseEntity.ok(summary);
+    @GetMapping("/inventory/{routeId}")
+    public ResponseEntity<Map<String, RouteInventorySummary>> getAllInventory(@PathVariable Long routeId) {
+        Map<String, RouteInventorySummary> result = new HashMap<>();
+        result.put("unpacked", dashBoardService.getUnpackedInventorySummaryByRoute(routeId));
+        result.put("packed", dashBoardService.getPackedInventorySummaryByRoute(routeId));
+        return ResponseEntity.ok(result);
     }
    @GetMapping("/warehouse")
 public ResponseEntity<WarehouseSummary> getWarehouseDashboard(

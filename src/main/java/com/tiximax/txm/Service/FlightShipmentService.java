@@ -58,20 +58,22 @@ public class FlightShipmentService {
         FlightShipment entity = flightShipmentRepository.findById(id)
                 .orElseThrow(() -> new BadRequestException("Không tìm thấy chuyến bay"));
 
-        // Cập nhật các field
-        entity.setFlightCode(request.getFlightCode());
-        entity.setAwbFilePath(request.getAwbFilePath());
-        entity.setInvoiceFilePath(request.getInvoiceFilePath());
-        entity.setTotalVolumeWeight(request.getTotalVolumeWeight());
-        entity.setAirFreightCost(request.getAirFreightCost());
-        entity.setCustomsClearanceCost(request.getCustomsClearanceCost());
-        entity.setAirportShippingCost(request.getAirportShippingCost());
-        entity.setOtherCosts(request.getOtherCosts());
-        entity.setArrivalDate(request.getArrivalDate());
-        entity.setAirFreightPaid(request.isAirFreightPaid());
-        entity.setAirFreightPaidDate(request.getAirFreightPaidDate());
-        entity.setCustomsPaid(request.isCustomsPaid());
-        entity.setCustomsPaidDate(request.getCustomsPaidDate());
+        if (request.getFlightCode() != null){entity.setFlightCode(request.getFlightCode());}
+        if (request.getAwbFilePath() != null){entity.setAwbFilePath(request.getAwbFilePath());}
+        if (request.getExportLicensePath() != null){entity.setExportLicensePath(request.getExportLicensePath());}
+        if (request.getSingleInvoicePath() != null){entity.setSingleInvoicePath(request.getSingleInvoicePath());}
+        if (request.getInvoiceFilePath() != null){entity.setInvoiceFilePath(request.getInvoiceFilePath());}
+        if (request.getPackingListPath() != null){entity.setPackingListPath(request.getPackingListPath());}
+        if (request.getTotalVolumeWeight() != null){entity.setTotalVolumeWeight(request.getTotalVolumeWeight());}
+        if (request.getAirFreightCost() != null){entity.setAirFreightCost(request.getAirFreightCost());}
+        if (request.getCustomsClearanceCost() != null){entity.setCustomsClearanceCost(request.getCustomsClearanceCost());}
+        if (request.getAirportShippingCost() != null){entity.setAirportShippingCost(request.getAirportShippingCost());}
+        if (request.getOtherCosts() != null){entity.setOtherCosts(request.getOtherCosts());}
+        if (request.getArrivalDate() != null){entity.setArrivalDate(request.getArrivalDate());}
+        if (request.getAirFreightPaid() != null){entity.setAirFreightPaid(request.getAirFreightPaid());}
+        if (request.getAirFreightPaidDate() != null){entity.setAirFreightPaidDate(request.getAirFreightPaidDate());}
+        if (request.getCustomsPaid() != null){entity.setCustomsPaid(request.getCustomsPaid());}
+        if (request.getCustomsPaidDate() != null){entity.setCustomsPaidDate(request.getCustomsPaidDate());}
 
         Staff staff = staffRepository.findById(request.getStaffId())
                 .orElseThrow(() -> new BadRequestException("Không tìm thấy nhân viên"));
@@ -98,9 +100,9 @@ public class FlightShipmentService {
         entity.setAirportShippingCost(request.getAirportShippingCost());
         entity.setOtherCosts(request.getOtherCosts());
         entity.setArrivalDate(request.getArrivalDate());
-        entity.setAirFreightPaid(request.isAirFreightPaid());
+        entity.setAirFreightPaid(request.getAirFreightPaid());
         entity.setAirFreightPaidDate(request.getAirFreightPaidDate());
-        entity.setCustomsPaid(request.isCustomsPaid());
+        entity.setCustomsPaid(request.getCustomsPaid());
         entity.setCustomsPaidDate(request.getCustomsPaidDate());
 
         Staff staff = staffRepository.findById(request.getStaffId())

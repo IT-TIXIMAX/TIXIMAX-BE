@@ -34,7 +34,7 @@ public class FlightShipmentController {
         return ResponseEntity.ok(flightShipmentService.getAllFlightShipment());
     }
 
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<FlightShipmentResponse> updateFlightShipment(@PathVariable Long id,
                                                             @RequestBody FlightShipmentRequest request) {
         return ResponseEntity.ok(flightShipmentService.updateFlightShipment(id, request));
