@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import com.tiximax.txm.Entity.*;
@@ -13,8 +14,11 @@ import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
+import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
+
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -573,68 +577,6 @@ public class DashBoardService {
                 .collect(Collectors.toList());
     }
 
-    public Map<String, RouteStaffPerformance> getStaffPerformanceByRouteGrouped(
-            LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
-
-        Account currentAccount = accountUtils.getAccountCurrent();
-        if (currentAccount.getRole() != AccountRoles.ADMIN &&
-                currentAccount.getRole() != AccountRoles.MANAGER) {
-            throw new AccessDeniedException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
-        }
-
-        StartEndDate dateRange = getDateStartEnd(filterType);
-        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
-        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
-
-        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
-        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
-
-        List<Object[]> aggregates = ordersRepository.aggregateStaffKPIByRoute(
-                startDateTime, endDateTime, routeId);
-
-        Map<String, Map<String, StaffPerformanceKPI>> tempMap = new HashMap<>();
-
-        for (Object[] row : aggregates) {
-            String routeName = (String) row[0];
-            if (routeName == null) routeName = "Không xác định";
-            String staffCode = (String) row[1];
-            String staffName = (String) row[2];
-            BigDecimal totalGoods = row[3] == null ? BigDecimal.ZERO
-                            : BigDecimal.valueOf(((Number) row[3]).doubleValue());
-
-            Double totalNetWeight = row[4] == null ? 0.0 : ((Number) row[4]).doubleValue();
-
-            StaffPerformanceKPI kpi = tempMap
-                    .computeIfAbsent(routeName, k -> new HashMap<>())
-                    .computeIfAbsent(staffCode, k -> {
-                        StaffPerformanceKPI newKpi = new StaffPerformanceKPI();
-                        newKpi.setStaffCode(staffCode);
-                        newKpi.setName(staffName);
-                        newKpi.setTotalGoods(BigDecimal.ZERO);
-                        newKpi.setTotalNetWeight(0.0);
-                        return newKpi;
-                    });
-
-            kpi.setTotalGoods(totalGoods != null ? totalGoods : BigDecimal.ZERO);
-            kpi.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
-        }
-
-        Map<String, RouteStaffPerformance> result = new TreeMap<>();
-
-        tempMap.forEach((routeName, staffMap) -> {
-            RouteStaffPerformance routePerf = new RouteStaffPerformance();
-            routePerf.setRouteName(routeName);
-
-            List<StaffPerformanceKPI> staffList = new ArrayList<>(staffMap.values());
-            staffList.sort(Comparator.comparing(StaffPerformanceKPI::getTotalGoods).reversed());
-
-            routePerf.setStaffPerformances(staffList);
-            result.put(routeName, routePerf);
-        });
-
-        return result;
-    }
-
     public RouteInventorySummary getInventorySummaryByRoute(Long routeId) {
         Object rawResult = warehouseRepository.sumCurrentStockWeightByRoute(routeId);
         Object[] result = (Object[]) rawResult;
@@ -762,5 +704,131 @@ public class DashBoardService {
                 ? ((Number) newCustomer[0]).longValue()
                 : 0L);
         return totalCustomer;
+    }
+
+public WarehouseSummary getWarehouseDashboard(
+        DashboardFilterType filterType,
+        LocalDate start,
+        LocalDate end,
+        Long routeId
+) {
+
+    LocalDateTime customFrom = (start != null)
+            ? start.atStartOfDay()
+            : null;
+
+    LocalDateTime customTo = (end != null)
+            ? end.atTime(LocalTime.MAX)
+            : null;
+
+    Pair<LocalDateTime, LocalDateTime> range =
+            resolveTimeRange(filterType, customFrom, customTo);
+
+    LocalDateTime fromDate = range.getLeft();
+    LocalDateTime toDate = range.getRight();
+
+    WarehouseSummary summary = new WarehouseSummary();
+    summary.setInStock(
+            toDTO(
+                    warehouseRepository.inStock(routeId)
+            )
+    );
+
+    summary.setUNPAID_SHIPPING(
+            toDTO(
+                    warehouseRepository.unpaidShipping(routeId)
+            )
+    );
+
+    summary.setPAID_SHIPPING(
+            toDTO(
+                    warehouseRepository.paidShipping(routeId)
+            )
+    );
+    summary.setExportByVnPost(
+            toDTO(
+                    warehouseRepository.exportByCarrierWithDate(
+                            Carrier.VNPOST.name(),
+                            fromDate,
+                            toDate,
+                            routeId
+                    )
+            )
+    );
+
+    summary.setExportByOther(
+            toDTO(
+                    warehouseRepository.exportByCarrierWithDate(
+                            Carrier.OTHER.name(),
+                            fromDate,
+                            toDate,
+                            routeId
+                    )
+            )
+    );
+
+    return summary;
+}
+
+
+    
+
+     private WarehouseStatistic toDTO(WarehouseStatisticRow p) {
+        return new WarehouseStatistic(
+                p.getTotalCodes(),
+                p.getTotalWeight(),
+                p.getTotalCustomers()
+        );
+    }
+    private Pair<LocalDateTime, LocalDateTime> resolveTimeRange(
+            DashboardFilterType type,
+            LocalDateTime customFrom,
+            LocalDateTime customTo
+    ) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime from;
+        LocalDateTime to = LocalDateTime.now();
+
+        switch (type) {
+            case DAY -> from = today.atStartOfDay();
+
+            case WEEK -> from = today
+                    .with(DayOfWeek.MONDAY)
+                    .atStartOfDay();
+
+            case MONTH -> from = today
+                    .withDayOfMonth(1)
+                    .atStartOfDay();
+
+            case QUARTER -> {
+                int quarter = (today.getMonthValue() - 1) / 3;
+                int firstMonth = quarter * 3 + 1;
+                from = LocalDate
+                        .of(today.getYear(), firstMonth, 1)
+                        .atStartOfDay();
+            }
+
+            case HALF_YEAR -> {
+                int firstMonth = today.getMonthValue() <= 6 ? 1 : 7;
+                from = LocalDate
+                        .of(today.getYear(), firstMonth, 1)
+                        .atStartOfDay();
+            }
+
+            case CUSTOM -> {
+                if (customFrom == null || customTo == null) {
+                    throw new BadRequestException(
+                            "CUSTOM filter requires fromDate and toDate"
+                    );
+                }
+                return Pair.of(customFrom, customTo);
+            }
+
+            default -> throw new BadRequestException(
+                    "Unexpected TimeFilterType: " + type
+            );
+        }
+
+        return Pair.of(from, to);
     }
 }

@@ -2,6 +2,7 @@ package com.tiximax.txm.API;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.tiximax.txm.Enums.DashboardFilterType;
@@ -167,17 +169,6 @@ public class DashBoardController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/routes/kpi")
-    public ResponseEntity<Map<String, RouteStaffPerformance>> getWeightByRouteKpi(
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
-            @RequestParam(required = false) Long routeId) {
-
-        Map<String, RouteStaffPerformance> result = dashBoardService.getStaffPerformanceByRouteGrouped(startDate, endDate, filterType, routeId);
-
-        return ResponseEntity.ok(result);
-    }
 
     @GetMapping("/routes/inventory-summary")
     public ResponseEntity<RouteInventorySummary> getInventorySummaryByRoute(
@@ -186,6 +177,32 @@ public class DashBoardController {
         RouteInventorySummary summary = dashBoardService.getInventorySummaryByRoute(routeId);
         return ResponseEntity.ok(summary);
     }
+   @GetMapping("/warehouse")
+public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
+        @RequestParam DashboardFilterType filter,
+
+        @RequestParam(required = false)
+        @DateTimeFormat(pattern = "yyyy-MM-dd")
+        LocalDate start,
+
+        @RequestParam(required = false)
+        @DateTimeFormat(pattern = "yyyy-MM-dd")
+        LocalDate end,
+
+        @RequestParam(required = false)
+        Long routeId
+) {
+    WarehouseSummary summary =
+            dashBoardService.getWarehouseDashboard(
+                    filter,
+                    start,
+                    end,
+                    routeId
+            );
+
+    return ResponseEntity.ok(summary);
+}
+
 
     @GetMapping("/summary-staff")
     public ResponseEntity<Map<String, StaffPerformanceSummary>> getPerformanceSummary(

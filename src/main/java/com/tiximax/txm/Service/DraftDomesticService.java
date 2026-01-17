@@ -198,13 +198,14 @@ public DraftDomesticResponse addShipments(
 
          Page<DraftDomesticDeliveryRow> customerPage =
                 warehouseRepository.findDraftDomesticDelivery(
-                        WarehouseStatus.DA_NHAP_KHO,
+                        WarehouseStatus.DA_NHAP_KHO_NN,
                         staffId,
                         filterCustomerCode,
                         filterRoute,
                         pageable
                 );
 
+            
         if (customerPage.isEmpty()) {
             return Page.empty(pageable);
         }
@@ -215,7 +216,7 @@ public DraftDomesticResponse addShipments(
 
         List<CustomerShipmentRow> rows =
                 warehouseRepository.findTrackingCodesByCustomerCodes(
-                         WarehouseStatus.DA_NHAP_KHO,
+                         WarehouseStatus.DA_NHAP_KHO_NN,
                         customerCodes,
                         staffId,
                         filterRoute
