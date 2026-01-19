@@ -911,7 +911,6 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
             throw new AccessDeniedException("Vai trò không hợp lệ!");
         }
 
-        // Map sang RefundResponse, chỉ lấy các link DA_HUY
         Page<RefundResponse> result = ordersPage.map(order -> {
             RefundResponse response = new RefundResponse();
             response.setOrder(order);

@@ -69,11 +69,11 @@ public class FlightShipmentService {
         if (request.getCustomsClearanceCost() != null){entity.setCustomsClearanceCost(request.getCustomsClearanceCost());}
         if (request.getAirportShippingCost() != null){entity.setAirportShippingCost(request.getAirportShippingCost());}
         if (request.getOtherCosts() != null){entity.setOtherCosts(request.getOtherCosts());}
-        if (request.getArrivalDate() != null){entity.setArrivalDate(request.getArrivalDate());}
+        if (request.getArrivalDate() != null){entity.setArrivalDate(request.getArrivalDate().atStartOfDay());}
         if (request.getAirFreightPaid() != null){entity.setAirFreightPaid(request.getAirFreightPaid());}
-        if (request.getAirFreightPaidDate() != null){entity.setAirFreightPaidDate(request.getAirFreightPaidDate());}
+        if (request.getAirFreightPaidDate() != null){entity.setAirFreightPaidDate(request.getAirFreightPaidDate().atStartOfDay());}
         if (request.getCustomsPaid() != null){entity.setCustomsPaid(request.getCustomsPaid());}
-        if (request.getCustomsPaidDate() != null){entity.setCustomsPaidDate(request.getCustomsPaidDate());}
+        if (request.getCustomsPaidDate() != null){entity.setCustomsPaidDate(request.getCustomsPaidDate().atStartOfDay());}
 
         Staff staff = staffRepository.findById(request.getStaffId())
                 .orElseThrow(() -> new BadRequestException("Không tìm thấy nhân viên"));
@@ -99,11 +99,11 @@ public class FlightShipmentService {
         entity.setCustomsClearanceCost(request.getCustomsClearanceCost());
         entity.setAirportShippingCost(request.getAirportShippingCost());
         entity.setOtherCosts(request.getOtherCosts());
-        entity.setArrivalDate(request.getArrivalDate());
+        entity.setArrivalDate(request.getArrivalDate().atStartOfDay());
         entity.setAirFreightPaid(request.getAirFreightPaid());
-        entity.setAirFreightPaidDate(request.getAirFreightPaidDate());
+        entity.setAirFreightPaidDate(request.getAirFreightPaidDate().atStartOfDay());
         entity.setCustomsPaid(request.getCustomsPaid());
-        entity.setCustomsPaidDate(request.getCustomsPaidDate());
+        entity.setCustomsPaidDate(request.getCustomsPaidDate().atStartOfDay());
 
         Staff staff = staffRepository.findById(request.getStaffId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên ID: " + request.getStaffId()));
