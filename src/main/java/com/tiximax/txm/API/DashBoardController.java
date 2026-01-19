@@ -266,7 +266,7 @@ public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
 
     @GetMapping("/customers/top/{page}/{size}")
     public ResponseEntity<Page<CustomerTop>> getTopCustomers(
-            @RequestParam(required = false, defaultValue = "TOTAL_ORDERS")CustomerTopType customerTopType,          // "orders", "weight", "amount"
+            @RequestParam(required = false, defaultValue = "TOTAL_ORDERS")CustomerTopType customerTopType,
             @PathVariable int page,
             @PathVariable int size) {
 
