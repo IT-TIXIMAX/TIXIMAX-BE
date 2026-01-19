@@ -1,6 +1,7 @@
 package com.tiximax.txm.Repository;
 
 import com.tiximax.txm.Entity.Customer;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -66,6 +67,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     @Query(value = """
     SELECT
+        s.account_id,
         COALESCE(s.name, 'Khách tự đăng ký') AS staff_name,
         COUNT(*) AS new_customer_count
     FROM customer c
@@ -83,4 +85,75 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Object[]> sumNewCustomersByStaffNativeRaw(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
+            c.accountId,
+            c.customerCode,
+            COALESCE(c.name, c.username, c.customerCode),
+            c.phone,
+            c.email,
+            c.totalOrders,
+            c.totalWeight,
+            c.totalAmount
+        )
+        FROM Customer c
+        WHERE c.totalOrders > 0
+        ORDER BY c.totalOrders DESC
+    """)
+    Page<CustomerTop> findTopByTotalOrders(Pageable pageable);
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
+            c.accountId,
+            c.customerCode,
+            COALESCE(c.name, c.username, c.customerCode),
+            c.phone,
+            c.email,
+            c.totalOrders,
+            c.totalWeight,
+            c.totalAmount,
+            c.balance
+        )
+        FROM Customer c
+        WHERE c.totalWeight > 0
+        ORDER BY c.totalWeight DESC
+    """)
+    Page<CustomerTop> findTopByTotalWeight(Pageable pageable);
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
+            c.accountId,
+            c.customerCode,
+            COALESCE(c.name, c.username, c.customerCode),
+            c.phone,
+            c.email,
+            c.totalOrders,
+            c.totalWeight,
+            c.totalAmount,
+            c.balance
+        )
+        FROM Customer c
+        WHERE c.totalAmount > 0
+        ORDER BY c.totalAmount DESC
+    """)
+    Page<CustomerTop> findTopByTotalAmount(Pageable pageable);
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
+            c.accountId,
+            c.customerCode,
+            COALESCE(c.name, c.username, c.customerCode),
+            c.phone,
+            c.email,
+            c.totalOrders,
+            c.totalWeight,
+            c.totalAmount,
+            c.balance
+        )
+        FROM Customer c
+        WHERE c.balance > 0
+        ORDER BY c.balance DESC
+    """)
+    Page<CustomerTop> findTopByBalance(Pageable pageable);
 }

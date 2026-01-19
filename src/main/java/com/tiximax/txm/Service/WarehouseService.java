@@ -106,7 +106,7 @@ public class WarehouseService {
             }
             warehouse.setImage(warehouseRequest.getImage());
             warehouse.setImageCheck(warehouseRequest.getImageCheck());  
-            warehouse.setStatus(WarehouseStatus.DA_NHAP_KHO);
+            warehouse.setStatus(WarehouseStatus.DA_NHAP_KHO_NN);
             warehouse.setCreatedAt(LocalDateTime.now());
             warehouse.setStaff(staff);
             warehouse.setLocation(location);
@@ -182,7 +182,7 @@ public class WarehouseService {
                 warehouse.setWeight(null);
                 warehouse.setNetWeight(null);
                 warehouse.setImage(null);
-                warehouse.setStatus(WarehouseStatus.DA_NHAP_KHO);
+                warehouse.setStatus(WarehouseStatus.DA_NHAP_KHO_NN);
                 warehouse.setCreatedAt(LocalDateTime.now());
                 warehouse.setStaff(staff);
                 warehouse.setLocation(location);
@@ -225,7 +225,7 @@ public class WarehouseService {
 
     Page<Warehouse> warehousePage =
             warehouseRepository.findWarehousesForPacking(
-                    WarehouseStatus.DA_NHAP_KHO,
+                    WarehouseStatus.DA_NHAP_KHO_NN,
                     location.getLocationId(),
                     validStatuses,
                     trackingCode,
@@ -259,7 +259,7 @@ public class WarehouseService {
     }
 
     public Map<String, Double> calculateWarehouseTotals() {
-        List<Warehouse> warehouses = warehouseRepository.findAllByStatus(WarehouseStatus.DA_NHAP_KHO);
+        List<Warehouse> warehouses = warehouseRepository.findAllByStatus(WarehouseStatus.DA_NHAP_KHO_NN);
         Map<String, Double> totals = new HashMap<>();
         totals.put("totalWeight", warehouses.stream().mapToDouble(Warehouse::getWeight).sum());
         totals.put("totalNetWeight", warehouses.stream().mapToDouble(Warehouse::getNetWeight).sum());

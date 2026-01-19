@@ -159,7 +159,6 @@ public class AuthenticationController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
 
     @PostMapping("/register/customer/by-staff")
     public ResponseEntity<Customer> registerCustomerByStaff(@RequestBody RegisterCustomerRequest registerRequest) {

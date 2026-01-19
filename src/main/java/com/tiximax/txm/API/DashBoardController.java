@@ -6,12 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
+import com.tiximax.txm.Enums.CustomerTopType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
-
+import com.tiximax.txm.Repository.CustomerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -232,6 +234,41 @@ public class DashBoardController {
     ) {
 
         return dashBoardService.getNewCustomers(startDate, endDate, filterType);
+    }
+
+    @GetMapping("/customers/top/{page}/{size}")
+    public ResponseEntity<Page<CustomerTop>> getTopCustomers(
+            @RequestParam(required = false, defaultValue = "TOTAL_ORDERS")CustomerTopType customerTopType,          // "orders", "weight", "amount"
+            @PathVariable int page,
+            @PathVariable int size) {
+
+        Sort sort;
+        String sortField;
+
+        switch (customerTopType) {
+            case TOTAL_ORDERS:
+                sortField = "totalOrders";
+                break;
+            case TOTAL_WEIGHT:
+                sortField = "totalWeight";
+                break;
+            case TOTAL_AMOUNT:
+                sortField = "totalAmount";
+                break;
+            case BALANCE:
+                sortField = "balance";
+                break;
+            default:
+                throw new IllegalStateException("Không tìm thấy trường dữ liệu này!");
+        }
+
+        sort = Sort.by(sortField).descending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<CustomerTop> result = dashBoardService.getTopCustomers(customerTopType, pageable);
+
+        return ResponseEntity.ok(result);
     }
 
 }

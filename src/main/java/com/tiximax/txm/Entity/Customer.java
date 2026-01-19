@@ -24,10 +24,13 @@ public class Customer extends Account {
 
     private Double totalWeight;
 
+    private Integer totalOrders;
+
+    private BigDecimal totalAmount;
+
     private BigDecimal balance;
 
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
-//    @JsonIgnore
     @JsonBackReference
     Set<Orders> orders;
 

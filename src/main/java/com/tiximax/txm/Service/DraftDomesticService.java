@@ -198,7 +198,7 @@ public DraftDomesticResponse addShipments(
 
          Page<DraftDomesticDeliveryRow> customerPage =
                 warehouseRepository.findDraftDomesticDelivery(
-                        WarehouseStatus.DA_NHAP_KHO,
+                        WarehouseStatus.DA_NHAP_KHO_NN,
                         staffId,
                         filterCustomerCode,
                         filterRoute,
@@ -215,7 +215,7 @@ public DraftDomesticResponse addShipments(
 
         List<CustomerShipmentRow> rows =
                 warehouseRepository.findTrackingCodesByCustomerCodes(
-                         WarehouseStatus.DA_NHAP_KHO,
+                         WarehouseStatus.DA_NHAP_KHO_NN,
                         customerCodes,
                         staffId,
                         filterRoute
