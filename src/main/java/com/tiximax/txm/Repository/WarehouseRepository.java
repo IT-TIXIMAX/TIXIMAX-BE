@@ -510,4 +510,14 @@ WarehouseStatisticRow exportByCarrierWithDate(
         @Param("routeId") Long routeId
         );
 
+        @Modifying
+        @Query("""
+        UPDATE Warehouse w
+        SET w.status = :status
+        WHERE w.trackingCode IN :trackingCodes
+        """)
+        void updateWarehouseStatusByTrackingCodes(
+                @Param("status") WarehouseStatus status,
+                @Param("trackingCodes") List<String> trackingCodes
+        );
 }

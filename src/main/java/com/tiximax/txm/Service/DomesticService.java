@@ -202,8 +202,8 @@ public class DomesticService {
     domestic = domesticRepository.save(domestic);
     return domestic;
     }
-    @Transactional
-    public List<DomesticResponse> transferByCustomerCode(
+ @Transactional
+public List<DomesticResponse> transferByCustomerCode(
         String customerCode,
         String VNPostTrackingCode
 ) {
@@ -222,7 +222,6 @@ public class DomesticService {
     WarehouseLocation currentLocation =
             currentStaff != null ? currentStaff.getWarehouseLocation() : null;
 
-    // group theo địa chỉ giao
     Map<Address, List<Warehouse>> byAddress = warehouses.stream()
             .filter(w -> w.getOrders().getAddress() != null)
             .collect(Collectors.groupingBy(w -> w.getOrders().getAddress()));
@@ -242,7 +241,7 @@ public class DomesticService {
                 .map(Warehouse::getTrackingCode)
                 .toList();
 
-         Domestic domestic = createDomestic(
+        Domestic domestic = createDomestic(
                 currentLocation,
                 null,
                 DomesticStatus.DA_GIAO,
@@ -256,7 +255,14 @@ public class DomesticService {
         domestic.setCarrier(Carrier.VNPOST);
         domestic.setCarrierTrackingCode(VNPostTrackingCode);
         domesticRepository.save(domestic);
+
         updateOrderLinksAndOrders(shippingList, domestic);
+
+        warehouseRepository.updateWarehouseStatusByTrackingCodes(
+                WarehouseStatus.DA_GIAO,
+                shippingList
+        );
+
         domestics.add(domestic);
     }
 
@@ -264,6 +270,7 @@ public class DomesticService {
             .map(DomesticResponse::fromEntity)
             .toList();
 }
+
     public List<DomesticSend> previewTransferByCustomerCode(String customerCode) {
 
    List<Warehouse> warehouses =
