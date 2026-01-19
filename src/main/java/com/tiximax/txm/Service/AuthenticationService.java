@@ -176,6 +176,8 @@ public class AuthenticationService implements UserDetailsService {
             response.setStaffCode(((Staff) account).getStaffCode());
             response.setDepartment(((Staff) account).getDepartment());
             response.setLocation(((Staff) account).getLocation());
+            response.setCanApproveExpenses(((Staff) account).getCanApproveExpenses());
+            response.setCanRequestExpenses(((Staff) account).getCanRequestExpenses());
             response.setToken(token);
             return response;
         } else if (account instanceof Customer) {

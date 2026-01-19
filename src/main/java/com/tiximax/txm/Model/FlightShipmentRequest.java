@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -22,10 +23,10 @@ public class FlightShipmentRequest {
     private BigDecimal customsClearanceCost = BigDecimal.ZERO;
     private BigDecimal airportShippingCost = BigDecimal.ZERO;
     private BigDecimal otherCosts = BigDecimal.ZERO;
-    private LocalDateTime arrivalDate;
+    private LocalDate arrivalDate;
     private Boolean airFreightPaid;
-    private LocalDateTime airFreightPaidDate;
+    private LocalDate airFreightPaidDate;
     private Boolean customsPaid;
-    private LocalDateTime customsPaidDate;
+    private LocalDate customsPaidDate;
     private Long staffId;
 }
