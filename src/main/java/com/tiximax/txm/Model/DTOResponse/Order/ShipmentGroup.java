@@ -25,7 +25,7 @@ public class ShipmentGroup {
         this.status = status;
     }
 
-    public void addProduct(String productName, String productLink) {
-        this.products.add(new ShipmentProductInfo(productName, productLink));
+    public void addProduct(String productName, String productLink, String productImage, String productImageCheck) {
+        this.products.add(new ShipmentProductInfo(productName, productLink, productImage, productImageCheck));
     }
 }

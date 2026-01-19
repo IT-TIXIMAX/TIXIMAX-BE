@@ -10,5 +10,7 @@ public class ShipmentProductInfo {
 
     private String productName;
     private String productLink;
+    private String productImage;
+    private String productImageCheck;
 
 }

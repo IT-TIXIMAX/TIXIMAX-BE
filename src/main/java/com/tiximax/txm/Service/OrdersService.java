@@ -1455,6 +1455,26 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
     return order;
 }
 
+//    public List<ShipmentGroup> getShipmentsByCustomerPhone(String phone) {
+//        Account account = authenticationRepository.findByPhone(phone);
+//        if (account == null || !(account instanceof Customer customer)) {
+//            throw new NotFoundException("Không tìm thấy khách hàng với số điện thoại: " + phone);
+//        }
+//
+//        List<OrderLinks> links = orderLinksRepository.findByCustomerWithShipment(customer);
+//
+//        Map<String, ShipmentGroup> groups = new LinkedHashMap<>();
+//
+//        for (OrderLinks link : links) {
+//            String code = link.getShipmentCode().trim();
+//            groups.computeIfAbsent(code, k ->
+//                            new ShipmentGroup(link.getOrders().getOrderCode(), code, link.getStatus()))
+//                    .addProduct(link.getProductName(), link.getProductLink());
+//        }
+//
+//        return new ArrayList<>(groups.values());
+//    }
+
     public List<ShipmentGroup> getShipmentsByCustomerPhone(String phone) {
         Account account = authenticationRepository.findByPhone(phone);
         if (account == null || !(account instanceof Customer customer)) {
@@ -1467,13 +1487,33 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
 
         for (OrderLinks link : links) {
             String code = link.getShipmentCode().trim();
-            groups.computeIfAbsent(code, k ->
-                            new ShipmentGroup(link.getOrders().getOrderCode(), code, link.getStatus()))
-                    .addProduct(link.getProductName(), link.getProductLink());
+
+            ShipmentGroup group = groups.computeIfAbsent(code, k ->
+                    new ShipmentGroup(link.getOrders().getOrderCode(), code, link.getStatus()));
+
+            String productImage = null;
+            String productImageCheck = null;
+
+            Warehouse warehouse = link.getWarehouse();
+            if (warehouse != null) {
+                productImageCheck = warehouse.getImageCheck() != null
+                        ? warehouse.getImageCheck()
+                        : null;
+                productImage = warehouse.getImage() != null
+                        ? warehouse.getImage()
+                        : null;
+            }
+            group.addProduct(
+                    link.getProductName(),
+                    link.getProductLink(),
+                    productImage,
+                    productImageCheck
+            );
         }
 
         return new ArrayList<>(groups.values());
     }
+
     private String resolvePaymentCode(Orders order) {
 
     // 1️⃣ Payment gắn trực tiếp Order
@@ -1520,78 +1560,78 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
     return mergedPayment.map(Payment::getPaymentCode).orElse(null);
 }
 
-private BigDecimal roundUp(BigDecimal value) {
-    return value
-            .divide(BigDecimal.valueOf(500), 0, RoundingMode.CEILING)  
-            .multiply(BigDecimal.valueOf(500));  
-}
-private OrderValidation validateAndGetOrder(
-        String customerCode,
-        Long routeId,
-        Long addressId,
-        Long destinationId
-) {
-    if (customerCode == null || customerCode.isBlank()) {
-        throw new BadRequestException(
-                "Bạn phải nhập mã khách hàng!"
-        );
+    private BigDecimal roundUp(BigDecimal value) {
+        return value
+                .divide(BigDecimal.valueOf(500), 0, RoundingMode.CEILING)
+                .multiply(BigDecimal.valueOf(500));
     }
-
-    if (routeId == null) {
-        throw new BadRequestException(
-                "Bạn phải chọn tuyến hàng!"
-        );
-    }
-
-    if (addressId == null) {
-        throw new BadRequestException(
-                "Bạn phải chọn địa chỉ giao hàng!"
-        );
-    }
-
-    if (destinationId == null) {
-        throw new BadRequestException(
-                "Bạn phải chọn điểm đến!"
-        );
-    }
-
-    Customer customer =
-            authenticationRepository.findByCustomerCode(customerCode);
-    if (customer == null) {
-        throw new NotFoundException(
-                "Mã khách hàng không được tìm thấy!"
-        );
-    }
-
-    Route route = routeRepository.findById(routeId)
-            .orElseThrow(() ->
-                    new NotFoundException(
-                            "Không tìm thấy tuyến hàng!"
-                    )
+    private OrderValidation validateAndGetOrder(
+            String customerCode,
+            Long routeId,
+            Long addressId,
+            Long destinationId
+    ) {
+        if (customerCode == null || customerCode.isBlank()) {
+            throw new BadRequestException(
+                    "Bạn phải nhập mã khách hàng!"
             );
+        }
 
-    Address address = addressRepository.findById(addressId)
-            .orElseThrow(() ->
-                    new BadRequestException(
-                            "Địa chỉ giao hàng không phù hợp!"
-                    )
+        if (routeId == null) {
+            throw new BadRequestException(
+                    "Bạn phải chọn tuyến hàng!"
             );
+        }
 
-    Destination destination =
-            destinationRepository.findById(destinationId)
-                    .orElseThrow(() ->
-                            new NotFoundException(
-                                    "Không tìm thấy điểm đến!"
-                            )
-                    );
+        if (addressId == null) {
+            throw new BadRequestException(
+                    "Bạn phải chọn địa chỉ giao hàng!"
+            );
+        }
 
-      return new OrderValidation(
-            customer,
-            route,
-            address,
-            destination
-    );
-}
+        if (destinationId == null) {
+            throw new BadRequestException(
+                    "Bạn phải chọn điểm đến!"
+            );
+        }
+
+        Customer customer =
+                authenticationRepository.findByCustomerCode(customerCode);
+        if (customer == null) {
+            throw new NotFoundException(
+                    "Mã khách hàng không được tìm thấy!"
+            );
+        }
+
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() ->
+                        new NotFoundException(
+                                "Không tìm thấy tuyến hàng!"
+                        )
+                );
+
+        Address address = addressRepository.findById(addressId)
+                .orElseThrow(() ->
+                        new BadRequestException(
+                                "Địa chỉ giao hàng không phù hợp!"
+                        )
+                );
+
+        Destination destination =
+                destinationRepository.findById(destinationId)
+                        .orElseThrow(() ->
+                                new NotFoundException(
+                                        "Không tìm thấy điểm đến!"
+                                )
+                        );
+
+          return new OrderValidation(
+                customer,
+                route,
+                address,
+                destination
+        );
+    }
     private Orders createBaseOrder(
         Customer customer,
         Route route,

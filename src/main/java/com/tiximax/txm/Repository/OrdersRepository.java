@@ -237,7 +237,6 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             Pageable pageable
     );
 
-    // Cho staff sale
     @Query("SELECT o FROM Orders o " +
             "WHERE o.staff.accountId = :staffId " +
             "AND o.leftoverMoney IS NOT NULL " +

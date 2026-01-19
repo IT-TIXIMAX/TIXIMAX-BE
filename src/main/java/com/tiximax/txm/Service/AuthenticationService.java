@@ -300,11 +300,18 @@ public class AuthenticationService implements UserDetailsService {
 }
 
     public String generateStaffCode() {
-        String customerCode;
-        do {
-            customerCode = "NV-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
-        } while (staffRepository.existsByStaffCode(customerCode));
-        return customerCode;
+        String lastCode = staffRepository.findLatestStaffCode();
+
+        if (lastCode == null) {
+            return "S01";
+        }
+        int number = Integer.parseInt(lastCode.substring(1));
+        number++;
+        if (number < 100) {
+            return String.format("S%05d", number);
+        } else {
+            return "S" + number;
+        }
     }
 
     public void logout() {
