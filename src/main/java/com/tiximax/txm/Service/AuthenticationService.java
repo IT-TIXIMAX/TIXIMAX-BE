@@ -14,6 +14,7 @@ import com.tiximax.txm.Model.DTORequest.Auth.StaffPatchRequest;
 import com.tiximax.txm.Model.DTORequest.Customer.CustomerPatchRequest;
 import com.tiximax.txm.Model.DTOResponse.Auth.StaffReponse;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerReponse;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
 import com.tiximax.txm.Repository.*;
@@ -176,6 +177,8 @@ public class AuthenticationService implements UserDetailsService {
             response.setStaffCode(((Staff) account).getStaffCode());
             response.setDepartment(((Staff) account).getDepartment());
             response.setLocation(((Staff) account).getLocation());
+            response.setCanApproveExpenses(((Staff) account).getCanApproveExpenses());
+            response.setCanRequestExpenses(((Staff) account).getCanRequestExpenses());
             response.setToken(token);
             return response;
         } else if (account instanceof Customer) {
@@ -300,11 +303,18 @@ public class AuthenticationService implements UserDetailsService {
 }
 
     public String generateStaffCode() {
-        String customerCode;
-        do {
-            customerCode = "NV-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
-        } while (staffRepository.existsByStaffCode(customerCode));
-        return customerCode;
+        String lastCode = staffRepository.findLatestStaffCode();
+
+        if (lastCode == null) {
+            return "S01";
+        }
+        int number = Integer.parseInt(lastCode.substring(1));
+        number++;
+        if (number < 100) {
+            return String.format("S%05d", number);
+        } else {
+            return "S" + number;
+        }
     }
 
     public void logout() {
@@ -837,5 +847,10 @@ public class AuthenticationService implements UserDetailsService {
         }
 
         return staffRepository.save(staff);
+    }
+
+    public CustomerTop getCustomerByCode(String customerCode) {
+        return customerRepository.findCustomerByCustomerCode(customerCode)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng với mã " + customerCode));
     }
 }

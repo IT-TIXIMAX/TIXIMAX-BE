@@ -20,6 +20,7 @@ import com.tiximax.txm.Utils.AccountUtils;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
@@ -548,8 +549,9 @@ public class DashBoardService {
 
         return rawResults.stream()
                 .map(row -> new StaffNewCustomerSummary(
-                        (String) row[0],
-                        ((Number) row[1]).longValue()
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        ((Number) row[2]).longValue()
                 ))
                 .collect(Collectors.toList());
     }
@@ -919,5 +921,14 @@ public WarehouseSummary getWarehouseDashboard(
     public RouteInventorySummary getPackedInventorySummaryByRoute(Long routeId) {
         List<Object[]> results = warehouseRepository.sumPackedStockWeightByRoute(routeId);
         return extractSummary(results);
+    }
+
+    public Page<CustomerTop> getTopCustomers(CustomerTopType customerTopType, Pageable pageable) {
+        return switch (customerTopType) {
+            case TOTAL_ORDERS -> customerRepository.findTopByTotalOrders(pageable);
+            case TOTAL_WEIGHT -> customerRepository.findTopByTotalWeight(pageable);
+            case TOTAL_AMOUNT -> customerRepository.findTopByTotalAmount(pageable);
+            case BALANCE      -> customerRepository.findTopByBalance(pageable);
+        };
     }
 }

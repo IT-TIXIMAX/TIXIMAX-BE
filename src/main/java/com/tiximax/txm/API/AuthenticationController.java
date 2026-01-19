@@ -13,6 +13,7 @@ import com.tiximax.txm.Model.DTORequest.Auth.VerifyAccountRequest;
 import com.tiximax.txm.Model.DTORequest.Customer.CustomerPatchRequest;
 import com.tiximax.txm.Model.DTOResponse.Auth.EmailDetail;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerResponseDTO;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
 import com.tiximax.txm.Service.*;
@@ -159,7 +160,6 @@ public class AuthenticationController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
 
     @PostMapping("/register/customer/by-staff")
     public ResponseEntity<Customer> registerCustomerByStaff(@RequestBody RegisterCustomerRequest registerRequest) {
@@ -402,5 +402,13 @@ public class AuthenticationController {
             @RequestParam(required = true) BigDecimal amount) {
         Payment payment = paymentService.refundFromBalance(customerId, amount, image);
         return ResponseEntity.ok(payment);
+    }
+
+    @GetMapping("/code/{customerCode}")
+    public ResponseEntity<CustomerTop> getCustomerByCode(
+            @PathVariable String customerCode) {
+
+        CustomerTop customer = authenticationService.getCustomerByCode(customerCode);
+        return ResponseEntity.ok(customer);
     }
 }
