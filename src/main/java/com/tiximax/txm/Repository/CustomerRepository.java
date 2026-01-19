@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -95,7 +96,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             c.email,
             c.totalOrders,
             c.totalWeight,
-            c.totalAmount
+            c.totalAmount,
+            c.balance
         )
         FROM Customer c
         WHERE c.totalOrders > 0
@@ -116,7 +118,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             c.balance
         )
         FROM Customer c
-        WHERE c.totalWeight > 0
         ORDER BY c.totalWeight DESC
     """)
     Page<CustomerTop> findTopByTotalWeight(Pageable pageable);
@@ -134,7 +135,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             c.balance
         )
         FROM Customer c
-        WHERE c.totalAmount > 0
         ORDER BY c.totalAmount DESC
     """)
     Page<CustomerTop> findTopByTotalAmount(Pageable pageable);
@@ -152,8 +152,24 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             c.balance
         )
         FROM Customer c
-        WHERE c.balance > 0
         ORDER BY c.balance DESC
     """)
     Page<CustomerTop> findTopByBalance(Pageable pageable);
+
+    @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
+        c.accountId,
+        c.customerCode,
+        COALESCE(c.name, c.username, c.customerCode),
+        c.phone,
+        c.email,
+        c.totalOrders,
+        c.totalWeight,
+        c.totalAmount,
+        c.balance
+    )
+    FROM Customer c
+    WHERE c.customerCode = :customerCode
+    """)
+    Optional<CustomerTop> findCustomerByCustomerCode(@Param("customerCode") String customerCode);
 }

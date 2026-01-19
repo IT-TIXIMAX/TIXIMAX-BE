@@ -14,6 +14,7 @@ import com.tiximax.txm.Model.DTORequest.Auth.StaffPatchRequest;
 import com.tiximax.txm.Model.DTORequest.Customer.CustomerPatchRequest;
 import com.tiximax.txm.Model.DTOResponse.Auth.StaffReponse;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerReponse;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
 import com.tiximax.txm.Repository.*;
@@ -846,5 +847,10 @@ public class AuthenticationService implements UserDetailsService {
         }
 
         return staffRepository.save(staff);
+    }
+
+    public CustomerTop getCustomerByCode(String customerCode) {
+        return customerRepository.findCustomerByCustomerCode(customerCode)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng với mã " + customerCode));
     }
 }
