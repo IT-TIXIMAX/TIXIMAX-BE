@@ -205,6 +205,7 @@ public DraftDomesticResponse addShipments(
                         pageable
                 );
 
+            
         if (customerPage.isEmpty()) {
             return Page.empty(pageable);
         }

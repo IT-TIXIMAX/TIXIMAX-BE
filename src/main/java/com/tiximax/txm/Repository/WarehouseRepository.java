@@ -1,11 +1,14 @@
 package com.tiximax.txm.Repository;
 
 import com.tiximax.txm.Entity.Warehouse;
+import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseStatistic;
 import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
+import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -431,6 +434,90 @@ Double sumWeightByTrackingCodes(
                     "  AND ol.status = 'DA_DONG_GOI'" +
                     ")")
     List<Object[]> sumPackedStockWeightByRoute(@Param("routeId") Long routeId);
+
+        @Query("""
+        SELECT
+        COUNT(w.warehouseId)            AS totalCodes,
+        COALESCE(SUM(w.netWeight), 0)   AS totalWeight,
+        COUNT(DISTINCT o.customer.accountId) AS totalCustomers
+        FROM Warehouse w
+        JOIN w.orders o
+        JOIN o.route r
+        WHERE w.status IN (
+        com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+        com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+        )
+        AND (:routeId IS NULL OR r.routeId = :routeId)
+        """)
+        WarehouseStatisticRow inStock(
+        @Param("routeId") Long routeId
+        );
+
+
+        
+   @Query(
+    value = """
+        SELECT
+            COUNT(DISTINCT w.warehouse_id) AS totalCodes,
+            COALESCE(SUM(w.net_weight), 0) AS totalWeight,
+            COUNT(DISTINCT o.customer_id)  AS totalCustomers
+        FROM warehouse w
+        JOIN orders o
+            ON o.order_id = w.order_id
+        JOIN domestic d
+            ON w.tracking_code = ANY(d.shipping_list)
+        WHERE w.status = 'DA_GIAO'
+          AND d.carrier = :carrier
+          AND d.timestamp BETWEEN :fromDate AND :toDate
+          AND (:routeId IS NULL OR o.route_id = :routeId)
+    """,
+    nativeQuery = true
+)
+WarehouseStatisticRow exportByCarrierWithDate(
+    @Param("carrier") String carrier,
+    @Param("fromDate") LocalDateTime fromDate,
+    @Param("toDate") LocalDateTime toDate,
+    @Param("routeId") Long routeId
+);
+
+         @Query("""
+        SELECT
+        COUNT(w.warehouseId)            AS totalCodes,
+        COALESCE(SUM(w.netWeight), 0)   AS totalWeight,
+        COUNT(DISTINCT o.customer.accountId) AS totalCustomers
+        FROM Warehouse w
+        JOIN w.orders o
+        JOIN o.route r
+        WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN
+        AND (:routeId IS NULL OR r.routeId = :routeId)
+        """)
+        WarehouseStatisticRow unpaidShipping(
+        @Param("routeId") Long routeId
+        );
+
+        @Query("""
+        SELECT
+        COUNT(w.warehouseId)            AS totalCodes,
+        COALESCE(SUM(w.netWeight), 0)   AS totalWeight,
+        COUNT(DISTINCT o.customer.accountId) AS totalCustomers
+        FROM Warehouse w
+        JOIN w.orders o
+        JOIN o.route r
+        WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+        AND (:routeId IS NULL OR r.routeId = :routeId)
+        """)
+        WarehouseStatisticRow paidShipping(
+        @Param("routeId") Long routeId
+        );
+
+        @Modifying
+        @Query("""
+        UPDATE Warehouse w
+        SET w.status = :status
+        WHERE w.trackingCode IN :trackingCodes
+        """)
+        void updateWarehouseStatusByTrackingCodes(
+                @Param("status") WarehouseStatus status,
+                @Param("trackingCodes") List<String> trackingCodes
+        );
 }
-
-
