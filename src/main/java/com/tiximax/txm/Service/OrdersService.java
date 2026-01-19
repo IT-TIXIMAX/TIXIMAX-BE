@@ -1776,10 +1776,13 @@ public void updateOrderStatusIfCompleted(Long orderId) {
                     .orElseThrow(() -> new NotFoundException("Order không tồn tại"));
             if (order.getStatus() != OrderStatus.DA_GIAO) {
                 order.setStatus(OrderStatus.DA_GIAO);
+            } else {
+                order.setStatus(OrderStatus.DANG_XU_LY);
+            }
                 ordersRepository.save(order);
             }
         }
-    }
+    
     @Transactional
     public void updateOrdersStatusAfterDeliveryByShipmentCodes(
             List<String> shipmentCodes
