@@ -103,7 +103,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
         WHERE c.totalOrders > 0
         ORDER BY c.totalOrders DESC
     """)
-    Page<CustomerTop> findTopByTotalOrders(Pageable pageable);
+    Page<CustomerTop> findTopByTotalOrders(String customerCode, Pageable pageable);
 
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
@@ -118,9 +118,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             c.balance
         )
         FROM Customer c
+        WHERE (:customerCode IS NULL OR c.customerCode = :customerCode)
         ORDER BY c.totalWeight DESC
     """)
-    Page<CustomerTop> findTopByTotalWeight(Pageable pageable);
+    Page<CustomerTop> findTopByTotalWeight(String customerCode, Pageable pageable);
 
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
@@ -135,9 +136,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             c.balance
         )
         FROM Customer c
+        WHERE (:customerCode IS NULL OR c.customerCode = :customerCode)
         ORDER BY c.totalAmount DESC
     """)
-    Page<CustomerTop> findTopByTotalAmount(Pageable pageable);
+    Page<CustomerTop> findTopByTotalAmount(String customerCode, Pageable pageable);
 
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
@@ -152,24 +154,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             c.balance
         )
         FROM Customer c
+        WHERE (:customerCode IS NULL OR c.customerCode = :customerCode)
         ORDER BY c.balance DESC
     """)
-    Page<CustomerTop> findTopByBalance(Pageable pageable);
-
-    @Query("""
-    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop(
-        c.accountId,
-        c.customerCode,
-        COALESCE(c.name, c.username, c.customerCode),
-        c.phone,
-        c.email,
-        c.totalOrders,
-        c.totalWeight,
-        c.totalAmount,
-        c.balance
-    )
-    FROM Customer c
-    WHERE c.customerCode = :customerCode
-    """)
-    Optional<CustomerTop> findCustomerByCustomerCode(@Param("customerCode") String customerCode);
+    Page<CustomerTop> findTopByBalance(String customerCode, Pageable pageable);
 }
