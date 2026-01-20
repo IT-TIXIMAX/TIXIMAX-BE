@@ -320,7 +320,7 @@ List<String> findExistingTrackingCodesByStatus(
         left join o.staff s
         left join DraftDomestic d
             on w.trackingCode in elements(d.shippingList)
-    where w.status = :warehouseStatus
+    where w.status IN :warehouseStatuses
       and p.flightCode is not null
       and d.id is null
       and (:staffId is null or s.accountId = :staffId)
@@ -332,8 +332,9 @@ List<String> findExistingTrackingCodesByStatus(
         c.phone,
         r.name
 """)
+
 Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
-        @Param("warehouseStatus") WarehouseStatus warehouseStatus,
+        @Param("warehouseStatuses") List<WarehouseStatus> warehouseStatuses,
         @Param("staffId") Long staffId,
         @Param("customerCode") String customerCode,
         @Param("routeId") Long routeId,
@@ -351,7 +352,7 @@ Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
         join w.packing p
         left join DraftDomestic d
             on w.trackingCode in elements(d.shippingList)
-    where w.status = :warehouseStatus
+      where w.status IN :warehouseStatuses
       and p.flightCode is not null
       and d.id is null
       and (:staffId is null or o.staff.accountId = :staffId)
@@ -359,7 +360,7 @@ Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
       and c.customerCode in :customerCodes
 """)
 List<CustomerShipmentRow> findTrackingCodesByCustomerCodes(
-        @Param("warehouseStatus") WarehouseStatus warehouseStatus,
+        @Param("warehouseStatuses") List<WarehouseStatus> warehouseStatuses,
         @Param("customerCodes") List<String> customerCodes,
         @Param("staffId") Long staffId,
         @Param("routeId") Long routeId
@@ -520,4 +521,20 @@ WarehouseStatisticRow exportByCarrierWithDate(
                 @Param("status") WarehouseStatus status,
                 @Param("trackingCodes") List<String> trackingCodes
         );
+
+         @Query("""
+        select count(w)
+        from Warehouse w
+            join w.orders o
+            join o.customer c
+            left join DraftDomestic d
+                on w.trackingCode in elements(d.shippingList)
+        where c.customerCode = :customerCode
+          and w.status in :statuses
+          and d.id is null
+    """)
+    int countAvailableByCustomerCode(
+            @Param("customerCode") String customerCode,
+            @Param("statuses") List<WarehouseStatus> statuses
+    );
 }

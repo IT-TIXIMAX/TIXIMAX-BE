@@ -55,29 +55,57 @@ public class DraftDomesticService {
  @Autowired
  private AccountUtils accountUtils;
 
-public DraftDomesticResponse addDraftDomestic(DraftDomesticRequest draft) {
-
-    var customer = customerRepository
-            .findByCustomerCode(draft.getCustomerCode())
-            .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng"));
-
-    validateAllTrackingCodesExist(draft.getShippingList());
-    Double sumWeight = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
-    Double weight = calculateAndRoundWeight(sumWeight);
-
-    DraftDomestic draftDomestic = mapToEntity(draft, customer);
-    draftDomestic.setWeight(weight);
-
-    String shipCode = generateShipCode(
-            customer.getCustomerCode(),
-            draft.getShippingList().size()
+    private static final List<WarehouseStatus> AVAILABLE_STATUSES = List.of(
+            WarehouseStatus.DA_NHAP_KHO_NN,
+            WarehouseStatus.DA_NHAP_KHO_VN
     );
 
-    draftDomestic.setShipCode(shipCode);
-    draftDomesticRepository.save(draftDomestic);
+   public DraftDomesticResponse addDraftDomestic(
+            DraftDomesticRequest draft
+    ) {
 
-    return new DraftDomesticResponse(draftDomestic);
-}
+        Customer customer = customerRepository
+                .findByCustomerCode(draft.getCustomerCode())
+                .orElseThrow(() ->
+                        new NotFoundException("Không tìm thấy khách hàng")
+                );
+
+        // 1. Validate tracking codes
+        validateAllTrackingCodesExist(draft.getShippingList());
+
+        // 2. Tính cân nặng
+        Double sumWeight =
+                warehouseRepository.sumWeightByTrackingCodes(
+                        draft.getShippingList()
+                );
+        Double weight = calculateAndRoundWeight(sumWeight);
+
+        // 3. Đếm tổng kiện khả dụng
+        int totalAvailableCount =
+                warehouseRepository.countAvailableByCustomerCode(
+                        customer.getCustomerCode(),
+                        AVAILABLE_STATUSES
+                );
+
+        // 4. Generate shipCode
+        String shipCode = generateShipCode(
+                customer.getCustomerCode(),
+                draft.getShippingList().size(),
+                totalAvailableCount
+        );
+
+        // 5. Map entity
+        DraftDomestic draftDomestic =
+                mapToEntity(draft, customer);
+
+        draftDomestic.setWeight(weight);
+        draftDomestic.setShipCode(shipCode);
+
+        draftDomesticRepository.save(draftDomestic);
+
+        return new DraftDomesticResponse(draftDomestic);
+    }
+
 
  
  public DraftDomesticResponse getDraftDomestic(Long id){
@@ -198,7 +226,7 @@ public DraftDomesticResponse addShipments(
 
          Page<DraftDomesticDeliveryRow> customerPage =
                 warehouseRepository.findDraftDomesticDelivery(
-                        WarehouseStatus.DA_NHAP_KHO_NN,
+                        AVAILABLE_STATUSES,
                         staffId,
                         filterCustomerCode,
                         filterRoute,
@@ -216,7 +244,7 @@ public DraftDomesticResponse addShipments(
 
         List<CustomerShipmentRow> rows =
                 warehouseRepository.findTrackingCodesByCustomerCodes(
-                         WarehouseStatus.DA_NHAP_KHO_NN,
+                        AVAILABLE_STATUSES,
                         customerCodes,
                         staffId,
                         filterRoute
@@ -519,28 +547,35 @@ private void checkDraftEditable(DraftDomestic draft) {
 }
 
 
-private String generateShipCode(
-        String customerCode,
-        int packageCount
-) {
+  private String generateShipCode(
+            String customerCode,
+            int selectedCount,
+            int totalAvailableCount
+    ) {
 
-    List<String> existingCodes =
-            draftDomesticRepository.findShipCodesByCustomer(customerCode);
-
-    if (existingCodes.isEmpty()) {
-        return customerCode + "-" + packageCount + "-A";
-    }
-
-    char maxSuffix = 'A' - 1;
-
-    for (String code : existingCodes) {
-        char suffix = code.charAt(code.length() - 1);
-        if (suffix > maxSuffix) {
-            maxSuffix = suffix;
+        if (selectedCount == totalAvailableCount) {
+            return customerCode + "-" + selectedCount;
         }
+
+        List<String> existingCodes =
+                draftDomesticRepository
+                        .findShipCodesByCustomer(customerCode);
+
+        char maxSuffix = 'A' - 1;
+
+        for (String code : existingCodes) {
+            if (code.matches(customerCode + "-\\d+-[A-Z]")) {
+                char suffix = code.charAt(code.length() - 1);
+                if (suffix > maxSuffix) {
+                    maxSuffix = suffix;
+                }
+            }
+        }
+
+        return customerCode
+                + "-" + selectedCount
+                + "-" + (char) (maxSuffix + 1);
     }
-    return customerCode + "-" + packageCount + "-" + (char) (maxSuffix + 1);
-}
 
 
 private Double calculateAndRoundWeight(Double totalWeight) {
