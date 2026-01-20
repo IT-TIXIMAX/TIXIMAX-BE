@@ -103,10 +103,11 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
 public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
         @RequestParam(required = false)
         @DateTimeFormat(pattern = "yyyy-MM-dd")
-        LocalDate endDate
+        LocalDate endDate,
+        @RequestParam Carrier carrier
 ) {
     return ResponseEntity.ok(
-            draftDomesticService.getLockedDraftNotExported(endDate)
+            draftDomesticService.getLockedDraftNotExported(endDate, carrier)
     );
 }
 
