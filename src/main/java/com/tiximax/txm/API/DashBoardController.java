@@ -9,6 +9,7 @@ import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Enums.CustomerTopType;
 import com.tiximax.txm.Enums.PaymentStatus;
+import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
@@ -252,6 +253,7 @@ public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
 
         return dashBoardService.getNewCustomers(startDate, endDate, filterType);
     }
+
     @GetMapping("/routes/kpi")
     public ResponseEntity<Map<String, RouteStaffPerformance>> getWeightByRouteKpi(
             @RequestParam(required = false) LocalDate startDate,
@@ -267,6 +269,7 @@ public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
     @GetMapping("/customers/top/{page}/{size}")
     public ResponseEntity<Page<CustomerTop>> getTopCustomers(
             @RequestParam(required = false, defaultValue = "TOTAL_ORDERS")CustomerTopType customerTopType,
+            @RequestParam(required = false) String customerCode,
             @PathVariable int page,
             @PathVariable int size) {
 
@@ -287,14 +290,14 @@ public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
                 sortField = "balance";
                 break;
             default:
-                throw new IllegalStateException("Không tìm thấy trường dữ liệu này!");
+                throw new BadRequestException("Không tìm thấy trường dữ liệu này!");
         }
 
         sort = Sort.by(sortField).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<CustomerTop> result = dashBoardService.getTopCustomers(customerTopType, pageable);
+        Page<CustomerTop> result = dashBoardService.getTopCustomers(customerTopType, customerCode, pageable);
 
         return ResponseEntity.ok(result);
     }

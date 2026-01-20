@@ -137,7 +137,7 @@ public class AuthenticationService implements UserDetailsService {
     public Object login(LoginRequest loginRequest) {
     try {
         if (loginRequest == null || loginRequest.getPassword().isEmpty() || loginRequest.getUsername().isEmpty()) {
-            throw new BadCredentialsException("Vui lòng điền đầy đủ thông tin đăng nhập!");
+            throw new BadRequestException("Vui lòng điền đầy đủ thông tin đăng nhập!");
         }
 
         Authentication authentication = authenticationManager.authenticate(
@@ -150,14 +150,14 @@ public class AuthenticationService implements UserDetailsService {
         Account account = (Account) authentication.getPrincipal();
 
         if (account == null) {
-            throw new BadCredentialsException("Tên đăng nhập hoặc mật khẩu không đúng!");
+            throw new BadRequestException("Tên đăng nhập hoặc mật khẩu không đúng!");
         }
 
         if (!account.getStatus().equals(AccountStatus.HOAT_DONG)) {
-            throw new AuthenticationServiceException("Tài khoản bạn đã bị khóa!");
+            throw new BadRequestException("Tài khoản bạn đã bị khóa!");
         }
         if (!account.isVerify()) {
-          throw new AuthenticationServiceException("Tài khoản của bạn chưa được xác minh, vui lòng kiểm tra email để xác minh tài khoản!");
+          throw new BadRequestException("Tài khoản của bạn chưa được xác minh, vui lòng kiểm tra email để xác minh tài khoản!");
         }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -198,7 +198,7 @@ public class AuthenticationService implements UserDetailsService {
         }
 
     } catch (AuthenticationException e) {     
-            throw new BadCredentialsException("Tên đăng nhập hoặc mật khẩu không đúng!");      
+            throw new BadRequestException("Tên đăng nhập hoặc mật khẩu không đúng!");
     }
 
     return null;
@@ -206,10 +206,10 @@ public class AuthenticationService implements UserDetailsService {
 
     public Staff registerStaff(RegisterStaffRequest registerRequest) {
             if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
-                throw new BadCredentialsException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
+                throw new BadRequestException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
             }
             if (authenticationRepository.findByPhone(registerRequest.getPhone()) != null){
-                throw new BadCredentialsException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
+                throw new BadRequestException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
             }
             Staff staff = new Staff();
             staff.setUsername(registerRequest.getUsername());
@@ -230,7 +230,7 @@ public class AuthenticationService implements UserDetailsService {
             if (routeIds != null && !routeIds.isEmpty()) {
                 for (Long routeId : routeIds) {
                     Route route = routeRepository.findById(routeId)
-                            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tuyến hàng này!"));
+                            .orElseThrow(() -> new BadRequestException("Không tìm thấy tuyến hàng này!"));
                     AccountRoute accountRoute = new AccountRoute();
                     accountRoute.setAccount(staff);
                     accountRoute.setRoute(route);
@@ -243,15 +243,15 @@ public class AuthenticationService implements UserDetailsService {
 
     public Customer registerCustomer(RegisterCustomerRequest registerRequest) throws Exception {
         if (authenticationRepository.findByUsername(registerRequest.getUsername()) != null){
-            throw new BadCredentialsException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
+            throw new BadRequestException("Tên đăng nhập bị trùng, vui lòng chọn một tên khác!");
         }
 
         if (authenticationRepository.findByPhone(registerRequest.getPhone()) != null){
-            throw new BadCredentialsException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
+            throw new BadRequestException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
         }
 
         if (authenticationRepository.findByEmail(registerRequest.getEmail()) != null){
-            throw new BadCredentialsException("Email bị trùng, vui lòng chọn một email khác!");
+            throw new BadRequestException("Email bị trùng, vui lòng chọn một email khác!");
         }
 
         Customer customer = new Customer();
@@ -327,15 +327,15 @@ public class AuthenticationService implements UserDetailsService {
 
     public Customer registerCustomerByStaff(RegisterCustomerRequest registerRequest) {
         if (authenticationRepository.findByPhone(registerRequest.getPhone()) != null && !registerRequest.getPhone().isEmpty()){
-            throw new BadCredentialsException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
+            throw new BadRequestException("Số điện thoại bị trùng, vui lòng chọn một số khác!");
         }
 
         if (authenticationRepository.findByEmail(registerRequest.getEmail()) != null && !registerRequest.getEmail().isEmpty()){
-            throw new BadCredentialsException("Email bị trùng, vui lòng chọn một email khác!");
+            throw new BadRequestException("Email bị trùng, vui lòng chọn một email khác!");
         }
 
         if (registerRequest.getAddress() == null || registerRequest.getAddress().trim().isEmpty()) {
-            throw new IllegalArgumentException("Địa chỉ không được để trống!");
+            throw new BadRequestException("Địa chỉ không được để trống!");
         }
 
         Customer customer = new Customer();
@@ -404,7 +404,7 @@ public class AuthenticationService implements UserDetailsService {
     public Page<Staff> getSalesInSameRoute(Pageable pageable) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (currentAccount.getRole() != AccountRoles.LEAD_SALE) {
-            throw new AccessDeniedException("Vị trí của bạn không được phép cho chức năng này!");
+            throw new BadRequestException("Vị trí của bạn không được phép cho chức năng này!");
         }
 
         List<AccountRoute> leadSaleRoutes = accountRouteRepository.findByAccount_AccountId(currentAccount.getAccountId());
@@ -431,7 +431,7 @@ public class AuthenticationService implements UserDetailsService {
     public List<SaleStats> getSalesStatsInSameRoute(String timeFrame, Integer year, Integer month, Integer week) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (currentAccount.getRole() != AccountRoles.LEAD_SALE) {
-            throw new SecurityException("Chỉ LEAD_SALE được phép truy cập dữ liệu này!");
+            throw new BadRequestException("Chỉ LEAD_SALE được phép truy cập dữ liệu này!");
         }
 
         // Lấy danh sách route của LEAD_SALE
@@ -596,7 +596,7 @@ public class AuthenticationService implements UserDetailsService {
 
         if (!(currentAccount instanceof Staff staff) ||
                 (staff.getRole() != AccountRoles.STAFF_SALE && staff.getRole() != AccountRoles.LEAD_SALE)) {
-            throw new AccessDeniedException("Bạn không có quyền xem hiệu suất cá nhân!");
+            throw new BadRequestException("Bạn không có quyền xem hiệu suất cá nhân!");
         }
 
         LocalDate now = LocalDate.now();
@@ -669,7 +669,7 @@ public class AuthenticationService implements UserDetailsService {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff staff) ||
                 (staff.getRole() != AccountRoles.STAFF_SALE && staff.getRole() != AccountRoles.LEAD_SALE)) {
-            throw new AccessDeniedException("Bạn không có quyền xem hiệu suất cá nhân!");
+            throw new BadRequestException("Bạn không có quyền xem hiệu suất cá nhân!");
         }
 
         LocalDateTime startDateTime = start.atStartOfDay();
@@ -781,7 +781,7 @@ public class AuthenticationService implements UserDetailsService {
     public void sendForgotPasswordOtp(String email) throws Exception {
         Account account = authenticationRepository.findByEmail(email);
         if (account == null) {
-            throw new BadCredentialsException("Email không tồn tại trong hệ thống!");
+            throw new BadRequestException("Email không tồn tại trong hệ thống!");
         }
 
         otpService.sendOtpToEmail(email);
@@ -791,14 +791,14 @@ public class AuthenticationService implements UserDetailsService {
     public void resetPasswordWithOtp(String email, String otpCode, String newPassword) {
         Account account = authenticationRepository.findByEmail(email);
         if (account == null) {
-            throw new BadCredentialsException("Email không tồn tại trong hệ thống!");
+            throw new BadRequestException("Email không tồn tại trong hệ thống!");
         }
 
         Otp otp = otpRepository.findByAccountAndCode(account, otpCode)
-                .orElseThrow(() -> new BadCredentialsException("OTP không hợp lệ!"));
+                .orElseThrow(() -> new BadRequestException("OTP không hợp lệ!"));
 
         if (otp.isExpired()) {
-            throw new BadCredentialsException("OTP đã hết hạn!");
+            throw new BadRequestException("OTP đã hết hạn!");
         }
 
         account.setPassword(passwordEncoder.encode(newPassword));
@@ -814,24 +814,24 @@ public class AuthenticationService implements UserDetailsService {
     public Customer partialUpdateCustomer(Long customerId, CustomerPatchRequest request) {
         Account account = accountUtils.getAccountCurrent();
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new IllegalArgumentException("Khách hàng này không tồn tại!"));
+                .orElseThrow(() -> new BadRequestException("Khách hàng này không tồn tại!"));
         if (customer.getStaffId().equals(account.getAccountId()) || account.getRole().equals(AccountRoles.MANAGER)){
             if (request.getEmail() != null) customer.setEmail(request.getEmail());
             if (request.getPhone() != null) customer.setPhone(request.getPhone());
             if (request.getName() != null) customer.setName(request.getName());
             return customerRepository.save(customer);
         } else {
-            throw new AccessDeniedException("Bạn không có quyền sửa thông tin khách hàng này!");
+            throw new BadRequestException("Bạn không có quyền sửa thông tin khách hàng này!");
         }
     }
 
     public Staff partialUpdateStaff(Long staffId, StaffPatchRequest request) {
         Account account = accountUtils.getAccountCurrent();
         if (!account.getRole().equals(AccountRoles.MANAGER)){
-            throw new AccessDeniedException("Chỉ manager mới được phép chỉnh sửa!");
+            throw new BadRequestException("Chỉ manager mới được phép chỉnh sửa!");
         }
         Staff staff = staffRepository.findById(staffId)
-                .orElseThrow(() -> new NotFoundException("Nhân viên này không tồn tại!"));
+                .orElseThrow(() -> new BadRequestException("Nhân viên này không tồn tại!"));
         if (request.getEmail() != null) staff.setEmail(request.getEmail());
         if (request.getPhone() != null) staff.setPhone(request.getPhone());
         if (request.getStatus() != null) staff.setStatus(request.getStatus());
@@ -847,10 +847,5 @@ public class AuthenticationService implements UserDetailsService {
         }
 
         return staffRepository.save(staff);
-    }
-
-    public CustomerTop getCustomerByCode(String customerCode) {
-        return customerRepository.findCustomerByCustomerCode(customerCode)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng với mã " + customerCode));
     }
 }

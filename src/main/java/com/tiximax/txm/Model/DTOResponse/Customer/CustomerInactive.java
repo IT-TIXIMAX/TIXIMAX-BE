@@ -1,15 +1,17 @@
-package com.tiximax.txm.Model.DTOResponse.DashBoard;
+package com.tiximax.txm.Model.DTOResponse.Customer;
 
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @Getter
 @Setter
 
-public class CustomerTop {
+public class CustomerInactive {
     private Long accountId;
     private String customerCode;
     private String customerName;
@@ -19,8 +21,10 @@ public class CustomerTop {
     private Double totalWeight;
     private BigDecimal totalAmount;
     private BigDecimal balance;
+    private LocalDateTime lastOrderDate;
+    private Long daysSinceLastOrder;
 
-    public CustomerTop(
+    public CustomerInactive(
             Long accountId,
             String customerCode,
             String customerName,
@@ -29,7 +33,9 @@ public class CustomerTop {
             Integer totalOrders,
             Double totalWeight,
             BigDecimal totalAmount,
-            BigDecimal balance) {
+            BigDecimal balance,
+            LocalDateTime lastOrderDate,
+            Long daysSinceLastOrder) {
         this.accountId = accountId;
         this.customerCode = customerCode;
         this.customerName = customerName;
@@ -39,5 +45,7 @@ public class CustomerTop {
         this.totalWeight = totalWeight;
         this.totalAmount = totalAmount;
         this.balance = balance;
+        this.lastOrderDate = lastOrderDate;
+        this.daysSinceLastOrder = daysSinceLastOrder;
     }
 }
