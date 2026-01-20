@@ -597,7 +597,7 @@ public class DashBoardService {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (currentAccount.getRole() != AccountRoles.ADMIN &&
                 currentAccount.getRole() != AccountRoles.MANAGER) {
-            throw new AccessDeniedException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
+            throw new BadRequestException("Bạn không có quyền xem thống kê hiệu suất theo tuyến!");
         }
 
         StartEndDate dateRange = getDateStartEnd(filterType);
@@ -923,12 +923,12 @@ public WarehouseSummary getWarehouseDashboard(
         return extractSummary(results);
     }
 
-    public Page<CustomerTop> getTopCustomers(CustomerTopType customerTopType, Pageable pageable) {
+    public Page<CustomerTop> getTopCustomers(CustomerTopType customerTopType, String customerCode, Pageable pageable) {
         return switch (customerTopType) {
-            case TOTAL_ORDERS -> customerRepository.findTopByTotalOrders(pageable);
-            case TOTAL_WEIGHT -> customerRepository.findTopByTotalWeight(pageable);
-            case TOTAL_AMOUNT -> customerRepository.findTopByTotalAmount(pageable);
-            case BALANCE      -> customerRepository.findTopByBalance(pageable);
+            case TOTAL_ORDERS -> customerRepository.findTopByTotalOrders(customerCode, pageable);
+            case TOTAL_WEIGHT -> customerRepository.findTopByTotalWeight(customerCode, pageable);
+            case TOTAL_AMOUNT -> customerRepository.findTopByTotalAmount(customerCode, pageable);
+            case BALANCE      -> customerRepository.findTopByBalance(customerCode, pageable);
         };
     }
 }
