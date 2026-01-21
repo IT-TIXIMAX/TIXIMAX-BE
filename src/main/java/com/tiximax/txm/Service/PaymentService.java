@@ -274,7 +274,7 @@ public class PaymentService {
 
         BankAccount bankAccount = bankAccountService.getAccountById(bankId);
         if (bankAccount == null) {
-            throw new NotFoundException("Thông tin thẻ ngân hàng không được tìm thấy!");
+            throw new BadRequestException("Thông tin thẻ ngân hàng không được tìm thấy!");
         }
 
         String qrCodeUrl = "https://img.vietqr.io/image/" + bankAccount.getBankName() + "-" + bankAccount.getAccountNumber() + "-print.png?amount=" + qrAmount + "&addInfo=" + payment.getPaymentCode() + "&accountName=" + bankAccount.getAccountHolder();
@@ -294,7 +294,7 @@ public class PaymentService {
         }
 
         if (qrAmount.compareTo(BigDecimal.ZERO) == 0) {
-            savedPayment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
+            confirmedPaymentShipment(payment.getPaymentCode());
             savedPayment = paymentRepository.save(savedPayment);
         }
         if (customerVoucher != null) {
@@ -317,15 +317,13 @@ public class PaymentService {
   public Payment confirmedPaymentShipment(String paymentCode) {
 
     Payment payment = paymentRepository.findByPaymentCode(paymentCode)
-            .orElseThrow(() -> new NotFoundException("Không tìm thấy giao dịch này!"));
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy giao dịch này!"));
 
     if (!payment.getStatus().equals(PaymentStatus.CHO_THANH_TOAN_SHIP)) {
         throw new BadRequestException("Trạng thái đơn hàng không phải chờ thanh toán!");
     }
 
     payment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
-    payment.setCollectedAmount(payment.getAmount());
-    payment.setActionAt(LocalDateTime.now());
 
     Set<String> paidShipmentCodes = new HashSet<>();
 
@@ -336,14 +334,14 @@ public class PaymentService {
 
             for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
                 if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
-                link.setStatus(OrderLinkStatus.CHO_GIAO);
+                    link.setStatus(OrderLinkStatus.CHO_GIAO);
                 if (link.getShipmentCode() != null) {
                     paidShipmentCodes.add(link.getShipmentCode());
                 }
                 syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
             ordersRepository.save(order);
-            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
+            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN_SHIP);
         }
     } else if (payment.getOrders() != null) {
 
@@ -352,7 +350,7 @@ public class PaymentService {
 
         for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
              if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
-                link.setStatus(OrderLinkStatus.CHO_GIAO);
+                    link.setStatus(OrderLinkStatus.CHO_GIAO);
                 if (link.getShipmentCode() != null) {
                     paidShipmentCodes.add(link.getShipmentCode());
                 }
@@ -360,7 +358,7 @@ public class PaymentService {
         }
 
         ordersRepository.save(order);
-        ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
+        ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN_SHIP);
 
     } else {
 
@@ -398,7 +396,7 @@ public class PaymentService {
             }
 
             ordersRepository.save(order);
-            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN);
+            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN_SHIP);
         }
     }
        draftDomesticService

@@ -116,7 +116,7 @@ public ResponseEntity<Domestic> receivedPackingFromWarehouse(@PathVariable Long 
     );
 }
 
-    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC')")
+    @PreAuthorize("hasAnyRole('STAFF_WAREHOUSE_DOMESTIC','STAFF_SALE','LEAD_SALE')")
     @PostMapping("/scan-to-ship")
     public ResponseEntity<DomesticDelivery> scanToShip(
            @RequestBody ScanToShip request
