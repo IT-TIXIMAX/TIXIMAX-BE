@@ -28,5 +28,4 @@ public class FlightShipmentRequest {
     private LocalDate airFreightPaidDate;
     private Boolean customsPaid;
     private LocalDate customsPaidDate;
-    private Long staffId;
 }
