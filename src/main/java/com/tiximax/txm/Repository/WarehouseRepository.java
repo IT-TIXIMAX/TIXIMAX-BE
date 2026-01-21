@@ -6,6 +6,7 @@ import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseStatistic;
 import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
+import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
@@ -537,4 +538,47 @@ WarehouseStatisticRow exportByCarrierWithDate(
             @Param("customerCode") String customerCode,
             @Param("statuses") List<WarehouseStatus> statuses
     );
+
+    @Query("""
+    select
+        c.customerCode as customerCode,
+        c.name as customerName,
+        s.staffCode as staffCode,
+        s.name as staffName,
+
+        count(w.warehouseId) as exportedCode,
+        coalesce(sum(w.netWeight), 0) as exportedWeightKg,
+
+        (
+            select count(w2.warehouseId)
+            from Warehouse w2
+            where w2.orders.customer = c
+              and w2.status in (
+                    com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                    com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+              )
+        ) as remainingCode,
+
+        (
+            select coalesce(sum(w2.netWeight), 0)
+            from Warehouse w2
+            where w2.orders.customer = c
+              and w2.status in (
+                    com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                    com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+              )
+        ) as remainingWeightKg
+
+    from Warehouse w
+        join w.orders o
+        join o.customer c
+        join o.staff s
+    where w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+    group by
+        c.customerCode,
+        c.name,
+        s.staffCode,
+        s.name
+""")
+        List<CustomerInventoryRow> getCustomerInventoryDashboard();
 }
