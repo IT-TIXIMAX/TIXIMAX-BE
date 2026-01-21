@@ -53,17 +53,21 @@ Page<DraftDomestic> findAllWithFilter(
             @Param("customerCode") String customerCode
     );
 
-    @Query("""
+   @Query("""
     SELECT d
     FROM DraftDomestic d
-    WHERE d.status = 'LOCKED'
+    WHERE d.status = :status
+      AND d.carrier = :carrier
       AND d.createdAt BETWEEN :startDate AND :endDate
     ORDER BY d.createdAt DESC
 """)
 List<DraftDomestic> findLockedBetween(
+        @Param("status") DraftDomesticStatus status,
+        @Param("carrier") Carrier carrier,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
 );
+
 
 
 @Query("""

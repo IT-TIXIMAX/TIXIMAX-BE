@@ -414,7 +414,8 @@ public Boolean ExportDraftDomestic(List<Long> draftIds) {
  }
 
 public List<DraftDomesticResponse> getLockedDraftNotExported(
-        LocalDate endDate
+        LocalDate endDate, 
+        Carrier carrier     
 ) {
 
     if (endDate == null) {
@@ -425,7 +426,7 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
     LocalDateTime startDateTime = endDateTime.minusDays(7);
 
     return draftDomesticRepository
-        .findLockedBetween(startDateTime, endDateTime)
+        .findLockedBetween( DraftDomesticStatus.LOCKED,carrier,startDateTime, endDateTime )
         .stream()
         .map(this::mapToResponseWithRoundedWeight)
         .toList();
