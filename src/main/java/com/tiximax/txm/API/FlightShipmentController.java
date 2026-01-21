@@ -1,5 +1,6 @@
 package com.tiximax.txm.API;
 
+import com.tiximax.txm.Entity.FlightShipment;
 import com.tiximax.txm.Model.FlightShipmentRequest;
 import com.tiximax.txm.Model.FlightShipmentResponse;
 import com.tiximax.txm.Service.FlightShipmentService;
@@ -20,7 +21,7 @@ public class FlightShipmentController {
     private FlightShipmentService flightShipmentService;
 
     @PostMapping
-    public ResponseEntity<FlightShipmentResponse> create(@RequestBody FlightShipmentRequest request) {
+    public ResponseEntity<FlightShipment> create(@RequestBody FlightShipmentRequest request) {
         return ResponseEntity.ok(flightShipmentService.createFlightShipment(request));
     }
 

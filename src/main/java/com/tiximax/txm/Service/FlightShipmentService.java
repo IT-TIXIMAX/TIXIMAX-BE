@@ -9,6 +9,7 @@ import com.tiximax.txm.Model.FlightShipmentResponse;
 import com.tiximax.txm.Repository.FlightShipmentRepository;
 import com.tiximax.txm.Repository.StaffRepository;
 
+import com.tiximax.txm.Utils.AccountUtils;
 import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,10 @@ public class FlightShipmentService {
     @Autowired
     private StaffRepository staffRepository;
 
-    public FlightShipmentResponse createFlightShipment(FlightShipmentRequest request) {
+    @Autowired
+    private AccountUtils accountUtils;
+
+    public FlightShipment createFlightShipment(FlightShipmentRequest request) {
         if (flightShipmentRepository.existsByFlightCode(request.getFlightCode())) {
             throw new BadRequestException("Mã chuyến bay đã tồn tại: " + request.getFlightCode());
         }
@@ -36,9 +40,10 @@ public class FlightShipmentService {
         FlightShipment entity = new FlightShipment();
         mapRequestToEntity(request, entity);
         calculateCostsAndProfit(entity);
+        calculateProfitIfNeeded(entity);
         entity.setCreatedAt(LocalDateTime.now());
         entity = flightShipmentRepository.save(entity);
-        return mapToResponse(entity);
+        return entity;
     }
 
     public FlightShipmentResponse getFlightShipmentId(Long id) {
@@ -75,9 +80,7 @@ public class FlightShipmentService {
         if (request.getCustomsPaid() != null){entity.setCustomsPaid(request.getCustomsPaid());}
         if (request.getCustomsPaidDate() != null){entity.setCustomsPaidDate(request.getCustomsPaidDate().atStartOfDay());}
 
-        Staff staff = staffRepository.findById(request.getStaffId())
-                .orElseThrow(() -> new BadRequestException("Không tìm thấy nhân viên"));
-        entity.setStaff(staff);
+        entity.setStaff((Staff) accountUtils.getAccountCurrent());
 
         calculateCosts(entity);
         entity.setUpdatedAt(LocalDateTime.now());
@@ -104,10 +107,7 @@ public class FlightShipmentService {
         entity.setAirFreightPaidDate(request.getAirFreightPaidDate().atStartOfDay());
         entity.setCustomsPaid(request.getCustomsPaid());
         entity.setCustomsPaidDate(request.getCustomsPaidDate().atStartOfDay());
-
-        Staff staff = staffRepository.findById(request.getStaffId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên ID: " + request.getStaffId()));
-        entity.setStaff(staff);
+        entity.setStaff((Staff) accountUtils.getAccountCurrent());
     }
 
     private void calculateCostsAndProfit(FlightShipment entity) {
@@ -126,13 +126,48 @@ public class FlightShipmentService {
     }
 
     private FlightShipmentResponse mapToResponse(FlightShipment entity) {
-        FlightShipmentResponse request = new FlightShipmentResponse();
-        return request;
+        FlightShipmentResponse response = new FlightShipmentResponse();
+
+        response.setFlightShipmentId(entity.getFlightShipmentId());
+        response.setFlightCode(entity.getFlightCode());
+        response.setAwbFilePath(entity.getAwbFilePath());
+        response.setExportLicensePath(entity.getExportLicensePath());
+        response.setSingleInvoicePath(entity.getSingleInvoicePath());
+        response.setInvoiceFilePath(entity.getInvoiceFilePath());
+        response.setPackingListPath(entity.getPackingListPath());
+
+        response.setTotalVolumeWeight(entity.getTotalVolumeWeight());
+        response.setAirFreightCost(entity.getAirFreightCost());
+        response.setCustomsClearanceCost(entity.getCustomsClearanceCost());
+        response.setAirportShippingCost(entity.getAirportShippingCost());
+        response.setOtherCosts(entity.getOtherCosts());
+        response.setTotalCost(entity.getTotalCost());
+        response.setOriginCostPerKg(entity.getOriginCostPerKg());
+
+        response.setGrossProfit(entity.getGrossProfit() != null ? entity.getGrossProfit() : BigDecimal.ZERO);
+
+        // Các field thời gian
+        response.setArrivalDate(entity.getArrivalDate());
+        response.setCreatedAt(entity.getCreatedAt());
+//        response.setUpdatedAt(entity.getUpdatedAt());
+//        response.setAirFreightPaid(entity.getAirFreightPaid());
+        response.setAirFreightPaidDate(entity.getAirFreightPaidDate());
+//        response.setCustomsPaid(entity.getCustomsPaid());
+        response.setCustomsPaidDate(entity.getCustomsPaidDate());
+        if (entity.getStaff() != null) {
+//            response.setStaffId(entity.getStaff().getStaffId());
+            response.setStaffName(entity.getStaff().getName());  // giả sử Staff có field name
+        }
+
+        return response;
     }
 
     private void calculateProfitIfNeeded(FlightShipment entity) {
-        // Ví dụ: query tổng tiền thu khách từ các Order → trừ totalCost
-        // Để chính xác nhất, nên chạy batch job định kỳ hoặc trigger khi Order thay đổi
+        BigDecimal totalRevenueFromCustomers = flightShipmentRepository.calculateProfitForFlight(entity.getFlightCode());
+        BigDecimal totalCost = entity.getTotalCost() != null ? entity.getTotalCost() : BigDecimal.ZERO;
+
+        BigDecimal grossProfit = totalRevenueFromCustomers.subtract(totalCost);
+        entity.setGrossProfit(grossProfit);
     }
 
     private void calculateCosts(FlightShipment entity) {

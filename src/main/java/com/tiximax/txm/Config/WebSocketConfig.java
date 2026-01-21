@@ -25,7 +25,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(
+                        "https://www.tiximax.net",
+                        "https://tiximax.net")
                 .withSockJS();
     }
 
@@ -36,7 +38,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                    accessor.setHeartbeat(60000, 60000); // Heartbeat mỗi 60s
+                    accessor.setHeartbeat(60000, 60000);
                 }
                 return message;
             }
