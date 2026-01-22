@@ -174,13 +174,13 @@ public class DashBoardController {
     }
 
 
-    @GetMapping("/inventory/{routeId}")
-    public ResponseEntity<Map<String, RouteInventorySummary>> getAllInventory(@PathVariable Long routeId) {
-        Map<String, RouteInventorySummary> result = new HashMap<>();
-        result.put("unpacked", dashBoardService.getUnpackedInventorySummaryByRoute(routeId));
-        result.put("packed", dashBoardService.getPackedInventorySummaryByRoute(routeId));
-        return ResponseEntity.ok(result);
-    }
+//    @GetMapping("/inventory/{routeId}")
+//    public ResponseEntity<Map<String, RouteInventorySummary>> getAllInventory(@PathVariable Long routeId) {
+//        Map<String, RouteInventorySummary> result = new HashMap<>();
+//        result.put("unpacked", dashBoardService.getUnpackedInventorySummaryByRoute(routeId));
+//        result.put("packed", dashBoardService.getPackedInventorySummaryByRoute(routeId));
+//        return ResponseEntity.ok(result);
+//    }
    @GetMapping("/warehouse/domestic-summary")
 public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
         @RequestParam DashboardFilterType filter,
@@ -300,6 +300,26 @@ public ResponseEntity<WarehouseSummary> getWarehouseDashboard(
         Page<CustomerTop> result = dashBoardService.getTopCustomers(customerTopType, customerCode, pageable);
 
         return ResponseEntity.ok(result);
+    }
+
+//    @GetMapping("/inventory-foreign")
+//    public ResponseEntity<InventoryDaily> getDailyInventory(
+//            @RequestParam(required = false) LocalDate startDate,
+//            @RequestParam(required = false) LocalDate endDate,
+//            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+//            @RequestParam(required = false) Long routeId) {
+//
+//        return ResponseEntity.ok(dashBoardService.getDailyInventory(startDate, endDate, filterType, routeId));
+//    }
+
+    @GetMapping("/daily-inventory")
+    public ResponseEntity<InventoryDaily> getDailyInventory(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) Long routeId) {
+
+        return ResponseEntity.ok(dashBoardService.getDailyInventory(startDate, endDate, filterType, routeId));
     }
 
 }

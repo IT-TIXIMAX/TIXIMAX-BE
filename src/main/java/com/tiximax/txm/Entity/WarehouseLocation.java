@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -41,5 +42,9 @@ public class WarehouseLocation {
 
     @OneToMany(mappedBy = "warehouseLocation", cascade = CascadeType.ALL)
     Set<Staff> staff;
+
+    @ManyToMany(mappedBy = "warehouseLocations")
+    @JsonIgnore
+    private Set<Route> routes = new HashSet<>();
 
 }
