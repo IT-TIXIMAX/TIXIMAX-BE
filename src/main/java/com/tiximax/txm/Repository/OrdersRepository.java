@@ -35,7 +35,8 @@ public interface OrdersRepository extends JpaRepository<Orders, Long> {
 
     List<Orders> findAllByOrderCodeIn(List<String> orderCodes);
 
-    @Query("SELECT o FROM Orders o WHERE :status IS NULL OR o.status = :status")
+//    @Query("SELECT o FROM Orders o WHERE :status IS NULL OR o.status = :status")
+    @Query("SELECT o FROM Orders o WHERE o.status = :status")
     Page<Orders> findByStatus(@Param("status") OrderStatus status, Pageable pageable);
 
         @Query(value = "SELECT DISTINCT o FROM Orders o " +
@@ -46,10 +47,12 @@ public interface OrdersRepository extends JpaRepository<Orders, Long> {
 
 
 
-    @Query("SELECT o FROM Orders o WHERE o.staff.accountId = :staffId AND (:status IS NULL OR o.status = :status)")
+//    @Query("SELECT o FROM Orders o WHERE o.staff.accountId = :staffId AND (:status IS NULL OR o.status = :status)")
+    @Query("SELECT o FROM Orders o WHERE o.staff.accountId = :staffId AND o.status = :status")
     Page<Orders> findByStaffAccountIdAndStatus(@Param("staffId") Long staffId, @Param("status") OrderStatus status, Pageable pageable);
 
-    @Query("SELECT o FROM Orders o WHERE o.route.routeId IN :routeIds AND (:status IS NULL OR o.status = :status)")
+//    @Query("SELECT o FROM Orders o WHERE o.route.routeId IN :routeIds AND (:status IS NULL OR o.status = :status)")
+    @Query("SELECT o FROM Orders o WHERE o.route.routeId IN :routeIds AND o.status = :status")
     Page<Orders> findByRouteRouteIdInAndStatus(@Param("routeIds") Set<Long> routeIds, @Param("status") OrderStatus status, Pageable pageable);
 
     @Query("SELECT DISTINCT o FROM Orders o " +
@@ -661,7 +664,6 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("routeId") Long routeId
     );
 
-    // Query cho new customers (không theo route)
     @Query(value = """
         SELECT
             COUNT(DISTINCT a.account_id) AS new_customers_in_period
@@ -677,7 +679,6 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("end") LocalDateTime end
     );
 
-    // Query phụ: Lấy basic info (staff_code, name, department) - có thể dùng JPA method nếu có entity
     @Query(value = """
         SELECT
             s.staff_code,

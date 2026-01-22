@@ -200,7 +200,7 @@ public class PaymentService {
                 totalWeight = BigDecimal.ONE;
             }
         } else {
-            totalWeight = rawTotalWeight.setScale(1, RoundingMode.HALF_UP);
+            totalWeight = rawTotalWeight.setScale(2, RoundingMode.HALF_UP);
         }
 
         BigDecimal totalAmount = totalWeight.multiply(unitPrice).setScale(0, RoundingMode.HALF_UP);

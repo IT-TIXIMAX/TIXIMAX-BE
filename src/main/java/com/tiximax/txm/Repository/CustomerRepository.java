@@ -68,7 +68,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     @Query(value = """
     SELECT
-        s.account_id,
+        COALESCE(s.account_id, 0),
         COALESCE(s.name, 'Khách tự đăng ký') AS staff_name,
         COUNT(*) AS new_customer_count
     FROM customer c
@@ -79,7 +79,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
         WHERE a.account_id = c.account_id 
           AND a.created_at BETWEEN :start AND :end
     )
-    GROUP BY s.account_id, s.name
+    GROUP BY COALESCE(s.account_id, 0), s.name
     HAVING COUNT(*) > 0
     ORDER BY new_customer_count DESC, staff_name
     """, nativeQuery = true)

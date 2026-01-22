@@ -915,11 +915,6 @@ public class DashBoardService {
         return extractSummary(results);
     }
 
-//    public RouteInventorySummary getPackedInventorySummaryByRoute(Long routeId) {
-//        List<Object[]> results = warehouseRepository.sumPackedStockWeightByRoute(routeId);
-//        return extractSummary(results);
-//    }
-
     public Page<CustomerTop> getTopCustomers(CustomerTopType customerTopType, String customerCode, Pageable pageable) {
         return switch (customerTopType) {
             case TOTAL_ORDERS -> customerRepository.findTopByTotalOrders(customerCode, pageable);
@@ -928,40 +923,6 @@ public class DashBoardService {
             case BALANCE      -> customerRepository.findTopByBalance(customerCode, pageable);
         };
     }
-
-//    public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
-//        StartEndDate dateRange = getDateStartEnd(filterType);
-//        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
-//        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
-//
-//        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
-//        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
-//
-//        PendingSummary pending;
-//        StockSummary stock;
-//        PackedSummary packed;
-//        List<LocationSummary> pendingByLocation = null;
-//        List<LocationSummary> stockByLocation = null;
-//        List<LocationSummary> packedByLocation = null;
-//
-//        if (routeId != null) {
-//            pending = ordersRepository.getPendingSummary(routeId);
-//            stock = warehouseRepository.getStockSummary(routeId);
-//            packed = packingRepository.getPackedSummary(startDateTime, endDateTime, routeId);
-//        } else {
-//            pendingByLocation = ordersRepository.getPendingSummaryByLocation();
-//            stockByLocation = warehouseRepository.getStockSummaryByLocation();
-//            packedByLocation = packingRepository.getPackedSummaryByLocation(startDateTime, endDateTime);
-//
-//            pending = ordersRepository.getPendingSummary(null);
-//            stock = warehouseRepository.getStockSummary(null);
-//            packed = packingRepository.getPackedSummary(startDateTime, endDateTime, null);
-//        }
-//
-//        return new InventoryDaily(pending, stock, packed, pendingByLocation, stockByLocation, packedByLocation);
-//    }
-
-    // Trong DashBoardService.java
 
     public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         Staff staff = (Staff) accountUtils.getAccountCurrent();
@@ -992,7 +953,6 @@ public class DashBoardService {
         List<LocationSummary> packedByLoc = null;
 
         if (staff.getRole().equals(AccountRoles.STAFF_WAREHOUSE_FOREIGN)) {
-            // Nhân viên kho - chỉ lấy theo location của mình
             pending = getPendingByLocation(forcedLocationId);
             stock   = getStockByLocation(forcedLocationId);
             packed  = getPackedByLocation(startDt, endDt, forcedLocationId);
@@ -1003,7 +963,6 @@ public class DashBoardService {
             stockByLoc   = List.of(loc);
             packedByLoc  = List.of(loc);
         } else {
-            // Manager
             if (routeId != null) {
                 pending = ordersRepository.getPendingSummary(routeId);
                 stock   = warehouseRepository.getStockSummary(routeId);
@@ -1022,35 +981,25 @@ public class DashBoardService {
         return new InventoryDaily(pending, stock, packed, pendingByLoc, stockByLoc, packedByLoc);
     }
 
-// ────────────────────────────────────────────────
-// Helper methods
-// ────────────────────────────────────────────────
-
     private PendingSummary getPendingByLocation(Long locId) {
         return ordersRepository.getPendingSummaryByLocationId(locId);
-        // Nếu chưa có method này → thêm vào OrdersRepository
     }
 
     private StockSummary getStockByLocation(Long locId) {
         return warehouseRepository.getStockSummaryByLocationId(locId);
-        // Nếu chưa có → thêm vào WarehouseRepository
     }
 
     private PackedSummary getPackedByLocation(LocalDateTime s, LocalDateTime e, Long locId) {
         return packingRepository.getPackedSummaryByLocationId(s, e, locId);
-        // Nếu chưa có → thêm vào PackingRepository
     }
 
     private LocationSummary buildLocationSummaryForStaff(Long locId, StockSummary stock, PackedSummary packed) {
         LocationSummary ls = new LocationSummary();
         ls.setLocationId(locId);
         ls.setLocationName("Kho của bạn");
-
         ls.setWarehouses(stock.getWarehouses());
         ls.setWeight(stock.getWeight());
         ls.setNetWeight(stock.getNetWeight());
-
-        // Nếu muốn thêm fields khác (ví dụ từ packed) thì bổ sung ở đây
         return ls;
     }
 }

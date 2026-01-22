@@ -65,6 +65,7 @@ public class PaymentController {
         Payment confirmedPayment = paymentService.confirmedPayment(paymentCode);
         return ResponseEntity.ok(confirmedPayment);
     }
+
     @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/confirm-shipping/{paymentCode}")
     public ResponseEntity<Payment> confirmPaymentShipping(@PathVariable String paymentCode) {
