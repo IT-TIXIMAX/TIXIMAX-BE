@@ -23,7 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -770,80 +769,78 @@ public class DashBoardService {
         return totalCustomer;
     }
 
-public WarehouseSummary getWarehouseDashboard(
-        DashboardFilterType filterType,
-        LocalDate start,
-        LocalDate end,
-        Long routeId
-) {
+    public WarehouseSummary getWarehouseDashboard(
+            DashboardFilterType filterType,
+            LocalDate start,
+            LocalDate end,
+            Long routeId
+    ) {
 
-    LocalDateTime customFrom = (start != null)
-            ? start.atStartOfDay()
-            : null;
+        LocalDateTime customFrom = (start != null)
+                ? start.atStartOfDay()
+                : null;
 
-    LocalDateTime customTo = (end != null)
-            ? end.atTime(LocalTime.MAX)
-            : null;
+        LocalDateTime customTo = (end != null)
+                ? end.atTime(LocalTime.MAX)
+                : null;
 
-    Pair<LocalDateTime, LocalDateTime> range =
-            resolveTimeRange(filterType, customFrom, customTo);
+        Pair<LocalDateTime, LocalDateTime> range =
+                resolveTimeRange(filterType, customFrom, customTo);
 
-    LocalDateTime fromDate = range.getLeft();
-    LocalDateTime toDate = range.getRight();
+        LocalDateTime fromDate = range.getLeft();
+        LocalDateTime toDate = range.getRight();
 
-    WarehouseSummary summary = new WarehouseSummary();
-    summary.setInStock(
-            toDTO(
-                    warehouseRepository.inStock(routeId)
-            )
-    );
+        WarehouseSummary summary = new WarehouseSummary();
+        summary.setInStock(
+                toDTO(
+                        warehouseRepository.inStock(routeId)
+                )
+        );
 
-    summary.setUNPAID_SHIPPING(
-            toDTO(
-                    warehouseRepository.unpaidShipping(routeId)
-            )
-    );
+        summary.setUNPAID_SHIPPING(
+                toDTO(
+                        warehouseRepository.unpaidShipping(routeId)
+                )
+        );
 
-    summary.setPAID_SHIPPING(
-            toDTO(
-                    warehouseRepository.paidShipping(routeId)
-            )
-    );
-    summary.setExportByVnPost(
-            toDTO(
-                    warehouseRepository.exportByCarrierWithDate(
-                            Carrier.VNPOST.name(),
-                            fromDate,
-                            toDate,
-                            routeId
-                    )
-            )
-    );
+        summary.setPAID_SHIPPING(
+                toDTO(
+                        warehouseRepository.paidShipping(routeId)
+                )
+        );
+        summary.setExportByVnPost(
+                toDTO(
+                        warehouseRepository.exportByCarrierWithDate(
+                                Carrier.VNPOST.name(),
+                                fromDate,
+                                toDate,
+                                routeId
+                        )
+                )
+        );
 
-    summary.setExportByOther(
-            toDTO(
-                    warehouseRepository.exportByCarrierWithDate(
-                            Carrier.OTHER.name(),
-                            fromDate,
-                            toDate,
-                            routeId
-                    )
-            )
-    );
+        summary.setExportByOther(
+                toDTO(
+                        warehouseRepository.exportByCarrierWithDate(
+                                Carrier.OTHER.name(),
+                                fromDate,
+                                toDate,
+                                routeId
+                        )
+                )
+        );
 
-    return summary;
-}
+        return summary;
+    }
 
-
-    
-
-     private WarehouseStatistic toDTO(WarehouseStatisticRow p) {
+    private WarehouseStatistic toDTO(WarehouseStatisticRow p) {
         return new WarehouseStatistic(
                 p.getTotalCodes(),
                 p.getTotalWeight(),
                 p.getTotalCustomers()
         );
     }
+
     private Pair<LocalDateTime, LocalDateTime> resolveTimeRange(
             DashboardFilterType type,
             LocalDateTime customFrom,
@@ -918,10 +915,10 @@ public WarehouseSummary getWarehouseDashboard(
         return extractSummary(results);
     }
 
-    public RouteInventorySummary getPackedInventorySummaryByRoute(Long routeId) {
-        List<Object[]> results = warehouseRepository.sumPackedStockWeightByRoute(routeId);
-        return extractSummary(results);
-    }
+//    public RouteInventorySummary getPackedInventorySummaryByRoute(Long routeId) {
+//        List<Object[]> results = warehouseRepository.sumPackedStockWeightByRoute(routeId);
+//        return extractSummary(results);
+//    }
 
     public Page<CustomerTop> getTopCustomers(CustomerTopType customerTopType, String customerCode, Pageable pageable) {
         return switch (customerTopType) {
@@ -930,5 +927,130 @@ public WarehouseSummary getWarehouseDashboard(
             case TOTAL_AMOUNT -> customerRepository.findTopByTotalAmount(customerCode, pageable);
             case BALANCE      -> customerRepository.findTopByBalance(customerCode, pageable);
         };
+    }
+
+//    public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+//        StartEndDate dateRange = getDateStartEnd(filterType);
+//        LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
+//        LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
+//
+//        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+//        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+//
+//        PendingSummary pending;
+//        StockSummary stock;
+//        PackedSummary packed;
+//        List<LocationSummary> pendingByLocation = null;
+//        List<LocationSummary> stockByLocation = null;
+//        List<LocationSummary> packedByLocation = null;
+//
+//        if (routeId != null) {
+//            pending = ordersRepository.getPendingSummary(routeId);
+//            stock = warehouseRepository.getStockSummary(routeId);
+//            packed = packingRepository.getPackedSummary(startDateTime, endDateTime, routeId);
+//        } else {
+//            pendingByLocation = ordersRepository.getPendingSummaryByLocation();
+//            stockByLocation = warehouseRepository.getStockSummaryByLocation();
+//            packedByLocation = packingRepository.getPackedSummaryByLocation(startDateTime, endDateTime);
+//
+//            pending = ordersRepository.getPendingSummary(null);
+//            stock = warehouseRepository.getStockSummary(null);
+//            packed = packingRepository.getPackedSummary(startDateTime, endDateTime, null);
+//        }
+//
+//        return new InventoryDaily(pending, stock, packed, pendingByLocation, stockByLocation, packedByLocation);
+//    }
+
+    // Trong DashBoardService.java
+
+    public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+        Long forcedLocationId = null;
+
+        if (staff.getRole().equals(AccountRoles.STAFF_WAREHOUSE_FOREIGN)) {
+            forcedLocationId = staff.getWarehouseLocation().getLocationId();
+            if (forcedLocationId == null) {
+                throw new BadRequestException("Nhân viên kho chưa được gán location.");
+            }
+            routeId = null;
+        } else if (!staff.getRole().equals(AccountRoles.MANAGER)){
+            throw new BadRequestException("Vai trò không được phép xem dashboard này.");
+        }
+
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = start != null ? start : dateRange.getStartDate();
+        LocalDate finalEnd = end != null ? end : dateRange.getEndDate();
+
+        LocalDateTime startDt = finalStart != null ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDt = finalEnd != null ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        PendingSummary pending;
+        StockSummary stock;
+        PackedSummary packed;
+        List<LocationSummary> pendingByLoc = null;
+        List<LocationSummary> stockByLoc = null;
+        List<LocationSummary> packedByLoc = null;
+
+        if (staff.getRole().equals(AccountRoles.STAFF_WAREHOUSE_FOREIGN)) {
+            // Nhân viên kho - chỉ lấy theo location của mình
+            pending = getPendingByLocation(forcedLocationId);
+            stock   = getStockByLocation(forcedLocationId);
+            packed  = getPackedByLocation(startDt, endDt, forcedLocationId);
+
+            LocationSummary loc = buildLocationSummaryForStaff(forcedLocationId, stock, packed);
+
+            pendingByLoc = List.of(loc);
+            stockByLoc   = List.of(loc);
+            packedByLoc  = List.of(loc);
+        } else {
+            // Manager
+            if (routeId != null) {
+                pending = ordersRepository.getPendingSummary(routeId);
+                stock   = warehouseRepository.getStockSummary(routeId);
+                packed  = packingRepository.getPackedSummary(startDt, endDt, routeId);
+            } else {
+                pendingByLoc = ordersRepository.getPendingSummaryByLocation();
+                stockByLoc   = warehouseRepository.getStockSummaryByLocation();
+                packedByLoc  = packingRepository.getPackedSummaryByLocation(startDt, endDt);
+
+                pending = ordersRepository.getPendingSummary(null);
+                stock   = warehouseRepository.getStockSummary(null);
+                packed  = packingRepository.getPackedSummary(startDt, endDt, null);
+            }
+        }
+
+        return new InventoryDaily(pending, stock, packed, pendingByLoc, stockByLoc, packedByLoc);
+    }
+
+// ────────────────────────────────────────────────
+// Helper methods
+// ────────────────────────────────────────────────
+
+    private PendingSummary getPendingByLocation(Long locId) {
+        return ordersRepository.getPendingSummaryByLocationId(locId);
+        // Nếu chưa có method này → thêm vào OrdersRepository
+    }
+
+    private StockSummary getStockByLocation(Long locId) {
+        return warehouseRepository.getStockSummaryByLocationId(locId);
+        // Nếu chưa có → thêm vào WarehouseRepository
+    }
+
+    private PackedSummary getPackedByLocation(LocalDateTime s, LocalDateTime e, Long locId) {
+        return packingRepository.getPackedSummaryByLocationId(s, e, locId);
+        // Nếu chưa có → thêm vào PackingRepository
+    }
+
+    private LocationSummary buildLocationSummaryForStaff(Long locId, StockSummary stock, PackedSummary packed) {
+        LocationSummary ls = new LocationSummary();
+        ls.setLocationId(locId);
+        ls.setLocationName("Kho của bạn");
+
+        ls.setWarehouses(stock.getWarehouses());
+        ls.setWeight(stock.getWeight());
+        ls.setNetWeight(stock.getNetWeight());
+
+        // Nếu muốn thêm fields khác (ví dụ từ packed) thì bổ sung ở đây
+        return ls;
     }
 }

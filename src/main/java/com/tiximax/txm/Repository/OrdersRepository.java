@@ -5,6 +5,10 @@ import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.OrderType;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 
 import org.springframework.data.domain.Page;
@@ -689,35 +693,50 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     @EntityGraph(attributePaths = {"orderLinks"})
     Optional<Orders> findByOrderId(Long orderId);
 
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary(
+            COUNT(DISTINCT ol.purchase.id),
+            COUNT(ol.linkId),
+            COUNT(DISTINCT ol.orders.orderId)
+        )
+        FROM OrderLinks ol
+        LEFT JOIN ol.orders o
+        LEFT JOIN o.route r
+        WHERE ol.status = 'DA_MUA'
+          AND (:routeId IS NULL OR r.routeId = :routeId)
+        """)
+    PendingSummary getPendingSummary(@Param("routeId") Long routeId);
 
-//    SELECT
-//    o.route_id,
-//    o.staff_id,
-//    SUM(ol.final_price_vnd) AS total_goods
-//    FROM order_links ol
-//    JOIN orders o ON ol.order_id = o.order_id
-//    WHERE ol.status NOT IN ('DA_HUY', 'MUA_SAU')
-//    AND o.status NOT IN ('CHO_XAC_NHAN', 'DA_XAC_NHAN', 'CHO_THANH_TOAN', 'DA_HUY')
-//    AND o.created_at >= :start
-//    AND o.created_at < :end
-//    AND (:routeId IS NULL OR o.route_id = :routeId)
-//    GROUP BY
-//    o.route_id,
-//    o.staff_id
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary(
+            l.locationId,
+            l.name,
+            COUNT(DISTINCT ol.purchase.id),
+            COUNT(ol.linkId),
+            COUNT(DISTINCT ol.orders.orderId),
+            0.0,
+            0.0,
+            COALESCE(SUM(ol.quantity), 0)
+        )
+        FROM OrderLinks ol
+        JOIN ol.orders o
+        JOIN o.route r
+        JOIN r.warehouseLocations l
+        WHERE ol.status = 'DA_MUA'
+        GROUP BY l.locationId, l.name
+        """)
+    List<LocationSummary> getPendingSummaryByLocation();
 
-
-//    SELECT
-//    o.route_id,
-//    o.staff_id,
-//    SUM(ol.final_price_vnd) AS total_goods
-//    FROM order_links ol
-//    JOIN purchases p ON ol.purchase_id = p.purchase_id
-//    JOIN orders o ON p.order_id = o.order_id
-//    WHERE p.purchase_time >= :start
-//    AND p.purchase_time < :end
-//    AND (:routeId IS NULL OR o.route_id = :routeId)
-//    AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
-//    AND o.status NOT IN ('CHO_XAC_NHAN', 'DA_XAC_NHAN', 'CHO_THANH_TOAN', 'CHO_MUA', 'DAU_GIA_THANH_CONG', 'CHO_THANH_TOAN_DAU_GIA', 'CHO_NHAP_KHO_NN', 'DA_HUY')
-//    GROUP BY o.route_id, o.staff_id
+    @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary(
+        COUNT(DISTINCT ol.purchase.id),
+        COUNT(ol.linkId),
+        COUNT(DISTINCT ol.orders.orderId)
+    )
+    FROM OrderLinks ol
+    JOIN ol.warehouse w
+    WHERE ol.status = 'DA_MUA'
+      AND w.location.locationId = :locationId
+""")
+    PendingSummary getPendingSummaryByLocationId(@Param("locationId") Long locationId);
 }
-
