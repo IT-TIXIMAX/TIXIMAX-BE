@@ -130,7 +130,7 @@ Page<DraftDomestic> availableToLock(
 List<DraftDomestic> findDraftByShipmentCodes(
         @Param("shipmentCodes") Collection<String> shipmentCodes
 );
-
+        
 
 }
 

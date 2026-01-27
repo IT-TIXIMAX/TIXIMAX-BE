@@ -1,19 +1,16 @@
 package com.tiximax.txm.Repository;
 
 import com.tiximax.txm.Entity.Warehouse;
-import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseStatistic;
+import com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip;
 import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
 import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -631,4 +628,34 @@ WarehouseStatisticRow exportByCarrierWithDate(
         s.name
 """)
         List<CustomerInventoryRow> getCustomerInventoryDashboard();
+
+    @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip(
+        w.trackingCode,
+        w.netWeight,
+        w.weight,
+        w.height,
+        w.length,
+        w.width,
+        o.priceShip
+    )
+    FROM Warehouse w
+    JOIN w.orders o
+    WHERE w.trackingCode IN :trackingCodes
+    """)
+    List<WarehouseShip> findWarehouseShips(
+            @Param("trackingCodes") List<String> trackingCodes
+    );
+    @Query("""
+    SELECT w
+    FROM Warehouse w
+    JOIN FETCH w.orders o
+    JOIN FETCH o.route
+    WHERE w.trackingCode IN :trackingCodes
+    """)
+    List<Warehouse> findByTrackingCodeInFetchOrders(
+            @Param("trackingCodes") List<String> trackingCodes
+    );
+
+
 }

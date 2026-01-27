@@ -3,6 +3,7 @@ package com.tiximax.txm.Service;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.OrderStatus;
+import com.tiximax.txm.Enums.PaymentPurpose;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Enums.PaymentType;
 import com.tiximax.txm.Enums.ProcessLogAction;
@@ -231,6 +232,7 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
     payment.setStatus( PaymentStatus.CHO_THANH_TOAN_SHIP);
     payment.setActionAt(LocalDateTime.now());
     payment.setCustomer(commonCustomer);
+    payment.setPurpose(PaymentPurpose.THANH_TOAN_VAN_CHUYEN);
     payment.setStaff(currentStaff);
     payment.setIsMergedPayment(false);
     payment.setPartialShipments(new HashSet<>(createdPartials));
@@ -292,9 +294,11 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
         return partialShipmentRepository.findById(id);
     }
    public BigDecimal calculateTotalShippingFee(List<String> selectedTrackingCodes) {
-
+   
     List<Warehouse> warehouses =
-            warehousereRepository.findByTrackingCodeIn(selectedTrackingCodes);
+        warehousereRepository
+            .findByTrackingCodeInFetchOrders(selectedTrackingCodes);
+
 
     if (warehouses.isEmpty()) {
         throw new NotFoundException("Không tìm thấy kiện hàng");
@@ -309,9 +313,9 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
                             .equals(baseRoute.getRouteId())
             );
 
-    // if (!sameRoute) {
-    //     throw new BadRequestException("Các order thuộc tuyến khác nhau");
-    // }
+     if (!sameRoute) {
+         throw new BadRequestException("Các order thuộc tuyến khác nhau");
+     }
 
     BigDecimal basePriceShip = warehouses.get(0).getOrders().getPriceShip();
 
@@ -321,11 +325,11 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
                     w.getOrders().getPriceShip().compareTo(basePriceShip) == 0
             );
 
-    // if (!samePrice) {
-    //     throw new BadRequestException(
-    //             "Không thể gộp: các order có priceShip khác nhau"
-    //     );
-    // }
+     if (!samePrice) {
+         throw new BadRequestException(
+                 "Không thể gộp: các order có priceShip khác nhau"
+         );
+     }
 
     BigDecimal totalNetWeight = warehouses.stream()
             .map(w -> {
