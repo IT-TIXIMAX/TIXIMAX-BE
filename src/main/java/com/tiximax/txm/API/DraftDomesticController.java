@@ -23,6 +23,7 @@ import com.tiximax.txm.Enums.DraftDomesticStatus;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftShipmentRequest;
+import com.tiximax.txm.Model.DTOResponse.Domestic.ShipCodePayment;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.AvailableAddDarfDomestic;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse;
 import com.tiximax.txm.Service.DraftDomesticService;
@@ -80,6 +81,13 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.updateDraftInfo(id, request)
         );
         }
+        @GetMapping("/ship-code/{shipCode}/payment")
+        public ResponseEntity<ShipCodePayment> getShipCodePayment(
+            @PathVariable String shipCode) {
+
+        var response = draftDomesticService.getShipCodePayment(shipCode);
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/{id}/shipments/add")
     public ResponseEntity<?> addShipments(

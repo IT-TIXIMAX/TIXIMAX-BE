@@ -55,7 +55,7 @@ public class Orders {
     private Boolean checkRequired;
     
     @Column(nullable = true)
-    private List<String> imageCheck ;
+    private List<String> imageCheck;
     
     @Column(nullable = true)
     private LocalDateTime pinnedAt;

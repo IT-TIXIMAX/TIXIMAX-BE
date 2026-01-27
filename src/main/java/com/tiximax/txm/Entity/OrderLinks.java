@@ -5,10 +5,8 @@ import com.tiximax.txm.Enums.OrderLinkStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.math.BigDecimal;
-import java.util.Set;
+
 
 @Entity
 @Getter

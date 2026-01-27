@@ -1,6 +1,7 @@
 package com.tiximax.txm.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.tiximax.txm.Enums.PaymentPurpose;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Enums.PaymentType;
 import jakarta.persistence.*;
@@ -45,8 +46,10 @@ public class Payment {
 
     private Integer depositPercent;
 
-    @Column(nullable = false)
     private LocalDateTime actionAt;
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private PaymentPurpose purpose;
 
     @Column(nullable = false)
     private Boolean isMergedPayment;
