@@ -4,6 +4,9 @@ import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseStatistic;
 import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
 import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
@@ -422,20 +425,20 @@ Double sumWeightByTrackingCodes(
                     ")")
     List<Object[]> sumUnpackedStockWeightByRoute(@Param("routeId") Long routeId);
 
-    @Query(nativeQuery = true,
-            value = "SELECT " +
-                    "COALESCE(SUM(w.weight), 0), " +
-                    "COALESCE(SUM(w.net_weight), 0) " +
-                    "FROM warehouse w " +
-                    "JOIN orders o ON w.order_id = o.order_id " +
-                    "WHERE o.route_id = :routeId " +
-                    "AND w.packing_id IS NOT NULL " +
-                    "AND EXISTS (" +
-                    "  SELECT 1 FROM order_links ol " +
-                    "  WHERE ol.warehouse_id = w.warehouse_id " +
-                    "  AND ol.status = 'DA_DONG_GOI'" +
-                    ")")
-    List<Object[]> sumPackedStockWeightByRoute(@Param("routeId") Long routeId);
+//    @Query(nativeQuery = true,
+//            value = "SELECT " +
+//                    "COALESCE(SUM(w.weight), 0), " +
+//                    "COALESCE(SUM(w.net_weight), 0) " +
+//                    "FROM warehouse w " +
+//                    "JOIN orders o ON w.order_id = o.order_id " +
+//                    "WHERE o.route_id = :routeId " +
+//                    "AND w.packing_id IS NOT NULL " +
+//                    "AND EXISTS (" +
+//                    "  SELECT 1 FROM order_links ol " +
+//                    "  WHERE ol.warehouse_id = w.warehouse_id " +
+//                    "  AND ol.status = 'DA_DONG_GOI'" +
+//                    ")")
+//    List<Object[]> sumPackedStockWeightByRoute(@Param("routeId") Long routeId);
 
         @Query("""
         SELECT
@@ -523,7 +526,7 @@ WarehouseStatisticRow exportByCarrierWithDate(
                 @Param("trackingCodes") List<String> trackingCodes
         );
 
-         @Query("""
+        @Query("""
         select count(w)
         from Warehouse w
             join w.orders o
@@ -538,6 +541,53 @@ WarehouseStatisticRow exportByCarrierWithDate(
             @Param("customerCode") String customerCode,
             @Param("statuses") List<WarehouseStatus> statuses
     );
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary(
+            COUNT(w.warehouseId),
+            COALESCE(SUM(w.weight), 0.0),
+            COALESCE(SUM(w.netWeight), 0.0)
+        )
+        FROM Warehouse w
+        LEFT JOIN w.orders o
+        LEFT JOIN o.route r
+        WHERE w.status = 'DA_NHAP_KHO_NN'
+          AND w.packing IS NULL
+          AND (:routeId IS NULL OR r.routeId = :routeId)
+    """)
+    StockSummary getStockSummary(@Param("routeId") Long routeId);
+
+    @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary(
+        l.locationId,
+        l.name,
+        COUNT(DISTINCT w.warehouseId),
+        COUNT(DISTINCT w.orders.orderId),
+        COALESCE(SUM(w.weight), 0.0),
+        COALESCE(SUM(w.netWeight), 0.0)
+    )
+    FROM Warehouse w
+    JOIN w.location l
+    LEFT JOIN w.orders o
+    LEFT JOIN o.route r
+    WHERE w.status = 'DA_NHAP_KHO_NN'
+      AND w.packing IS NULL
+    GROUP BY l.locationId, l.name
+""")
+    List<LocationSummary> getStockSummaryByLocation();
+
+    @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary(
+        COUNT(w.warehouseId),
+        COALESCE(SUM(w.weight), 0.0),
+        COALESCE(SUM(w.netWeight), 0.0)
+    )
+    FROM Warehouse w
+    WHERE w.status = 'DA_NHAP_KHO_NN'
+      AND w.packing IS NULL
+      AND w.location.locationId = :locationId
+""")
+    StockSummary getStockSummaryByLocationId(@Param("locationId") Long locationId);
 
     @Query("""
     select

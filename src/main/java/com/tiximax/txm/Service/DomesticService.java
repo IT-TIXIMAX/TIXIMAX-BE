@@ -587,9 +587,11 @@ public DomesticDelivery scanToShip(
     private Staff getCurrentStaffWithLocation() {
     Staff staff = (Staff) accountUtils.getAccountCurrent();
     if (staff == null || staff.getWarehouseLocation() == null) {
-        throw new BadRequestException(
-            "Nhân viên hiện tại chưa được gán địa điểm kho!"
-        );
+        if (!staff.getRole().equals(AccountRoles.STAFF_SALE) && !staff.getRole().equals(AccountRoles.LEAD_SALE)){
+            throw new BadRequestException(
+                    "Nhân viên hiện tại chưa được gán địa điểm kho!"
+            );
+        }
     }
     return staff;
 }
