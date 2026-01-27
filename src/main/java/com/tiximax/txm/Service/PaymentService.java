@@ -698,13 +698,15 @@ public class PaymentService {
     if (payment.getCollectedAmount().compareTo(req.getAmount()) != 0)
         return;
     
+    autoPaymentService.create(req.getAmount(), txmCode , payment.getPurpose());
+
     if(payment.getPurpose() == PaymentPurpose.THANH_TOAN_DON_HANG){
         confirmedPayment(txmCode);
     } else {
         confirmedPaymentShipment(txmCode);
     }
 
-    autoPaymentService.create(req.getAmount(), txmCode , payment.getPurpose());
+    
     } catch (JsonProcessingException e) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
