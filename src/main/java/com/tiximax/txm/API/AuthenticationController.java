@@ -17,6 +17,7 @@ import com.tiximax.txm.Model.DTOResponse.Customer.CustomerResponseDTO;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
+import com.tiximax.txm.Model.DTOResponse.Staff.StaffInfo;
 import com.tiximax.txm.Service.*;
 import com.tiximax.txm.Utils.AccountUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -195,6 +196,17 @@ public class AuthenticationController {
         return ResponseEntity.ok(customers);
     }
 
+//    @GetMapping("/search-staff/{page}/{size}")
+//    public ResponseEntity<Page<StaffInfo>> searchStaff(
+//                        @PathVariable int page,
+//                        @PathVariable int size,
+//                        @RequestParam(required = false) String keyword) {
+//        Sort sort = Sort.by("createdAt").descending();
+//        Pageable pageable = PageRequest.of(page, size, sort);
+//        Page<StaffInfo> result = authenticationService.searchStaff(keyword, pageable);
+//        return ResponseEntity.ok(result);
+//    }
+
     @GetMapping("/enum-account-role")
     public ResponseEntity<List<String>> getAccountrole() {
         List<String> accountRole = Arrays.stream(AccountRoles.values())
@@ -203,11 +215,14 @@ public class AuthenticationController {
         return ResponseEntity.ok(accountRole);
     }
 
-    @GetMapping("/staff/{page}/{size}")
-    public ResponseEntity<Page<Staff>> getAllStaff(@PathVariable int page, @PathVariable int size) {
+    @GetMapping("/{role}/{page}/{size}")
+    public ResponseEntity<Page<StaffInfo>> getStaffInfo(@RequestParam(required = false) String keyword,
+                                                        @RequestParam(required = false) AccountRoles role,
+                                                        @PathVariable int page,
+                                                        @PathVariable int size) {
         Sort sort = Sort.by("createdAt").descending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Staff> staffPage = authenticationService.getAllStaff(pageable);
+        Page<StaffInfo> staffPage = authenticationService.getStaffInfo(keyword, role, pageable);
         return ResponseEntity.ok(staffPage);
     }
 

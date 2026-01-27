@@ -948,37 +948,44 @@ public class DashBoardService {
         PendingSummary pending;
         StockSummary stock;
         PackedSummary packed;
+        PackedSummary awaitFlight;
         List<LocationSummary> pendingByLoc = null;
         List<LocationSummary> stockByLoc = null;
         List<LocationSummary> packedByLoc = null;
+        List<LocationSummary> awaitFlightByLoc = null;
 
         if (staff.getRole().equals(AccountRoles.STAFF_WAREHOUSE_FOREIGN)) {
             pending = getPendingByLocation(forcedLocationId);
             stock   = getStockByLocation(forcedLocationId);
             packed  = getPackedByLocation(startDt, endDt, forcedLocationId);
+            awaitFlight = getAwaitingFlightPackedByLocation(startDt, endDt, forcedLocationId);
 
             LocationSummary loc = buildLocationSummaryForStaff(forcedLocationId, stock, packed);
 
             pendingByLoc = List.of(loc);
             stockByLoc   = List.of(loc);
             packedByLoc  = List.of(loc);
+            awaitFlightByLoc = List.of(loc);
         } else {
             if (routeId != null) {
                 pending = ordersRepository.getPendingSummary(routeId);
                 stock   = warehouseRepository.getStockSummary(routeId);
                 packed  = packingRepository.getPackedSummary(startDt, endDt, routeId);
+                awaitFlight = packingRepository.getAwaitFlightSummary(startDt, endDt, routeId);
             } else {
                 pendingByLoc = ordersRepository.getPendingSummaryByLocation();
                 stockByLoc   = warehouseRepository.getStockSummaryByLocation();
                 packedByLoc  = packingRepository.getPackedSummaryByLocation(startDt, endDt);
+                awaitFlightByLoc = packingRepository.getAwaitingFlightPackedSummaryByLocation(startDt, endDt);
 
                 pending = ordersRepository.getPendingSummary(null);
                 stock   = warehouseRepository.getStockSummary(null);
                 packed  = packingRepository.getPackedSummary(startDt, endDt, null);
+                awaitFlight = packingRepository.getAwaitFlightSummary(startDt, endDt, null);
             }
         }
 
-        return new InventoryDaily(pending, stock, packed, pendingByLoc, stockByLoc, packedByLoc);
+        return new InventoryDaily(pending, stock, packed, awaitFlight, pendingByLoc, stockByLoc, packedByLoc, awaitFlightByLoc);
     }
 
     private PendingSummary getPendingByLocation(Long locId) {
@@ -991,6 +998,10 @@ public class DashBoardService {
 
     private PackedSummary getPackedByLocation(LocalDateTime s, LocalDateTime e, Long locId) {
         return packingRepository.getPackedSummaryByLocationId(s, e, locId);
+    }
+
+    private PackedSummary getAwaitingFlightPackedByLocation(LocalDateTime s, LocalDateTime e, Long locId) {
+        return packingRepository.getAwaitingFlightSummaryByLocation(s, e, locId);
     }
 
     private LocationSummary buildLocationSummaryForStaff(Long locId, StockSummary stock, PackedSummary packed) {
