@@ -309,9 +309,9 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
                             .equals(baseRoute.getRouteId())
             );
 
-    if (!sameRoute) {
-        throw new BadRequestException("Các order thuộc tuyến khác nhau");
-    }
+    // if (!sameRoute) {
+    //     throw new BadRequestException("Các order thuộc tuyến khác nhau");
+    // }
 
     BigDecimal basePriceShip = warehouses.get(0).getOrders().getPriceShip();
 
@@ -321,11 +321,11 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
                     w.getOrders().getPriceShip().compareTo(basePriceShip) == 0
             );
 
-    if (!samePrice) {
-        throw new BadRequestException(
-                "Không thể gộp: các order có priceShip khác nhau"
-        );
-    }
+    // if (!samePrice) {
+    //     throw new BadRequestException(
+    //             "Không thể gộp: các order có priceShip khác nhau"
+    //     );
+    // }
 
     BigDecimal totalNetWeight = warehouses.stream()
             .map(w -> {

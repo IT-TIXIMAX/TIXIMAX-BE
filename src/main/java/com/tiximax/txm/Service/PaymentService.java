@@ -1,5 +1,6 @@
 package com.tiximax.txm.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
@@ -10,29 +11,30 @@ import com.tiximax.txm.Model.DTOResponse.Payment.PaymentAuctionResponse;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
+import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 
 @Service
-//@Lazy
-
 public class PaymentService {
 
     @Autowired
     private PaymentRepository paymentRepository;
-
+    @Autowired
+    private AutoPaymentService autoPaymentService;
     @Autowired
     private PartialShipmentRepository partialShipmentRepository;
     @Autowired
@@ -77,6 +79,8 @@ public class PaymentService {
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+    @Value("${sms.secret}")
+    private String secret;
 
     public List<Payment> getPaymentsByOrderCode(String orderCode) {
         List<Payment> payments = paymentRepository.findByOrdersOrderCode(orderCode);
@@ -97,7 +101,7 @@ public class PaymentService {
     public String generatePaymentCode() {
         String paymentCode;
         do {
-            paymentCode = "GD" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();;
+            paymentCode = "TXMGD" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         } while (paymentRepository.existsByPaymentCode(paymentCode));
         return paymentCode;
     }
@@ -265,6 +269,7 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.CHO_THANH_TOAN_SHIP);
         payment.setActionAt(LocalDateTime.now());
         payment.setCustomer(commonCustomer);
+        payment.setPurpose(PaymentPurpose.THANH_TOAN_VAN_CHUYEN);
         payment.setStaff((Staff) accountUtils.getAccountCurrent());
         payment.setIsMergedPayment(true);
         payment.setRelatedOrders(new HashSet<>(ordersList));
@@ -495,6 +500,7 @@ public class PaymentService {
         payment.setDepositPercent(depositPercent);
         payment.setActionAt(LocalDateTime.now());
         payment.setCustomer(commonCustomer);
+        payment.setPurpose(PaymentPurpose.THANH_TOAN_DON_HANG);
         payment.setStaff((Staff) accountUtils.getAccountCurrent());
         payment.setIsMergedPayment(true);
         payment.setRelatedOrders(new HashSet<>(ordersList));
@@ -582,6 +588,7 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.CHO_THANH_TOAN);
         payment.setDepositPercent(depositPercent);
         payment.setActionAt(LocalDateTime.now());
+        payment.setPurpose(PaymentPurpose.THANH_TOAN_DON_HANG);
         payment.setCustomer(commonCustomer);
         payment.setStaff((Staff) accountUtils.getAccountCurrent());
         payment.setIsMergedPayment(true);
@@ -642,7 +649,7 @@ public class PaymentService {
     public String generateMergedPaymentCode() {
         String paymentCode;
         do {
-            paymentCode = "MG" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();;
+            paymentCode = "TXMGD" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         } while (paymentRepository.existsByPaymentCode(paymentCode));
         return paymentCode;
     }
@@ -658,71 +665,81 @@ public class PaymentService {
         return objectMapper.readValue(jsonResponse, SmsRequest.class);  // Parse nhanh
     }
 
-    @Async("taskExecutor") // Bắt buộc phải ở bean khác, không được gọi trực tiếp trong cùng class
-    public CompletableFuture<Void> processAutoConfirmsAsync(List<SmsRequest.SmsItem> data) {
-        if (data == null || data.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
+   public void verifyRaw(String rawBody, String signature) {
+    try {
+        String expected = hmac(rawBody);
+
+        if (!expected.equals(signature)) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid signature"
+            );
         }
 
-        for (SmsRequest.SmsItem item : data) {
-            try {
-                String content = item.getContent().trim();
-                if (content.isBlank()) continue;
+        SmsRequest req =
+            new ObjectMapper().readValue(rawBody, SmsRequest.class);
 
-                // Tìm payment theo mã trong nội dung tin nhắn
-                Optional<Payment> optPayment = paymentRepository.findByPaymentCode(content);
-                if (optPayment.isEmpty()) {
-                    continue;
-                }
-
-                Payment payment = optPayment.get();
-
-                if (payment.getStatus() == PaymentStatus.DA_THANH_TOAN ||
-                        payment.getStatus() == PaymentStatus.DA_THANH_TOAN_SHIP) {
-                    continue;
-                }
-
-                BigDecimal expected = payment.getCollectedAmount().setScale(0, RoundingMode.HALF_UP);
-                BigDecimal received = BigDecimal.valueOf(item.getAmount()).setScale(0, RoundingMode.HALF_UP);
-
-                if (expected.compareTo(received) != 0) {
-                    continue;
-                }
-
-                // Xác nhận thanh toán
-                if (payment.getStatus() == PaymentStatus.CHO_THANH_TOAN) {
-                    confirmedPayment(content);
-                }
-                else if (payment.getStatus() == PaymentStatus.CHO_THANH_TOAN_SHIP) {
-                    confirmedPaymentShipment(content);
-                }
-
-            } catch (Exception e) {
-
-            }
+        long now = System.currentTimeMillis();
+        if (Math.abs(now - req.getTimestamp()) > 300_000) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Expired request"
+            );
         }
 
-        return CompletableFuture.completedFuture(null);
+    // Check Lưu vào DB sử dụng APIs
+
+    String txmCode = extractTXMGD(req.getContent());
+
+    if (txmCode == null) {
+    
+        return;
     }
 
-    @Scheduled(fixedRate = 600000)
-    @Transactional(readOnly = true)
-    public void scheduledAutoSmsProcess() {
-        try {
-            SmsRequest smsData = getSmsFromExternalApi();
-
-            if (smsData == null || !smsData.isSuccess() || smsData.getData() == null || smsData.getData().isEmpty()) {
-                return;
-            }
-
-            processAutoConfirmsAsync(smsData.getData())
-                    .exceptionally(throwable -> {
-                        return null;
-                    });
-
-        } catch (Exception e) {
-        }
+    Payment payment = paymentRepository.findByPaymentCode(txmCode).get();
+    if (payment == null) {
+        return;
     }
+
+    if(payment.getPurpose() == PaymentPurpose.THANH_TOAN_DON_HANG){
+        confirmedPayment(txmCode);
+    } else {
+        confirmedPaymentShipment(txmCode);
+    }
+
+    autoPaymentService.create(req.getAmount(), txmCode , PaymentPurpose.THANH_TOAN_DON_HANG);
+    } catch (JsonProcessingException e) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Invalid JSON payload"
+        );
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
+}
+
+private static final Pattern TXMGD_PATTERN =
+        Pattern.compile("\\bTXMGD[0-9A-F]{8}\\b");
+
+
+
+public static String extractTXMGD(String content) {
+    if (content == null || content.isBlank()) return null;
+
+    Matcher matcher = TXMGD_PATTERN.matcher(content.toUpperCase());
+    return matcher.find() ? matcher.group() : null;
+}
+
+
+
+    private String hmac(String data) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(secret.getBytes(), "HmacSHA256"));
+        return HexFormat.of().formatHex(mac.doFinal(data.getBytes()));
+    }
+
+
+   
 
     public Payment refundFromBalance(Long customerId, BigDecimal amount, String imageUrl) {
         Customer customer = customerRepository.getCustomerById(customerId);
