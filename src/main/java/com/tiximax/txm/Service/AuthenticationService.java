@@ -17,9 +17,11 @@ import com.tiximax.txm.Model.DTOResponse.Customer.CustomerReponse;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
+import com.tiximax.txm.Model.DTOResponse.Staff.StaffInfo;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
 import jakarta.persistence.EntityManager;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
@@ -371,9 +373,10 @@ public class AuthenticationService implements UserDetailsService {
         return customer;
     }
 
-    public Page<Staff> getAllStaff(Pageable pageable) {
-        return staffRepository.findAll(pageable);
+    public Page<StaffInfo> getStaffInfo(String keyword, AccountRoles role, Pageable pageable) {
+        return staffRepository.findStaffByRole(keyword, role, pageable);
     }
+
 
     public Page<Customer> getAllCustomers(Pageable pageable) {
         return customerRepository.findAll(pageable);

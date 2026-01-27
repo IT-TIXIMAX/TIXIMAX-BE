@@ -8,13 +8,7 @@ import com.tiximax.txm.Model.DTORequest.Order.*;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerBalanceAndOrders;
 import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinkForegin;
 import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinks;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderByShipmentResponse;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderDetail;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderPayment;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderWithLinks;
-import com.tiximax.txm.Model.DTOResponse.Order.OrdersPendingShipment;
-import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
-import com.tiximax.txm.Model.DTOResponse.Order.ShipmentGroup;
+import com.tiximax.txm.Model.DTOResponse.Order.*;
 import com.tiximax.txm.Model.DTOResponse.OrderLink.InfoShipmentCode;
 import com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkWithStaff;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.WareHouseOrderLink;
@@ -131,6 +125,14 @@ public class OrdersController {
         Sort sort = Sort.by("createdAt").descending();
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Orders> ordersPage = ordersService.getOrdersPaging(pageable, status);
+        return ResponseEntity.ok(ordersPage);
+    }
+
+    @GetMapping("/info/{page}/{size}/{status}/paging")
+    public ResponseEntity<Page<OrderInfo>> getOrderInfoPaging(@PathVariable int page, int size, @PathVariable(required = true) OrderStatus status) {
+        Sort sort = Sort.by("createdAt").descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<OrderInfo> ordersPage = ordersService.getOrderInfoPaging(pageable, status);
         return ResponseEntity.ok(ordersPage);
     }
 

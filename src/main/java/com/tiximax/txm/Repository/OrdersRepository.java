@@ -9,6 +9,7 @@ import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 
 import org.springframework.data.domain.Page;
@@ -713,11 +714,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             l.locationId,
             l.name,
             COUNT(DISTINCT ol.purchase.id),
-            COUNT(ol.linkId),
-            COUNT(DISTINCT ol.orders.orderId),
             0.0,
-            0.0,
-            COALESCE(SUM(ol.quantity), 0)
+            0.0
         )
         FROM OrderLinks ol
         JOIN ol.orders o
@@ -740,4 +738,64 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
       AND w.location.locationId = :locationId
 """)
     PendingSummary getPendingSummaryByLocationId(@Param("locationId") Long locationId);
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
+        JOIN o.customer c
+        JOIN o.staff s
+        WHERE o.status = :status
+        """)
+    Page<OrderInfo> findOrderInfoByStatus(@Param("status") OrderStatus status, Pageable pageable);
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
+        JOIN o.customer c
+        JOIN o.staff s
+        WHERE o.staff.accountId = :staffId
+          AND o.status = :status
+        """)
+    Page<OrderInfo> findOrderInfoByStaffIdAndStatus(
+            @Param("staffId") Long staffId,
+            @Param("status") OrderStatus status,
+            Pageable pageable);
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
+        JOIN o.customer c
+        WHERE o.route.routeId IN :routeId
+          AND o.status = :status
+        """)
+    Page<OrderInfo> findOrderInfoByRouteIdAndStatus(Long routeId, OrderStatus status, Pageable pageable);
 }

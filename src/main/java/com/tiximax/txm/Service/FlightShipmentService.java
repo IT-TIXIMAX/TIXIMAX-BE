@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.FlightShipment;
 import com.tiximax.txm.Entity.Staff;
+import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.FlightShipmentRequest;
@@ -62,7 +63,6 @@ public class FlightShipmentService {
     public FlightShipmentResponse updateFlightShipment(Long id, FlightShipmentRequest request) {
         FlightShipment entity = flightShipmentRepository.findById(id)
                 .orElseThrow(() -> new BadRequestException("Không tìm thấy chuyến bay"));
-
         if (request.getFlightCode() != null){entity.setFlightCode(request.getFlightCode());}
         if (request.getAwbFilePath() != null){entity.setAwbFilePath(request.getAwbFilePath());}
         if (request.getExportLicensePath() != null){entity.setExportLicensePath(request.getExportLicensePath());}
@@ -146,19 +146,13 @@ public class FlightShipmentService {
 
         response.setGrossProfit(entity.getGrossProfit() != null ? entity.getGrossProfit() : BigDecimal.ZERO);
 
-        // Các field thời gian
         response.setArrivalDate(entity.getArrivalDate());
         response.setCreatedAt(entity.getCreatedAt());
-//        response.setUpdatedAt(entity.getUpdatedAt());
-//        response.setAirFreightPaid(entity.getAirFreightPaid());
         response.setAirFreightPaidDate(entity.getAirFreightPaidDate());
-//        response.setCustomsPaid(entity.getCustomsPaid());
         response.setCustomsPaidDate(entity.getCustomsPaidDate());
         if (entity.getStaff() != null) {
-//            response.setStaffId(entity.getStaff().getStaffId());
-            response.setStaffName(entity.getStaff().getName());  // giả sử Staff có field name
+            response.setStaffName(entity.getStaff().getName());
         }
-
         return response;
     }
 
