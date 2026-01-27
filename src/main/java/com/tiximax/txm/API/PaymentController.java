@@ -1,7 +1,7 @@
 package com.tiximax.txm.API;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tiximax.txm.Entity.Payment;
-import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Model.DTORequest.Payment.SmsRequest;
 import com.tiximax.txm.Model.DTOResponse.Payment.PaymentAuctionResponse;
 import com.tiximax.txm.Service.PaymentService;
@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -65,6 +66,7 @@ public class PaymentController {
         Payment confirmedPayment = paymentService.confirmedPayment(paymentCode);
         return ResponseEntity.ok(confirmedPayment);
     }
+
     @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/confirm-shipping/{paymentCode}")
     public ResponseEntity<Payment> confirmPaymentShipping(@PathVariable String paymentCode) {
@@ -119,5 +121,25 @@ public class PaymentController {
                     .body(errorResponse);
         }
     }
+   @PostMapping("/receive")
+    public ResponseEntity<?> receiveSms(
+            @RequestHeader("X-Signature") String signature,
+            @RequestBody String rawBody
+    ) throws Exception {
+
+        paymentService.verifyRaw(rawBody, signature);
+
+        SmsRequest request =
+            new ObjectMapper().readValue(rawBody, SmsRequest.class);
+
+        System.out.println("📩 SMS RECEIVED");
+        System.out.println("From: " + request.getSender());
+        System.out.println("Amount: " + request.getAmount());
+        System.out.println("Content: " + request.getContent());
+
+        return ResponseEntity.ok("OK");
+    }
+
+
 
 }

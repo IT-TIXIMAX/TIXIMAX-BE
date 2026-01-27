@@ -312,23 +312,55 @@ public Orders addConsignment(
 
     public Page<Orders> getOrdersPaging(Pageable pageable, OrderStatus status) {
         Account currentAccount = accountUtils.getAccountCurrent();
-        if (currentAccount.getRole().equals(AccountRoles.ADMIN) || currentAccount.getRole().equals(AccountRoles.MANAGER)) {
-            return ordersRepository.findByStatus(status, pageable);
+//        if (currentAccount.getRole().equals(AccountRoles.ADMIN) || currentAccount.getRole().equals(AccountRoles.MANAGER)) {
+//            return ordersRepository.findByStatus(status, pageable);
+//        } else if (currentAccount.getRole().equals(AccountRoles.STAFF_SALE)) {
+//            return ordersRepository.findByStaffAccountIdAndStatus(currentAccount.getAccountId(), status, pageable);
+//        } else if (currentAccount.getRole().equals(AccountRoles.LEAD_SALE)) {
+//            List<AccountRoute> accountRoutes = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
+//            Set<Long> routeIds = accountRoutes.stream()
+//                    .map(AccountRoute::getRoute)
+//                    .map(Route::getRouteId)
+//                    .collect(Collectors.toSet());
+//            if (routeIds.isEmpty()) {
+//                return Page.empty(pageable);
+//            }
+//            return ordersRepository.findByRouteRouteIdInAndStatus(routeIds, status, pageable);
+//        } else {
+//            throw new AccessDeniedException("Vai trò không hợp lệ!");
+//        }
+        if (currentAccount.getRole().equals(AccountRoles.ADMIN)
+                || currentAccount.getRole().equals(AccountRoles.MANAGER)) {
+
+            return status == null
+                    ? ordersRepository.findAll(pageable)
+                    : ordersRepository.findByStatus(status, pageable);
+
         } else if (currentAccount.getRole().equals(AccountRoles.STAFF_SALE)) {
-            return ordersRepository.findByStaffAccountIdAndStatus(currentAccount.getAccountId(), status, pageable);
+
+            return status == null
+                    ? ordersRepository.findByStaffAccountId(currentAccount.getAccountId(), pageable)
+                    : ordersRepository.findByStaffAccountIdAndStatus(
+                    currentAccount.getAccountId(), status, pageable
+            );
+
         } else if (currentAccount.getRole().equals(AccountRoles.LEAD_SALE)) {
-            List<AccountRoute> accountRoutes = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
-            Set<Long> routeIds = accountRoutes.stream()
-                    .map(AccountRoute::getRoute)
-                    .map(Route::getRouteId)
+
+            Set<Long> routeIds = accountRouteRepository
+                    .findByAccountAccountId(currentAccount.getAccountId())
+                    .stream()
+                    .map(ar -> ar.getRoute().getRouteId())
                     .collect(Collectors.toSet());
+
             if (routeIds.isEmpty()) {
                 return Page.empty(pageable);
             }
-            return ordersRepository.findByRouteRouteIdInAndStatus(routeIds, status, pageable);
-        } else {
-            throw new AccessDeniedException("Vai trò không hợp lệ!");
+
+            return status == null
+                    ? ordersRepository.findByRouteRouteIdIn(routeIds, pageable)
+                    : ordersRepository.findByRouteRouteIdInAndStatus(routeIds, status, pageable);
         }
+        return null;
     }
 
     public List<Orders> getOrdersForCurrentStaff() {

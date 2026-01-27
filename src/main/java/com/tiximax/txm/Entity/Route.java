@@ -55,4 +55,13 @@ public class Route {
     @JsonIgnore
     private Set<RouteExchangeRate> routeExchangeRates = new HashSet<>();
 
+    @ManyToMany
+    @JoinTable(
+            name = "route_warehouse_locations",
+            joinColumns = @JoinColumn(name = "route_id"),
+            inverseJoinColumns = @JoinColumn(name = "location_id")
+    )
+    @JsonIgnore
+    private Set<WarehouseLocation> warehouseLocations = new HashSet<>();
+
 }
