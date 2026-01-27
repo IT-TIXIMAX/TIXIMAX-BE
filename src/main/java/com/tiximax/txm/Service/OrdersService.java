@@ -10,13 +10,7 @@ import com.tiximax.txm.Model.DTORequest.OrderLink.OrderLinkRequest;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerBalanceAndOrders;
 import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinkForegin;
 import com.tiximax.txm.Model.DTOResponse.Domestic.ShipLinks;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderByShipmentResponse;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderDetail;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderPayment;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderWithLinks;
-import com.tiximax.txm.Model.DTOResponse.Order.OrdersPendingShipment;
-import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
-import com.tiximax.txm.Model.DTOResponse.Order.ShipmentGroup;
+import com.tiximax.txm.Model.DTOResponse.Order.*;
 import com.tiximax.txm.Model.DTOResponse.OrderLink.InfoShipmentCode;
 import com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending;
 import com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkWithStaff;
@@ -2019,6 +2013,37 @@ public void updateOrderStatusIfCompleted(Long orderId) {
         Orders order = ordersRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
         return new OrderWithLinks(order);
+    }
+
+    public Page<OrderInfo> getOrderInfoPaging(Pageable pageable, OrderStatus status) {
+        Account current = accountUtils.getAccountCurrent();
+        AccountRoles role = current.getRole();
+        return switch (role) {
+            case ADMIN, MANAGER ->
+                    ordersRepository.findOrderInfoByStatus(status, pageable);
+            case STAFF_SALE ->
+                    ordersRepository.findOrderInfoByStaffIdAndStatus(
+                            current.getAccountId(), status, pageable);
+            case LEAD_SALE -> {
+                List<AccountRoute> accountRoutes = accountRouteRepository
+                        .findByAccountAccountId(current.getAccountId());
+
+                if (accountRoutes.isEmpty()) {
+                    yield Page.empty(pageable);
+                }
+                if (accountRoutes.size() > 1) {
+                    throw new IllegalStateException(
+                            "Leader chỉ được quản lý 1 tuyến. Phát hiện " + accountRoutes.size() + " tuyến!");
+                }
+
+                Long routeId = accountRoutes.get(0).getRoute().getRouteId();
+
+                yield ordersRepository.findOrderInfoByRouteIdAndStatus(
+                        routeId, status, pageable);
+            }
+
+            default -> throw new AccessDeniedException("Vai trò không hợp lệ: " + role);
+        };
     }
 
 }
