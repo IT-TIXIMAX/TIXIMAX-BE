@@ -347,28 +347,39 @@ public List<DomesticResponse> transferByCustomerCode(
             .collect(Collectors.toList());
 }
   
-    public Boolean scanImportToDomestic(String shipmentCode) {
-        List<OrderLinks> orderLinks = orderLinksRepository.findByShipmentCode(shipmentCode);
+   @Transactional
+public boolean scanImportToDomestic(String shipmentCode) {
 
-        if (orderLinks.isEmpty()) {
-            throw new NotFoundException("Không tìm thấy đơn hàng trong danh sách cung cấp!");
-        }
-        if(orderLinks.get(0).getStatus() != OrderLinkStatus.CHO_NHAP_KHO_VN) {
-            throw new BadRequestException("Đơn hàng đã được nhập kho Việt Nam!");
-        }
-        boolean updated = false;
+    Warehouse warehouse = warehouseRepository
+            .findByTrackingCode(shipmentCode)
+            .orElseThrow(() ->
+                    new NotFoundException("Không tìm thấy kiện hàng!")
+            );
 
-        for (OrderLinks orderLink : orderLinks) {
-            if (orderLink.getStatus() == OrderLinkStatus.CHO_NHAP_KHO_VN) {
-                orderLink.setStatus(OrderLinkStatus.DA_NHAP_KHO_VN);
-                updated = true;
-            }
-        }
-        if (updated) {
-            orderLinksRepository.saveAll(orderLinks);
-            updateOrderStatusIfAllLinksReady(orderLinks);
-        }
-        return true;
+    List<OrderLinks> orderLinks =
+            orderLinksRepository.findByShipmentCode(shipmentCode);
+
+    if (orderLinks.isEmpty()) {
+        throw new NotFoundException("Không tìm thấy đơn hàng trong kiện!");
+    }
+
+    boolean hasInvalidStatus = orderLinks.stream()
+            .anyMatch(ol -> ol.getStatus() != OrderLinkStatus.CHO_NHAP_KHO_VN);
+
+    if (hasInvalidStatus) {
+        throw new BadRequestException("Có đơn hàng đã được nhập kho Việt Nam!");
+    }
+
+    warehouse.setStatus(WarehouseStatus.DA_NHAP_KHO_VN);
+
+    orderLinks.forEach(ol ->
+            ol.setStatus(OrderLinkStatus.DA_NHAP_KHO_VN)
+    );
+
+    orderLinksRepository.saveAll(orderLinks);
+
+    updateOrderStatusIfAllLinksReady(orderLinks);
+    return true ;
 }
 
     public CheckInDomestic getCheckInDomestic(String shipmentCode) {

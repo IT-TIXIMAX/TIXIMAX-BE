@@ -1,6 +1,5 @@
 package com.tiximax.txm.API;
 
-import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.PartialShipment;
 import com.tiximax.txm.Entity.Payment;
 import com.tiximax.txm.Enums.OrderStatus;
@@ -66,4 +65,28 @@ public ResponseEntity<Page<PartialPayment>> getPartialPayments(
 
     return ResponseEntity.ok(result);
 }
+
+@PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
+@PostMapping("/by-ship-code/{shipCode}/{isUseBalance}/{bankId}/{priceShipDos}")
+public ResponseEntity<Payment> createPartialShipmentByShipCode(
+        @PathVariable String shipCode,
+        @PathVariable boolean isUseBalance,
+        @PathVariable Long bankId,
+        @PathVariable BigDecimal priceShipDos,
+        @RequestParam(required = false) Long customerVoucherId
+) {
+    List<PartialShipment> partials =
+            partialShipmentService.createPartialShipmentByShipCode(
+                    shipCode,
+                    isUseBalance,
+                    bankId,
+                    priceShipDos,
+                    customerVoucherId
+            );
+
+    Payment payment = partials.get(0).getPayment();
+
+    return ResponseEntity.ok(payment);
+}
+
 }
