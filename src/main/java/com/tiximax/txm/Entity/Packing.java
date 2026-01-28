@@ -39,6 +39,10 @@ public class Packing {
     @Enumerated(EnumType.STRING)
     private PackingStatus status;
 
+    private Boolean statusFlight;
+
+    private String routeCode;
+
     @ManyToOne
     @JoinColumn(name="staff_id", nullable = false)
     @JsonIgnore
@@ -65,10 +69,6 @@ public class Packing {
     )
     @JsonIgnore
     private Set<Orders> relatedOrders;
-//
-//    @OneToMany(mappedBy = "packing", cascade = CascadeType.ALL)
-//    @JsonIgnore
-//    Set<Orders> orders;
 
     @ManyToOne
     @JoinColumn(name="destination_id", nullable = false)
