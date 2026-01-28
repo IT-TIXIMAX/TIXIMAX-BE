@@ -121,6 +121,16 @@ public class PackingService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
+        String routeCode = warehouses.stream()
+                .map(Warehouse::getOrders)
+                .filter(Objects::nonNull)
+                .map(o -> o.getRoute().getName())
+                .distinct()
+                .reduce((a, b) -> {
+                    throw new BadRequestException("Shipment codes belong to multiple routes: " + a + ", " + b);
+                })
+                .orElseThrow(() -> new BadRequestException("No route found for shipment codes"));
+
         if (orders.isEmpty()) {
             throw new BadRequestException("No orders found related to the tracking codes you provided!");
         }
@@ -162,6 +172,8 @@ public class PackingService {
         packing.setPackedDate(LocalDateTime.now());
         packing.setStaff(staff);
         packing.setStatus(PackingStatus.CHO_BAY);
+        packing.setStatusFlight(false);
+        packing.setRouteCode(routeCode);
 
         packing = packingRepository.save(packing);
 
