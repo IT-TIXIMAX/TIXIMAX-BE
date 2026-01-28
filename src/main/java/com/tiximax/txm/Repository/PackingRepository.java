@@ -199,4 +199,6 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    List<Packing> findByFlightCode(String flightCode);
 }
