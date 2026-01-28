@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -20,11 +21,13 @@ import org.springframework.stereotype.Service;
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.DraftDomestic;
+import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.DraftDomesticStatus;
+import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
@@ -38,13 +41,18 @@ import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DraftDomesticRepository;
+import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.RouteRepository;
 import com.tiximax.txm.Repository.WarehouseRepository;
 import com.tiximax.txm.Utils.AccountUtils;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class DraftDomesticService {
  @Autowired
  private DraftDomesticRepository draftDomesticRepository;
@@ -53,6 +61,7 @@ public class DraftDomesticService {
  @Autowired
  private WarehouseRepository warehouseRepository;
  @Autowired
+ private  OrderLinksRepository orderLinksRepository;
  private RouteRepository routeRepository;
  @Autowired 
  private PartialShipmentService partialShipmentService;
@@ -517,7 +526,72 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
 
 
 //
+    public DraftDomestic getDraftDomesticByShipCode (String shipCode) {
+        var draft = draftDomesticRepository.findByShipCode(shipCode);
+        if (draft.isEmpty()) {
+            throw new NotFoundException("vận đơn mẫu không tồn tại");
+        }
+        return draft.get();
+    }
 
+     @Transactional
+    public void syncAndLockDraftDomestic() {
+
+        List<DraftDomestic> drafts =
+                draftDomesticRepository.findByStatus(DraftDomesticStatus.DRAFT);
+
+        if (drafts.isEmpty()) return;
+
+        for (DraftDomestic draft : drafts) {
+
+            if (draft.getShippingList() == null
+                    || draft.getShippingList().isEmpty()) {
+                continue;
+            }
+
+            // 1. Extract shipmentCode từ shippingList
+            List<String> shipmentCodes = draft.getShippingList().stream()
+                    .map(this::extractShipmentCode)
+                    .toList();
+
+            // 2. Load OrderLinks
+            List<OrderLinks> links =
+                    orderLinksRepository.findByShipmentCodeIn(shipmentCodes);
+
+            if (links.size() != shipmentCodes.size()) {
+                continue;
+            }
+
+            // 3. Check ALL điều kiện
+            boolean allReady = links.stream().allMatch(link ->
+                    link.getStatus() == OrderLinkStatus.CHO_GIAO
+                    && link.getWarehouse() != null
+                    && link.getWarehouse().getStatus() == WarehouseStatus.CHO_GIAO
+            );
+
+            if (!allReady) continue;
+
+            // 4. Đồng bộ lại shippingList
+            List<String> newShippingList = links.stream()
+                    .map(link ->
+                            link.getShipmentCode() + " = " +
+                            link.getWarehouse().getTrackingCode()
+                    )
+                    .toList();
+
+            draft.setShippingList(new ArrayList<>(newShippingList));
+            draft.setStatus(DraftDomesticStatus.LOCKED);
+
+            draftDomesticRepository.save(draft);
+
+            log.info("🔒 DraftDomestic {} LOCKED by nightly job",
+                    draft.getId());
+        }
+    }
+
+    private String extractShipmentCode(String entry) {
+        return entry.split("=")[0].trim();
+    }
 
   private DraftDomestic mapToEntity(
             DraftDomesticRequest request,
@@ -619,13 +693,14 @@ private Double calculateAndRoundWeight(Double totalWeight) {
             .setScale(3, RoundingMode.HALF_UP)
             .doubleValue();
 }
-private Double roundWeight(Double weight) {
-    if (weight == null) return 0.0;
+private String roundWeight(Double weight) {
+    if (weight == null) return "0.000";
 
-    return BigDecimal.valueOf(weight)
-            .setScale(3, RoundingMode.HALF_UP)
-            .doubleValue();
+    DecimalFormat df = new DecimalFormat("0.000");
+    df.setRoundingMode(RoundingMode.HALF_UP);
+    return df.format(weight);
 }
+
 
 private DraftDomesticResponse mapToResponseWithRoundedWeight(DraftDomestic draft) {
     DraftDomesticResponse response = new DraftDomesticResponse(draft);
