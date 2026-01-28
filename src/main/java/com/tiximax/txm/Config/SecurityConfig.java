@@ -60,6 +60,8 @@ public class SecurityConfig {
     )
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(
+                            "/payments/receive",
+                            "/api/payments/receive",
                                 "/accounts/login",
                                 "/accounts/verify",
                                 "/accounts/forgot-password/send-otp",

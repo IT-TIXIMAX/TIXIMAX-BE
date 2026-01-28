@@ -55,6 +55,8 @@ public class Filter extends OncePerRequestFilter {
             "/websocket/**",
             "/ws/info",
             "/orders/shipments-by-phone/{phone}",
+            "/payments/receive",
+            "/api/payments/receive",
             "/api/accounts/login",
         "/api/accounts/login",
         "/api/otp/send",

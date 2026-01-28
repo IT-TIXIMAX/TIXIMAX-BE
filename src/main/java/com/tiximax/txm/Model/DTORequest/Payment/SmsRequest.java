@@ -1,26 +1,18 @@
 package com.tiximax.txm.Model.DTORequest.Payment;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.List;
+
 
 @Data
 @NoArgsConstructor
 public class SmsRequest {
-    @JsonProperty("success")
-    private boolean success;
-
-    @JsonProperty("data")
-    private List<SmsItem> data;
-
-    @Data
-    @NoArgsConstructor
-    public static class SmsItem {  // Inner class gọn
-        @JsonProperty("amount")
-        private long amount;
-
-        @JsonProperty("content")
-        private String content;
-    }
+    private String sender;
+    private BigDecimal amount;
+    private String content;
+    private String sms;
+    private long timestamp;
+    private String deviceId;
 }

@@ -1,18 +1,16 @@
 package com.tiximax.txm.Repository;
 
 import com.tiximax.txm.Entity.Warehouse;
-import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseStatistic;
+import com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip;
 import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
+import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -587,4 +585,77 @@ WarehouseStatisticRow exportByCarrierWithDate(
       AND w.location.locationId = :locationId
 """)
     StockSummary getStockSummaryByLocationId(@Param("locationId") Long locationId);
+
+    @Query("""
+    select
+        c.customerCode as customerCode,
+        c.name as customerName,
+        s.staffCode as staffCode,
+        s.name as staffName,
+
+        count(w.warehouseId) as exportedCode,
+        coalesce(sum(w.netWeight), 0) as exportedWeightKg,
+
+        (
+            select count(w2.warehouseId)
+            from Warehouse w2
+            where w2.orders.customer = c
+              and w2.status in (
+                    com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                    com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+              )
+        ) as remainingCode,
+
+        (
+            select coalesce(sum(w2.netWeight), 0)
+            from Warehouse w2
+            where w2.orders.customer = c
+              and w2.status in (
+                    com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                    com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+              )
+        ) as remainingWeightKg
+
+    from Warehouse w
+        join w.orders o
+        join o.customer c
+        join o.staff s
+    where w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+    group by
+        c.customerCode,
+        c.name,
+        s.staffCode,
+        s.name
+""")
+        List<CustomerInventoryRow> getCustomerInventoryDashboard();
+
+    @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip(
+        w.trackingCode,
+        w.netWeight,
+        w.weight,
+        w.height,
+        w.length,
+        w.width,
+        o.priceShip
+    )
+    FROM Warehouse w
+    JOIN w.orders o
+    WHERE w.trackingCode IN :trackingCodes
+    """)
+    List<WarehouseShip> findWarehouseShips(
+            @Param("trackingCodes") List<String> trackingCodes
+    );
+    @Query("""
+    SELECT w
+    FROM Warehouse w
+    JOIN FETCH w.orders o
+    JOIN FETCH o.route
+    WHERE w.trackingCode IN :trackingCodes
+    """)
+    List<Warehouse> findByTrackingCodeInFetchOrders(
+            @Param("trackingCodes") List<String> trackingCodes
+    );
+
+
 }

@@ -30,6 +30,8 @@ import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
+import com.tiximax.txm.Model.DTOResponse.Domestic.ShipCodePayment;
+import com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.AvailableAddDarfDomestic;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
@@ -52,6 +54,8 @@ public class DraftDomesticService {
  private WarehouseRepository warehouseRepository;
  @Autowired
  private RouteRepository routeRepository;
+ @Autowired 
+ private PartialShipmentService partialShipmentService;
  @Autowired
  private AccountUtils accountUtils;
 
@@ -106,6 +110,34 @@ public class DraftDomesticService {
         return new DraftDomesticResponse(draftDomestic);
     }
 
+       public ShipCodePayment getShipCodePayment(String shipCode) {
+
+        // 1. Lấy draft domestic
+        DraftDomestic draft = draftDomesticRepository
+                .findByShipCode(shipCode)
+                .orElseThrow(() ->
+                        new RuntimeException("Không tìm thấy DraftDomestic"));
+
+        // 2. Lấy danh sách trackingCode
+        List<String> trackingCodes = draft.getShippingList();
+        if (trackingCodes == null || trackingCodes.isEmpty()) {
+            throw new RuntimeException("DraftDomestic chưa có shippingList");
+        }
+
+           List<WarehouseShip> warehouseShips =
+            warehouseRepository.findWarehouseShips(
+                    draft.getShippingList()
+            );
+        // 5. Tính tổng tiền ship
+        BigDecimal totalPriceShip = partialShipmentService.calculateTotalShippingFee(trackingCodes);
+
+        ShipCodePayment shipcodePayment = new ShipCodePayment();
+        shipcodePayment.setShipCode(shipCode);
+        shipcodePayment.setWarehouseShips(warehouseShips);
+        shipcodePayment.setTotalPriceShip(totalPriceShip);
+
+        return shipcodePayment;
+    }
 
  
  public DraftDomesticResponse getDraftDomestic(Long id){
