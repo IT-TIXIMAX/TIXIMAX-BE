@@ -147,6 +147,78 @@ public class DraftDomesticService {
 
         return shipcodePayment;
     }
+    public List<ShipCodePayment> getAllShipByStaff(
+            Long staffId,
+            String keyword,
+            Pageable pageable
+    ) {
+
+     Page<DraftDomestic> drafts;
+
+        if (keyword == null || keyword.isBlank()) {
+            drafts = draftDomesticRepository.findByStaff(staffId, pageable);
+        } else {
+            drafts = draftDomesticRepository
+                    .searchByStaffAndKeyword(staffId, keyword,pageable);
+        }
+
+        if (drafts.isEmpty()) return List.of();
+
+        Map<String, List<String>> shipCodeMap = drafts.stream()
+                .filter(d -> d.getShippingList() != null && !d.getShippingList().isEmpty())
+                .collect(Collectors.groupingBy(
+                        DraftDomestic::getShipCode,
+                        Collectors.flatMapping(
+                                d -> d.getShippingList().stream(),
+                                Collectors.toList()
+                        )
+                ));
+
+        if (shipCodeMap.isEmpty()) return List.of();
+
+        // 3. Gom toàn bộ trackingCodes (1 query)
+        List<String> allTrackingCodes = shipCodeMap.values().stream()
+                .flatMap(List::stream)
+                .distinct()
+                .toList();
+
+        List<WarehouseShip> allWarehouseShips =
+                warehouseRepository.findWarehouseShips(allTrackingCodes);
+
+        Map<String, WarehouseShip> warehouseShipMap =
+                allWarehouseShips.stream()
+                        .collect(Collectors.toMap(
+                                ws -> ws.getShipmentCode(),
+                                ws -> ws,
+                                (a, b) -> a
+                        ));
+
+        List<ShipCodePayment> result = new ArrayList<>();
+
+        for (Map.Entry<String, List<String>> entry : shipCodeMap.entrySet()) {
+
+            String shipCode = entry.getKey();
+            List<String> trackingCodes = entry.getValue();
+
+            List<WarehouseShip> warehouseShips = trackingCodes.stream()
+                    .map(warehouseShipMap::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            BigDecimal totalPriceShip =
+                    partialShipmentService.calculateTotalShippingFee(trackingCodes);
+
+            ShipCodePayment item = new ShipCodePayment();
+            item.setShipCode(shipCode);
+            item.setWarehouseShips(warehouseShips);
+            item.setTotalPriceShip(totalPriceShip);
+
+            result.add(item);
+        }
+
+        return result;
+    }
+
 
  
  public DraftDomesticResponse getDraftDomestic(Long id){
