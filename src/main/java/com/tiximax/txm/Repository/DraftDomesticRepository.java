@@ -131,7 +131,34 @@ List<DraftDomestic> findByStatus(DraftDomesticStatus status);
 List<DraftDomestic> findDraftByShipmentCodes(
         @Param("shipmentCodes") Collection<String> shipmentCodes
 );
+
+@Query("""
+ SELECT DISTINCT d
+    FROM DraftDomestic d
+    WHERE d.staff.accountId = :staffId
+        And d.status = 'DRAFT'
+    """)
+ Page<DraftDomestic> findByStaff(
+        @Param("staffId") Long staffId,
+        Pageable pageable
+ );
         
+  @Query("""
+        SELECT DISTINCT d
+        FROM DraftDomestic d
+        LEFT JOIN d.shippingList s
+        WHERE d.staff.accountId = :staffId
+          AND d.status = 'DRAFT'
+          AND (
+                LOWER(d.shipCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR LOWER(s) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          )
+    """)
+    Page<DraftDomestic> searchByStaffAndKeyword(
+            @Param("staffId") Long staffId,
+            @Param("keyword") String keyword
+          ,Pageable pageable
+    );
 
 }
 
