@@ -196,17 +196,6 @@ public class AuthenticationController {
         return ResponseEntity.ok(customers);
     }
 
-//    @GetMapping("/search-staff/{page}/{size}")
-//    public ResponseEntity<Page<StaffInfo>> searchStaff(
-//                        @PathVariable int page,
-//                        @PathVariable int size,
-//                        @RequestParam(required = false) String keyword) {
-//        Sort sort = Sort.by("createdAt").descending();
-//        Pageable pageable = PageRequest.of(page, size, sort);
-//        Page<StaffInfo> result = authenticationService.searchStaff(keyword, pageable);
-//        return ResponseEntity.ok(result);
-//    }
-
     @GetMapping("/enum-account-role")
     public ResponseEntity<List<String>> getAccountrole() {
         List<String> accountRole = Arrays.stream(AccountRoles.values())
