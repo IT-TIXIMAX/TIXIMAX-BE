@@ -3,6 +3,7 @@ package com.tiximax.txm.Service;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.OrderStatus;
+import com.tiximax.txm.Enums.PaymentPurpose;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Enums.PaymentType;
 import com.tiximax.txm.Enums.ProcessLogAction;
@@ -78,7 +79,8 @@ public class PartialShipmentService {
     private CustomerVoucherRepository customerVoucherRepository;
     @Autowired 
     private OrdersService ordersService;
-
+    @Autowired
+    private DraftDomesticService draftDomesticService;
     @Autowired
     private BankAccountService bankAccountService;
 
@@ -231,6 +233,7 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
     payment.setStatus( PaymentStatus.CHO_THANH_TOAN_SHIP);
     payment.setActionAt(LocalDateTime.now());
     payment.setCustomer(commonCustomer);
+    payment.setPurpose(PaymentPurpose.THANH_TOAN_VAN_CHUYEN);
     payment.setStaff(currentStaff);
     payment.setIsMergedPayment(false);
     payment.setPartialShipments(new HashSet<>(createdPartials));
@@ -292,9 +295,11 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
         return partialShipmentRepository.findById(id);
     }
    public BigDecimal calculateTotalShippingFee(List<String> selectedTrackingCodes) {
-
+   
     List<Warehouse> warehouses =
-            warehousereRepository.findByTrackingCodeIn(selectedTrackingCodes);
+        warehousereRepository
+            .findByTrackingCodeInFetchOrders(selectedTrackingCodes);
+
 
     if (warehouses.isEmpty()) {
         throw new NotFoundException("Không tìm thấy kiện hàng");
@@ -309,9 +314,9 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
                             .equals(baseRoute.getRouteId())
             );
 
-    // if (!sameRoute) {
-    //     throw new BadRequestException("Các order thuộc tuyến khác nhau");
-    // }
+     if (!sameRoute) {
+         throw new BadRequestException("Các order thuộc tuyến khác nhau");
+     }
 
     BigDecimal basePriceShip = warehouses.get(0).getOrders().getPriceShip();
 
@@ -321,11 +326,11 @@ public List<PartialShipment> createPartialShipment(ShipmentCodesRequest tracking
                     w.getOrders().getPriceShip().compareTo(basePriceShip) == 0
             );
 
-    // if (!samePrice) {
-    //     throw new BadRequestException(
-    //             "Không thể gộp: các order có priceShip khác nhau"
-    //     );
-    // }
+     if (!samePrice) {
+         throw new BadRequestException(
+                 "Không thể gộp: các order có priceShip khác nhau"
+         );
+     }
 
     BigDecimal totalNetWeight = warehouses.stream()
             .map(w -> {
@@ -398,6 +403,209 @@ private BigDecimal roundToHundreds(BigDecimal amount) {
         );
     }
     return page.map(PartialPayment::new);
+}
+
+
+@Transactional
+public List<PartialShipment> createPartialShipmentByShipCode(String shipCode,
+                                                   boolean isUseBalance,
+                                                   long bankId,
+                                                   BigDecimal priceShipDos,
+                                                   Long customerVoucherId) {
+
+    Staff currentStaff = (Staff) accountUtils.getAccountCurrent();
+    var draftDomestic = draftDomesticService.getDraftDomesticByShipCode(shipCode);
+   
+    List<String> allTrackingCodes = draftDomestic.getShippingList();
+    if (allTrackingCodes == null || allTrackingCodes.isEmpty()) {
+        throw new NotFoundException("Không có mã vận đơn nào được chọn!");
+    }
+
+    List<PartialShipment> createdPartials = new ArrayList<>();
+
+    List<OrderLinks> allLinks = orderLinksRepository.findByShipmentCodeIn(allTrackingCodes);
+    if (allLinks.isEmpty()) {
+        throw new NotFoundException("Không tìm thấy link nào cho các mã vận đơn đã chọn!");
+    }
+
+    Map<Orders, List<OrderLinks>> orderToLinksMap = allLinks.stream()
+            .collect(Collectors.groupingBy(OrderLinks::getOrders));
+
+    List<Orders> ordersList = new ArrayList<>(orderToLinksMap.keySet());
+    if (ordersList.isEmpty()) {
+        throw new NotFoundException("Không tìm thấy đơn hàng nào hợp lệ!");
+    }
+
+    // Kiểm tra: tất cả đơn phải cùng khách hàng
+    Customer commonCustomer = ordersList.get(0).getCustomer();
+    if (ordersList.stream().anyMatch(o -> !o.getCustomer().equals(commonCustomer))) {
+        throw new BadRequestException("Các đơn hàng phải thuộc cùng một khách hàng để thanh toán gộp phí ship!");
+    }
+
+    // Kiểm tra: tất cả đơn phải cùng tuyến (Route)
+    Route commonRoute = ordersList.get(0).getRoute();
+    if (ordersList.stream().anyMatch(o -> !o.getRoute().equals(commonRoute))) {
+        throw new BadRequestException("Các đơn hàng phải cùng tuyến đường để gộp phí vận chuyển!");
+    }
+
+    // Kiểm tra: tất cả đơn phải ở trạng thái phù hợp (ví dụ: đã có hàng, chưa thanh toán ship)
+    if (ordersList.stream().anyMatch(o -> !Set.of(OrderStatus.DA_DU_HANG, OrderStatus.DANG_XU_LY,OrderStatus.CHO_THANH_TOAN_SHIP).contains(o.getStatus()))) {
+        throw new BadRequestException("Một số đơn hàng chưa đủ điều kiện để tạo thanh toán phí ship!");
+    }
+
+    // Tạo PartialShipment cho từng đơn hàng
+    for (Map.Entry<Orders, List<OrderLinks>> entry : orderToLinksMap.entrySet()) {
+        Orders order = entry.getKey();
+        List<OrderLinks> orderLinks = entry.getValue();
+
+        PartialShipment partial = new PartialShipment();
+        partial.setOrders(order);
+        partial.setReadyLinks(new HashSet<>(orderLinks));
+        partial.setPartialAmount(orderLinks.stream()
+                .map(OrderLinks::getFinalPriceVnd)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        partial.setShipmentDate(LocalDateTime.now());
+        partial.setStatus(OrderStatus.CHO_THANH_TOAN_SHIP);
+        partial.setStaff(currentStaff);
+
+        // Liên kết ngược
+        orderLinks.forEach(link -> link.setPartialShipment(partial));
+
+        PartialShipment savedPartial = partialShipmentRepository.save(partial);
+        orderLinksRepository.saveAll(orderLinks);
+        createdPartials.add(savedPartial);
+    }
+
+    // === Tính phí ship tổng ===
+    BigDecimal totalShippingFee = calculateTotalShippingFee(allTrackingCodes);
+    if (totalShippingFee == null || totalShippingFee.compareTo(BigDecimal.ZERO) <= 0) {
+        throw new BadRequestException("Không thể tính phí vận chuyển!");
+    }
+
+    // === Xử lý Voucher ===
+    BigDecimal discount = BigDecimal.ZERO;
+    CustomerVoucher customerVoucher = null;
+    BigDecimal finalAmount = roundUp(totalShippingFee);
+
+    if (customerVoucherId != null) {
+        customerVoucher = customerVoucherRepository.findById(customerVoucherId)
+                .orElseThrow(() -> new NotFoundException("Voucher không tồn tại!"));
+
+        Voucher voucher = customerVoucher.getVoucher();
+        if (customerVoucher.isUsed()) {
+            throw new BadRequestException("Voucher đã sử dụng!");
+        }
+        if (voucher.getEndDate() != null && LocalDateTime.now().isAfter(voucher.getEndDate())) {
+            throw new BadRequestException("Voucher đã hết hạn!");
+        }
+        if (voucher.getMinOrderValue() != null && totalShippingFee.compareTo(voucher.getMinOrderValue()) < 0) {
+            throw new BadRequestException("Tổng phí ship chưa đạt yêu cầu của voucher!");
+        }
+
+        Set<Route> applicableRoutes = voucher.getApplicableRoutes();
+        if (!applicableRoutes.isEmpty() && !applicableRoutes.contains(commonRoute)) {
+            throw new BadRequestException("Voucher không áp dụng cho tuyến này!");
+        }
+
+        if (voucher.getType() == VoucherType.PHAN_TRAM) {
+            discount = totalShippingFee.multiply(voucher.getValue())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        } else if (voucher.getType() == VoucherType.CO_DINH) {
+            discount = voucher.getValue();
+        }
+
+        finalAmount = totalShippingFee.subtract(discount).max(BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP);
+    }
+
+    // === Tính tổng cần thu (cộng nợ cũ nếu có) ===
+    BigDecimal totalDebt = ordersList.stream()
+            .map(Orders::getLeftoverMoney)
+            .filter(leftover -> leftover != null && leftover.compareTo(BigDecimal.ZERO) > 0)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .setScale(0, RoundingMode.HALF_UP);
+
+    BigDecimal collect = finalAmount.add(totalDebt).add(priceShipDos).setScale(0, RoundingMode.HALF_UP);
+
+    // === Xử lý dùng số dư ===
+    BigDecimal balance = (commonCustomer.getBalance() != null) ? commonCustomer.getBalance() : BigDecimal.ZERO;
+    BigDecimal usedBalance = BigDecimal.ZERO;
+    BigDecimal qrAmount = collect;
+
+    if (isUseBalance && balance.compareTo(BigDecimal.ZERO) > 0) {
+        usedBalance = balance.min(collect);
+        commonCustomer.setBalance(balance.subtract(usedBalance));
+        qrAmount = collect.subtract(usedBalance).max(BigDecimal.ZERO);
+    }
+
+    // === Tạo Payment gộp ===
+    Payment payment = new Payment();
+    payment.setPaymentCode(paymentService.generatePaymentCode()); // hoặc generatePaymentCode() tùy bạn
+//    payment.setContent("Phí ship gộp: " + String.join(", ", allTrackingCodes) + " + " + priceShipDos + "k");
+    payment.setContent("Phí ship gộp: " + String.join(", ", allTrackingCodes) + " - " + usedBalance + " số dư + "  + priceShipDos + "k ship");
+    payment.setPaymentType(PaymentType.MA_QR);
+    payment.setAmount(finalAmount);
+    payment.setCollectedAmount(qrAmount);
+    payment.setStatus( PaymentStatus.CHO_THANH_TOAN_SHIP);
+    payment.setActionAt(LocalDateTime.now());
+    payment.setCustomer(commonCustomer);
+    payment.setPurpose(PaymentPurpose.THANH_TOAN_VAN_CHUYEN);
+    payment.setStaff(currentStaff);
+    payment.setIsMergedPayment(false);
+    payment.setPartialShipments(new HashSet<>(createdPartials));
+
+    // === Tạo QR ===
+    BankAccount bankAccount = bankAccountService.getAccountById(bankId);
+    if (bankAccount == null) {
+        throw new NotFoundException("Thông tin thẻ ngân hàng không được tìm thấy!");
+    }
+
+    String qrCodeUrl = "https://img.vietqr.io/image/" +
+            bankAccount.getBankName() + "-" + bankAccount.getAccountNumber() + "-print.png?amount=" +
+            qrAmount + "&addInfo=" + payment.getPaymentCode() + "&accountName=" + bankAccount.getAccountHolder();
+    payment.setQrCode(qrCodeUrl);
+
+    Payment savedPayment = paymentRepository.save(payment);
+    createdPartials.forEach(partial -> {
+        partial.setPayment(savedPayment);
+        partialShipmentRepository.save(partial);
+    });
+
+  for (Orders order : ordersList) {
+    order.setLeftoverMoney(BigDecimal.ZERO);
+
+    if (order.getStatus() == OrderStatus.DA_DU_HANG) {
+        order.setStatus(OrderStatus.CHO_THANH_TOAN_SHIP);
+        ordersService.addProcessLog(order, savedPayment.getPaymentCode(), ProcessLogAction.TAO_THANH_TOAN_HANG);
+    } else {
+        ordersService.addProcessLog(order, savedPayment.getPaymentCode(),
+                ProcessLogAction.TAO_THANH_TOAN_HANG);
+    }
+
+    ordersRepository.save(order);
+}
+
+    if (isUseBalance && usedBalance.compareTo(BigDecimal.ZERO) > 0) {
+        authenticationRepository.save(commonCustomer);
+    }
+
+    if (customerVoucher != null) {
+        customerVoucher.setUsed(true);
+        customerVoucher.setUsedDate(LocalDateTime.now());
+        customerVoucherRepository.save(customerVoucher);
+    }
+
+    // === Gửi thông báo WebSocket ===
+    messagingTemplate.convertAndSend(
+            "/topic/Tiximax",
+            Map.of(
+                    "event", "UPDATE",
+                    "paymentCode", savedPayment.getPaymentCode(),
+                    "customerCode", commonCustomer.getCustomerCode(),
+                    "message", "Thanh toán phí ship gộp đã được tạo!"
+            )
+    );
+    return createdPartials;
 }
 
 

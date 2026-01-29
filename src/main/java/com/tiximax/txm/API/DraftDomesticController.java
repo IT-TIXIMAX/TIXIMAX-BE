@@ -15,14 +15,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Page;
+
+import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.DraftDomesticStatus;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftShipmentRequest;
+import com.tiximax.txm.Model.DTOResponse.Domestic.ShipCodePayment;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.AvailableAddDarfDomestic;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse;
 import com.tiximax.txm.Service.DraftDomesticService;
@@ -80,6 +84,19 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.updateDraftInfo(id, request)
         );
         }
+        @GetMapping("/ship-code/payment/{page}/{size}")
+        public ResponseEntity<List<ShipCodePayment>> getAllShipByStaff(
+        @PathVariable int page,
+        @PathVariable int size,
+        @RequestParam(required = false) String shipCode
+    ) {
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+        Sort sort = Sort.by("createdAt").descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return ResponseEntity.ok(
+                draftDomesticService.getAllShipByStaff(staff.getAccountId(),shipCode,pageable)
+        );
+    }
 
     @PostMapping("/{id}/shipments/add")
     public ResponseEntity<?> addShipments(

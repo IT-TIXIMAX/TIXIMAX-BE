@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -20,29 +21,38 @@ import org.springframework.stereotype.Service;
 import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.DraftDomestic;
+import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.DraftDomesticStatus;
+import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.DraftDomesticRequest;
 import com.tiximax.txm.Model.DTORequest.DraftDomestic.UpdateDraftDomesticInfoRequest;
+import com.tiximax.txm.Model.DTOResponse.Domestic.ShipCodePayment;
+import com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.AvailableAddDarfDomestic;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DraftDomesticRepository;
+import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.RouteRepository;
 import com.tiximax.txm.Repository.WarehouseRepository;
 import com.tiximax.txm.Utils.AccountUtils;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class DraftDomesticService {
  @Autowired
  private DraftDomesticRepository draftDomesticRepository;
@@ -51,7 +61,10 @@ public class DraftDomesticService {
  @Autowired
  private WarehouseRepository warehouseRepository;
  @Autowired
+ private  OrderLinksRepository orderLinksRepository;
  private RouteRepository routeRepository;
+ @Autowired 
+ private PartialShipmentService partialShipmentService;
  @Autowired
  private AccountUtils accountUtils;
 
@@ -104,6 +117,106 @@ public class DraftDomesticService {
         draftDomesticRepository.save(draftDomestic);
 
         return new DraftDomesticResponse(draftDomestic);
+    }
+
+       public ShipCodePayment getShipCodePayment(String shipCode) {
+
+        // 1. Lấy draft domestic
+        DraftDomestic draft = draftDomesticRepository
+                .findByShipCode(shipCode)
+                .orElseThrow(() ->
+                        new RuntimeException("Không tìm thấy DraftDomestic"));
+
+        // 2. Lấy danh sách trackingCode
+        List<String> trackingCodes = draft.getShippingList();
+        if (trackingCodes == null || trackingCodes.isEmpty()) {
+            throw new RuntimeException("DraftDomestic chưa có shippingList");
+        }
+
+           List<WarehouseShip> warehouseShips =
+            warehouseRepository.findWarehouseShips(
+                    draft.getShippingList()
+            );
+        // 5. Tính tổng tiền ship
+        BigDecimal totalPriceShip = partialShipmentService.calculateTotalShippingFee(trackingCodes);
+
+        ShipCodePayment shipcodePayment = new ShipCodePayment();
+        shipcodePayment.setShipCode(shipCode);
+        shipcodePayment.setWarehouseShips(warehouseShips);
+        shipcodePayment.setTotalPriceShip(totalPriceShip);
+
+        return shipcodePayment;
+    }
+    public List<ShipCodePayment> getAllShipByStaff(
+            Long staffId,
+            String keyword,
+            Pageable pageable
+    ) {
+
+     Page<DraftDomestic> drafts;
+
+        if (keyword == null || keyword.isBlank()) {
+            drafts = draftDomesticRepository.findByStaff(staffId, pageable);
+        } else {
+            drafts = draftDomesticRepository
+                    .searchByStaffAndKeyword(staffId, keyword,pageable);
+        }
+
+        if (drafts.isEmpty()) return List.of();
+
+        Map<String, List<String>> shipCodeMap = drafts.stream()
+                .filter(d -> d.getShippingList() != null && !d.getShippingList().isEmpty())
+                .collect(Collectors.groupingBy(
+                        DraftDomestic::getShipCode,
+                        Collectors.flatMapping(
+                                d -> d.getShippingList().stream(),
+                                Collectors.toList()
+                        )
+                ));
+
+        if (shipCodeMap.isEmpty()) return List.of();
+
+        // 3. Gom toàn bộ trackingCodes (1 query)
+        List<String> allTrackingCodes = shipCodeMap.values().stream()
+                .flatMap(List::stream)
+                .distinct()
+                .toList();
+
+        List<WarehouseShip> allWarehouseShips =
+                warehouseRepository.findWarehouseShips(allTrackingCodes);
+
+        Map<String, WarehouseShip> warehouseShipMap =
+                allWarehouseShips.stream()
+                        .collect(Collectors.toMap(
+                                ws -> ws.getShipmentCode(),
+                                ws -> ws,
+                                (a, b) -> a
+                        ));
+
+        List<ShipCodePayment> result = new ArrayList<>();
+
+        for (Map.Entry<String, List<String>> entry : shipCodeMap.entrySet()) {
+
+            String shipCode = entry.getKey();
+            List<String> trackingCodes = entry.getValue();
+
+            List<WarehouseShip> warehouseShips = trackingCodes.stream()
+                    .map(warehouseShipMap::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            BigDecimal totalPriceShip =
+                    partialShipmentService.calculateTotalShippingFee(trackingCodes);
+
+            ShipCodePayment item = new ShipCodePayment();
+            item.setShipCode(shipCode);
+            item.setWarehouseShips(warehouseShips);
+            item.setTotalPriceShip(totalPriceShip);
+
+            result.add(item);
+        }
+
+        return result;
     }
 
 
@@ -485,7 +598,72 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
 
 
 //
+    public DraftDomestic getDraftDomesticByShipCode (String shipCode) {
+        var draft = draftDomesticRepository.findByShipCode(shipCode);
+        if (draft.isEmpty()) {
+            throw new NotFoundException("vận đơn mẫu không tồn tại");
+        }
+        return draft.get();
+    }
 
+     @Transactional
+    public void syncAndLockDraftDomestic() {
+
+        List<DraftDomestic> drafts =
+                draftDomesticRepository.findByStatus(DraftDomesticStatus.DRAFT);
+
+        if (drafts.isEmpty()) return;
+
+        for (DraftDomestic draft : drafts) {
+
+            if (draft.getShippingList() == null
+                    || draft.getShippingList().isEmpty()) {
+                continue;
+            }
+
+            // 1. Extract shipmentCode từ shippingList
+            List<String> shipmentCodes = draft.getShippingList().stream()
+                    .map(this::extractShipmentCode)
+                    .toList();
+
+            // 2. Load OrderLinks
+            List<OrderLinks> links =
+                    orderLinksRepository.findByShipmentCodeIn(shipmentCodes);
+
+            if (links.size() != shipmentCodes.size()) {
+                continue;
+            }
+
+            // 3. Check ALL điều kiện
+            boolean allReady = links.stream().allMatch(link ->
+                    link.getStatus() == OrderLinkStatus.CHO_GIAO
+                    && link.getWarehouse() != null
+                    && link.getWarehouse().getStatus() == WarehouseStatus.CHO_GIAO
+            );
+
+            if (!allReady) continue;
+
+            // 4. Đồng bộ lại shippingList
+            List<String> newShippingList = links.stream()
+                    .map(link ->
+                            link.getShipmentCode() + " = " +
+                            link.getWarehouse().getTrackingCode()
+                    )
+                    .toList();
+
+            draft.setShippingList(new ArrayList<>(newShippingList));
+            draft.setStatus(DraftDomesticStatus.LOCKED);
+
+            draftDomesticRepository.save(draft);
+
+            log.info("🔒 DraftDomestic {} LOCKED by nightly job",
+                    draft.getId());
+        }
+    }
+
+    private String extractShipmentCode(String entry) {
+        return entry.split("=")[0].trim();
+    }
 
   private DraftDomestic mapToEntity(
             DraftDomesticRequest request,
@@ -587,13 +765,14 @@ private Double calculateAndRoundWeight(Double totalWeight) {
             .setScale(3, RoundingMode.HALF_UP)
             .doubleValue();
 }
-private Double roundWeight(Double weight) {
-    if (weight == null) return 0.0;
+private String roundWeight(Double weight) {
+    if (weight == null) return "0.000";
 
-    return BigDecimal.valueOf(weight)
-            .setScale(3, RoundingMode.HALF_UP)
-            .doubleValue();
+    DecimalFormat df = new DecimalFormat("0.000");
+    df.setRoundingMode(RoundingMode.HALF_UP);
+    return df.format(weight);
 }
+
 
 private DraftDomesticResponse mapToResponseWithRoundedWeight(DraftDomestic draft) {
     DraftDomesticResponse response = new DraftDomesticResponse(draft);

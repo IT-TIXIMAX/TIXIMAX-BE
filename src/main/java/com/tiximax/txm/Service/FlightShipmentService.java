@@ -1,12 +1,15 @@
 package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.FlightShipment;
+import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.Staff;
+import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.FlightShipmentRequest;
 import com.tiximax.txm.Model.FlightShipmentResponse;
 import com.tiximax.txm.Repository.FlightShipmentRepository;
+import com.tiximax.txm.Repository.PackingRepository;
 import com.tiximax.txm.Repository.StaffRepository;
 
 import com.tiximax.txm.Utils.AccountUtils;
@@ -14,6 +17,7 @@ import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -32,11 +36,18 @@ public class FlightShipmentService {
     @Autowired
     private AccountUtils accountUtils;
 
+    @Autowired
+    private PackingRepository packingRepository;
+
+    @Transactional
     public FlightShipment createFlightShipment(FlightShipmentRequest request) {
         if (flightShipmentRepository.existsByFlightCode(request.getFlightCode())) {
             throw new BadRequestException("Mã chuyến bay đã tồn tại: " + request.getFlightCode());
         }
-
+        List<Packing> packings = packingRepository.findByFlightCode(request.getFlightCode());
+        for (Packing packing : packings){
+            packing.setStatusFlight(true);
+        }
         FlightShipment entity = new FlightShipment();
         mapRequestToEntity(request, entity);
         calculateCostsAndProfit(entity);
@@ -62,7 +73,6 @@ public class FlightShipmentService {
     public FlightShipmentResponse updateFlightShipment(Long id, FlightShipmentRequest request) {
         FlightShipment entity = flightShipmentRepository.findById(id)
                 .orElseThrow(() -> new BadRequestException("Không tìm thấy chuyến bay"));
-
         if (request.getFlightCode() != null){entity.setFlightCode(request.getFlightCode());}
         if (request.getAwbFilePath() != null){entity.setAwbFilePath(request.getAwbFilePath());}
         if (request.getExportLicensePath() != null){entity.setExportLicensePath(request.getExportLicensePath());}
@@ -95,8 +105,11 @@ public class FlightShipmentService {
 
     private void mapRequestToEntity(FlightShipmentRequest request, FlightShipment entity) {
         entity.setFlightCode(request.getFlightCode());
-        entity.setAwbFilePath(request.getAwbFilePath());
-        entity.setInvoiceFilePath(request.getInvoiceFilePath());
+        entity.setAwbFilePath(request.getAwbFilePath() != null ? request.getFlightCode() : "");
+        entity.setExportLicensePath(request.getExportLicensePath() != null ? request.getFlightCode() : "");
+        entity.setSingleInvoicePath(request.getSingleInvoicePath() != null ? request.getFlightCode() : "");
+        entity.setInvoiceFilePath(request.getInvoiceFilePath() != null ? request.getFlightCode() : "");
+        entity.setPackingListPath(request.getPackingListPath() != null ? request.getFlightCode() : "");
         entity.setTotalVolumeWeight(request.getTotalVolumeWeight());
         entity.setAirFreightCost(request.getAirFreightCost());
         entity.setCustomsClearanceCost(request.getCustomsClearanceCost());
@@ -146,19 +159,13 @@ public class FlightShipmentService {
 
         response.setGrossProfit(entity.getGrossProfit() != null ? entity.getGrossProfit() : BigDecimal.ZERO);
 
-        // Các field thời gian
         response.setArrivalDate(entity.getArrivalDate());
         response.setCreatedAt(entity.getCreatedAt());
-//        response.setUpdatedAt(entity.getUpdatedAt());
-//        response.setAirFreightPaid(entity.getAirFreightPaid());
         response.setAirFreightPaidDate(entity.getAirFreightPaidDate());
-//        response.setCustomsPaid(entity.getCustomsPaid());
         response.setCustomsPaidDate(entity.getCustomsPaidDate());
         if (entity.getStaff() != null) {
-//            response.setStaffId(entity.getStaff().getStaffId());
-            response.setStaffName(entity.getStaff().getName());  // giả sử Staff có field name
+            response.setStaffName(entity.getStaff().getName());
         }
-
         return response;
     }
 

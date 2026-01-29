@@ -602,9 +602,7 @@ public class PaymentService {
             qrAmount = totalCollect.subtract(usedBalance);
             
         }
-
         payment.setCollectedAmount(qrAmount);
-
         BankAccount bankAccount = bankAccountService.getAccountById(bankId);
         if (bankAccount == null){
             throw new NotFoundException("Thông tin thẻ ngân hàng không được tìm thấy!");
@@ -661,7 +659,6 @@ public class PaymentService {
         if (jsonResponse == null || jsonResponse.isEmpty()) {
             throw new RuntimeException("Empty response");
         }
-
         return objectMapper.readValue(jsonResponse, SmsRequest.class);  // Parse nhanh
     }
 
@@ -687,8 +684,6 @@ public class PaymentService {
             );
         }
 
-    // Check Lưu vào DB sử dụng APIs
-
     String txmCode = extractTXMGD(req.getContent());
 
     if (txmCode == null) {
@@ -700,6 +695,10 @@ public class PaymentService {
     if (payment == null) {
         return;
     }
+    if (payment.getCollectedAmount().compareTo(req.getAmount()) != 0)
+        return;
+    
+    autoPaymentService.create(req.getAmount(), txmCode , payment.getPurpose());
 
     if(payment.getPurpose() == PaymentPurpose.THANH_TOAN_DON_HANG){
         confirmedPayment(txmCode);
@@ -707,7 +706,7 @@ public class PaymentService {
         confirmedPaymentShipment(txmCode);
     }
 
-    autoPaymentService.create(req.getAmount(), txmCode , PaymentPurpose.THANH_TOAN_DON_HANG);
+    
     } catch (JsonProcessingException e) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,

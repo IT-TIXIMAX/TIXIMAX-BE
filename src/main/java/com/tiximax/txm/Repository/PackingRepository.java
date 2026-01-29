@@ -1,10 +1,7 @@
 package com.tiximax.txm.Repository;
 
-import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Entity.Packing;
-import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PackingStatus;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
 import org.springframework.data.domain.Page;
@@ -83,6 +80,7 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
         LEFT JOIN o.route r
         WHERE p.packedDate >= :start
           AND p.packedDate < :end
+          AND p.flightCode IS NOT NULL
           AND (:routeId IS NULL OR r.routeId = :routeId)
         """)
     PackedSummary getPackedSummary(
@@ -97,6 +95,7 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
             l.name,
             COUNT(DISTINCT w.warehouseId),
             COUNT(DISTINCT w.orders.orderId),
+            COUNT(DISTINCT p.packingId),
             COALESCE(SUM(w.weight), 0.0),
             COALESCE(SUM(w.netWeight), 0.0)
         )
@@ -105,6 +104,7 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
         JOIN w.location l
         WHERE p.packedDate >= :start
           AND p.packedDate < :end
+          AND p.flightCode IS NOT NULL
         GROUP BY l.locationId, l.name
         """)
     List<LocationSummary> getPackedSummaryByLocation(
@@ -124,11 +124,81 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
     JOIN p.warehouses w
     WHERE p.packedDate >= :start
       AND p.packedDate < :end
+      AND p.flightCode IS NOT NULL
       AND w.location.locationId = :locationId
-""")
+    """)
     PackedSummary getPackedSummaryByLocationId(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             @Param("locationId") Long locationId
     );
+
+    @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary(
+        COUNT(DISTINCT p.packingId),
+        COUNT(DISTINCT w.warehouseId),
+        COUNT(DISTINCT w.orders.orderId),
+        COALESCE(SUM(w.weight), 0.0),
+        COALESCE(SUM(w.netWeight), 0.0)
+    )
+    FROM Packing p
+    JOIN p.warehouses w
+    WHERE p.packedDate >= :start
+      AND p.packedDate < :end
+      AND p.flightCode IS NULL
+      AND w.location.locationId = :locationId
+    """)
+    PackedSummary getAwaitingFlightSummaryByLocation(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("locationId") Long locationId
+    );
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary(
+            COUNT(DISTINCT p.packingId),
+            COUNT(DISTINCT w.warehouseId),
+            COUNT(DISTINCT w.orders.orderId),
+            COALESCE(SUM(w.weight), 0.0),
+            COALESCE(SUM(w.netWeight), 0.0)
+        )
+        FROM Packing p
+        JOIN p.warehouses w
+        LEFT JOIN w.orders o
+        LEFT JOIN o.route r
+        WHERE p.packedDate >= :start
+          AND p.packedDate < :end
+          AND p.flightCode IS NULL
+          AND (:routeId IS NULL OR r.routeId = :routeId)
+        """)
+    PackedSummary getAwaitFlightSummary(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("routeId") Long routeId
+    );
+
+    @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary(
+            l.locationId,
+            l.name,
+            COUNT(DISTINCT w.warehouseId),
+            COUNT(DISTINCT w.orders.orderId),
+            COUNT(DISTINCT p.packingId),
+            COALESCE(SUM(w.weight), 0.0),
+            COALESCE(SUM(w.netWeight), 0.0)
+        )
+        FROM Packing p
+        JOIN p.warehouses w
+        JOIN w.location l
+        WHERE p.packedDate >= :start
+          AND p.packedDate < :end
+          AND p.flightCode IS NULL
+        GROUP BY l.locationId, l.name
+        """)
+    List<LocationSummary> getAwaitingFlightPackedSummaryByLocation(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    List<Packing> findByFlightCode(String flightCode);
 }
