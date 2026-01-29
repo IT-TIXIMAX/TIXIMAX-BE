@@ -19,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Page;
 
+import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.Carrier;
@@ -116,15 +117,22 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.removeShipments(id, request.getShippingCodes())
         );
     }
-    @GetMapping("locked")
+@GetMapping("locked")
 public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
         @RequestParam(required = false)
         @DateTimeFormat(pattern = "yyyy-MM-dd")
         LocalDate endDate,
         @RequestParam Carrier carrier
 ) {
+    Account staff = (Staff) accountUtils.getAccountCurrent();
+
+    Long staffId = null;
+    if (staff.getRole() == AccountRoles.STAFF_SALE) { 
+        staffId = staff.getAccountId();
+    }
+
     return ResponseEntity.ok(
-            draftDomesticService.getLockedDraftNotExported(endDate, carrier)
+        draftDomesticService.getLockedDraftNotExported(endDate, staffId, carrier)
     );
 }
 
