@@ -53,10 +53,11 @@ Page<DraftDomestic> findAllWithFilter(
             @Param("customerCode") String customerCode
     );
 
-   @Query("""
+@Query("""
     SELECT d
     FROM DraftDomestic d
     WHERE d.status = :status
+      AND (:staffId IS NULL OR d.staff.accountId = :staffId)
       AND d.carrier = :carrier
       AND d.createdAt BETWEEN :startDate AND :endDate
     ORDER BY d.createdAt DESC
@@ -64,9 +65,11 @@ Page<DraftDomestic> findAllWithFilter(
 List<DraftDomestic> findLockedBetween(
         @Param("status") DraftDomesticStatus status,
         @Param("carrier") Carrier carrier,
+        @Param("staffId") Long staffId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
 );
+
 
 
 
