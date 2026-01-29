@@ -119,6 +119,7 @@ Page<DraftDomestic> availableToLock(
         Pageable pageable
 );
 
+List<DraftDomestic> findByStatus(DraftDomesticStatus status);
 
       @Query("""
     SELECT DISTINCT d
