@@ -4,8 +4,12 @@ import java.util.List;
 
 import com.tiximax.txm.Entity.DraftDomestic;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class DraftDomesticResponse {
     private Long id;
     private String customerName;
@@ -27,4 +31,5 @@ public class DraftDomesticResponse {
         this.customerName = draftDomestic.getCustomer().getName();
         this.staffCode = draftDomestic.getStaff().getStaffCode();
     }
+    
 }

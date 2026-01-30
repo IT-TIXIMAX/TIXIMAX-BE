@@ -147,6 +147,78 @@ public class DraftDomesticService {
 
         return shipcodePayment;
     }
+    public List<ShipCodePayment> getAllShipByStaff(
+            Long staffId,
+            String keyword,
+            Pageable pageable
+    ) {
+
+     Page<DraftDomestic> drafts;
+
+        if (keyword == null || keyword.isBlank()) {
+            drafts = draftDomesticRepository.findByStaff(staffId, pageable);
+        } else {
+            drafts = draftDomesticRepository
+                    .searchByStaffAndKeyword(staffId, keyword,pageable);
+        }
+
+        if (drafts.isEmpty()) return List.of();
+
+        Map<String, List<String>> shipCodeMap = drafts.stream()
+                .filter(d -> d.getShippingList() != null && !d.getShippingList().isEmpty())
+                .collect(Collectors.groupingBy(
+                        DraftDomestic::getShipCode,
+                        Collectors.flatMapping(
+                                d -> d.getShippingList().stream(),
+                                Collectors.toList()
+                        )
+                ));
+
+        if (shipCodeMap.isEmpty()) return List.of();
+
+        // 3. Gom toàn bộ trackingCodes (1 query)
+        List<String> allTrackingCodes = shipCodeMap.values().stream()
+                .flatMap(List::stream)
+                .distinct()
+                .toList();
+
+        List<WarehouseShip> allWarehouseShips =
+                warehouseRepository.findWarehouseShips(allTrackingCodes);
+
+        Map<String, WarehouseShip> warehouseShipMap =
+                allWarehouseShips.stream()
+                        .collect(Collectors.toMap(
+                                ws -> ws.getShipmentCode(),
+                                ws -> ws,
+                                (a, b) -> a
+                        ));
+
+        List<ShipCodePayment> result = new ArrayList<>();
+
+        for (Map.Entry<String, List<String>> entry : shipCodeMap.entrySet()) {
+
+            String shipCode = entry.getKey();
+            List<String> trackingCodes = entry.getValue();
+
+            List<WarehouseShip> warehouseShips = trackingCodes.stream()
+                    .map(warehouseShipMap::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            BigDecimal totalPriceShip =
+                    partialShipmentService.calculateTotalShippingFee(trackingCodes);
+
+            ShipCodePayment item = new ShipCodePayment();
+            item.setShipCode(shipCode);
+            item.setWarehouseShips(warehouseShips);
+            item.setTotalPriceShip(totalPriceShip);
+
+            result.add(item);
+        }
+
+        return result;
+    }
+
 
  
  public DraftDomesticResponse getDraftDomestic(Long id){
@@ -357,8 +429,9 @@ public DraftDomesticResponse removeShipments(
             .orElseThrow(() -> new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa"));
 
     checkDraftEditable(draft);
+
     if (draft.getShippingList() == null || draft.getShippingList().isEmpty()) {
-        throw new BadRequestException("mẫu vận chuyển chưa có mã vận chuyển nào");
+        throw new BadRequestException("Mẫu vận chuyển chưa có mã vận chuyển nào");
     }
 
     if (shippingCodes == null || shippingCodes.isEmpty()) {
@@ -367,17 +440,33 @@ public DraftDomesticResponse removeShipments(
 
     Set<String> removeSet = shippingCodes.stream()
             .map(String::trim)
+            .filter(s -> !s.isBlank())
             .collect(Collectors.toSet());
 
-    draft.getShippingList()
-            .removeIf(code -> removeSet.contains(code));
-    Double sumWeight = warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
-    Double weight = calculateAndRoundWeight(sumWeight);
-    draft.setWeight(weight);
-    draft.setShipCode(draft.getCustomer().getCustomerCode() + "-" + draft.getShippingList().size());
+    // 1️⃣ Xóa shippingCode
+    draft.getShippingList().removeIf(removeSet::contains);
+
+    // 2️⃣ Nếu KHÔNG CÒN shippingCode → XÓA CỨNG draft
+    if (draft.getShippingList().isEmpty()) {
+        draftDomesticRepository.deleteById(draftId);
+        return null;
+    }
+          
+    // 3️⃣ Còn shippingCode → cập nhật lại draft
+    Double sumWeight =
+            warehouseRepository.sumWeightByTrackingCodes(draft.getShippingList());
+
+    draft.setWeight(calculateAndRoundWeight(sumWeight));
+    draft.setShipCode(
+            draft.getCustomer().getCustomerCode()
+                    + "-" + draft.getShippingList().size()
+    );
+
     draftDomesticRepository.save(draft);
+
     return new DraftDomesticResponse(draft);
 }
+
 @Transactional
 public Boolean deleteDraftDomestic(Long draftId) {
 
@@ -455,8 +544,9 @@ public Boolean ExportDraftDomestic(List<Long> draftIds) {
  }
 
 public List<DraftDomesticResponse> getLockedDraftNotExported(
-        LocalDate endDate, 
-        Carrier carrier     
+        LocalDate endDate,
+        Long staffId,     // có thể null
+        Carrier carrier
 ) {
 
     if (endDate == null) {
@@ -467,11 +557,18 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
     LocalDateTime startDateTime = endDateTime.minusDays(7);
 
     return draftDomesticRepository
-        .findLockedBetween( DraftDomesticStatus.LOCKED,carrier,startDateTime, endDateTime )
+        .findLockedBetween(
+            DraftDomesticStatus.LOCKED,
+            carrier,
+            staffId, 
+            startDateTime,
+            endDateTime
+        )
         .stream()
         .map(this::mapToResponseWithRoundedWeight)
         .toList();
 }
+
 
 
     public Page<DraftDomesticResponse> getDraftsToLock(
@@ -485,7 +582,7 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
             .map(DraftDomesticResponse::new);
     }
 
-     @Transactional
+    @Transactional
     public void checkAndLockDraftDomesticByShipmentCodes(
             Set<String> paidShipmentCodes
     ) {
@@ -522,10 +619,7 @@ public List<DraftDomesticResponse> getLockedDraftNotExported(
         }
     }
 
-// IMPORT FILE VNPOST DRAFT DOMESTIC
 
-
-//
     public DraftDomestic getDraftDomesticByShipCode (String shipCode) {
         var draft = draftDomesticRepository.findByShipCode(shipCode);
         if (draft.isEmpty()) {

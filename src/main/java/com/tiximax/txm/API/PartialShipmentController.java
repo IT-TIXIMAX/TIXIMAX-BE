@@ -67,7 +67,7 @@ public ResponseEntity<Page<PartialPayment>> getPartialPayments(
 }
 
 @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
-@PostMapping("/by-ship-code/{shipCode}/{isUseBalance}/{bankId}/{priceShipDos}")
+@PostMapping("/by-ship-code/{shipCode}/{isUseBalance}/{bankId}/{priceShipDos}/{customerVoucherId}")
 public ResponseEntity<Payment> createPartialShipmentByShipCode(
         @PathVariable String shipCode,
         @PathVariable boolean isUseBalance,

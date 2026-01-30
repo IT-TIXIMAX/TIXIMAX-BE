@@ -53,10 +53,11 @@ Page<DraftDomestic> findAllWithFilter(
             @Param("customerCode") String customerCode
     );
 
-   @Query("""
+@Query("""
     SELECT d
     FROM DraftDomestic d
     WHERE d.status = :status
+      AND (:staffId IS NULL OR d.staff.accountId = :staffId)
       AND d.carrier = :carrier
       AND d.createdAt BETWEEN :startDate AND :endDate
     ORDER BY d.createdAt DESC
@@ -64,9 +65,11 @@ Page<DraftDomestic> findAllWithFilter(
 List<DraftDomestic> findLockedBetween(
         @Param("status") DraftDomesticStatus status,
         @Param("carrier") Carrier carrier,
+        @Param("staffId") Long staffId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
 );
+
 
 
 
@@ -131,7 +134,34 @@ List<DraftDomestic> findByStatus(DraftDomesticStatus status);
 List<DraftDomestic> findDraftByShipmentCodes(
         @Param("shipmentCodes") Collection<String> shipmentCodes
 );
+
+@Query("""
+ SELECT DISTINCT d
+    FROM DraftDomestic d
+    WHERE d.staff.accountId = :staffId
+        And d.status = 'DRAFT'
+    """)
+ Page<DraftDomestic> findByStaff(
+        @Param("staffId") Long staffId,
+        Pageable pageable
+ );
         
+  @Query("""
+        SELECT DISTINCT d
+        FROM DraftDomestic d
+        LEFT JOIN d.shippingList s
+        WHERE d.staff.accountId = :staffId
+          AND d.status = 'DRAFT'
+          AND (
+                LOWER(d.shipCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR LOWER(s) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          )
+    """)
+    Page<DraftDomestic> searchByStaffAndKeyword(
+            @Param("staffId") Long staffId,
+            @Param("keyword") String keyword
+          ,Pageable pageable
+    );
 
 }
 

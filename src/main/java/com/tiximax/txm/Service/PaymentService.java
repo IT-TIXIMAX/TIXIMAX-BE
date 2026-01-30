@@ -320,74 +320,88 @@ public class PaymentService {
         return savedPayment;
     }
   @Transactional
-  public Payment confirmedPaymentShipment(String paymentCode) {
+    public Payment confirmedPaymentShipment(String paymentCode) {
 
     Payment payment = paymentRepository.findByPaymentCode(paymentCode)
             .orElseThrow(() -> new BadRequestException("Không tìm thấy giao dịch này!"));
 
-    if (!payment.getStatus().equals(PaymentStatus.CHO_THANH_TOAN_SHIP)) {
+    if (payment.getStatus() != PaymentStatus.CHO_THANH_TOAN_SHIP) {
         throw new BadRequestException("Trạng thái đơn hàng không phải chờ thanh toán!");
     }
 
-    payment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
-
     Set<String> paidShipmentCodes = new HashSet<>();
 
-    if (payment.getIsMergedPayment()) {
+    if (Boolean.TRUE.equals(payment.getIsMergedPayment())) {
 
         for (Orders order : payment.getRelatedOrders()) {
+
             order.setStatus(OrderStatus.CHO_GIAO);
 
-            for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
+            for (OrderLinks link : order.getOrderLinks()) {
                 if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
-                    link.setStatus(OrderLinkStatus.CHO_GIAO);
+
+                link.setStatus(OrderLinkStatus.CHO_GIAO);
+                orderLinksRepository.save(link);
+
                 if (link.getShipmentCode() != null) {
                     paidShipmentCodes.add(link.getShipmentCode());
                 }
-                syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
+
             ordersRepository.save(order);
-            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN_SHIP);
+            ordersService.addProcessLog(
+                    order,
+                    payment.getPaymentCode(),
+                    ProcessLogAction.DA_THANH_TOAN_SHIP
+            );
         }
-    } else if (payment.getOrders() != null) {
+
+    }
+    else if (payment.getOrders() != null) {
 
         Orders order = payment.getOrders();
         order.setStatus(OrderStatus.CHO_GIAO);
 
-        for (OrderLinks link : new ArrayList<>(order.getOrderLinks())) {
-             if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
-                    link.setStatus(OrderLinkStatus.CHO_GIAO);
-                if (link.getShipmentCode() != null) {
-                    paidShipmentCodes.add(link.getShipmentCode());
-                }
-            syncWarehouseIfAllLinksReady(link.getShipmentCode());
+        for (OrderLinks link : order.getOrderLinks()) {
+            if (link.getStatus() == OrderLinkStatus.DA_HUY) continue;
+
+            link.setStatus(OrderLinkStatus.CHO_GIAO);
+            orderLinksRepository.save(link);
+
+            if (link.getShipmentCode() != null) {
+                paidShipmentCodes.add(link.getShipmentCode());
+            }
         }
 
         ordersRepository.save(order);
-        ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN_SHIP);
+        ordersService.addProcessLog(
+                order,
+                payment.getPaymentCode(),
+                ProcessLogAction.DA_THANH_TOAN_SHIP
+        );
 
-    } else {
+    }
+    else {
 
-        List<PartialShipment> partialShipments = partialShipmentRepository.findByPayment(payment);
+        List<PartialShipment> partialShipments =
+                partialShipmentRepository.findByPayment(payment);
 
         for (PartialShipment shipment : partialShipments) {
 
             shipment.setStatus(OrderStatus.CHO_GIAO);
             shipment.setShipmentDate(LocalDateTime.now());
+            partialShipmentRepository.save(shipment);
 
-            List<OrderLinks> safeLinks = new ArrayList<>(shipment.getReadyLinks());
+            for (OrderLinks link : shipment.getReadyLinks()) {
 
-            for (OrderLinks link : safeLinks) {
                 link.setStatus(OrderLinkStatus.CHO_GIAO);
                 link.setPartialShipment(shipment);
                 orderLinksRepository.save(link);
+
                 if (link.getShipmentCode() != null) {
                     paidShipmentCodes.add(link.getShipmentCode());
                 }
-                syncWarehouseIfAllLinksReady(link.getShipmentCode());
             }
-
-            partialShipmentRepository.save(shipment);
 
             Orders order = shipment.getOrders();
             boolean allLinksDone = order.getOrderLinks().stream()
@@ -402,11 +416,30 @@ public class PaymentService {
             }
 
             ordersRepository.save(order);
-            ordersService.addProcessLog(order, payment.getPaymentCode(), ProcessLogAction.DA_THANH_TOAN_SHIP);
+            ordersService.addProcessLog(
+                    order,
+                    payment.getPaymentCode(),
+                    ProcessLogAction.DA_THANH_TOAN_SHIP
+            );
         }
     }
-       draftDomesticService
+
+    orderLinksRepository.flush();
+    ordersRepository.flush();
+
+    for (String shipmentCode : paidShipmentCodes) {
+        syncWarehouseIfAllLinksReady(shipmentCode);
+    }
+
+    warehouseRepository.flush();
+
+
+    draftDomesticService
             .checkAndLockDraftDomesticByShipmentCodes(paidShipmentCodes);
+
+
+    payment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
+    paymentRepository.save(payment);
 
     messagingTemplate.convertAndSend(
             "/topic/Tiximax",
@@ -417,8 +450,9 @@ public class PaymentService {
             )
     );
 
-    return paymentRepository.save(payment);
+    return payment;
 }
+
 
 
     public Optional<Payment> getPaymentsById(Long paymentId) {
@@ -696,9 +730,9 @@ public class PaymentService {
     if (payment == null) {
         return;
     }
-    if (payment.getCollectedAmount().compareTo(req.getAmount()) != 0)
+    if (payment.getCollectedAmount().compareTo(req.getAmount()) != 0){
         return;
-    
+    }
     autoPaymentService.create(req.getAmount(), txmCode , payment.getPurpose());
 
     if(payment.getPurpose() == PaymentPurpose.THANH_TOAN_DON_HANG){
@@ -775,22 +809,32 @@ public static String extractTXMGD(String content) {
         return refundPayment;
     }
 
+  private void syncWarehouseIfAllLinksReady(String shipmentCode) {
 
-    private void syncWarehouseIfAllLinksReady(String shipmentCode) {
+    if (shipmentCode == null) return;
 
     List<OrderLinks> links =
             orderLinksRepository.findByShipmentCode(shipmentCode);
 
+    if (links.isEmpty()) return;
+
     boolean allReady = links.stream()
-            .allMatch(l -> l.getStatus() == OrderLinkStatus.CHO_GIAO);
+            .filter(l -> l.getStatus() != OrderLinkStatus.DA_HUY)
+            .allMatch(l ->
+                    l.getStatus() == OrderLinkStatus.CHO_GIAO ||
+                    l.getStatus() == OrderLinkStatus.DA_GIAO
+            );
 
     if (!allReady) return;
 
     warehouseRepository.findByTrackingCode(shipmentCode)
             .ifPresent(w -> {
-                w.setStatus(WarehouseStatus.CHO_GIAO);
-                warehouseRepository.save(w);
+                if (w.getStatus() != WarehouseStatus.CHO_GIAO) {
+                    w.setStatus(WarehouseStatus.CHO_GIAO);
+                    warehouseRepository.save(w);
+                }
             });
 }
+
 
 }
