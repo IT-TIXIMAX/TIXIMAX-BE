@@ -621,6 +621,8 @@ public class DashBoardService {
 
             Double totalNetWeight = row[4] == null ? 0.0 : ((Number) row[4]).doubleValue();
 
+            Double totalPartial = row[5] == null ? 0.0 : ((Number) row[5]).doubleValue();
+
             StaffPerformanceKPI kpi = tempMap
                     .computeIfAbsent(routeName, k -> new HashMap<>())
                     .computeIfAbsent(staffCode, k -> {
@@ -633,7 +635,7 @@ public class DashBoardService {
                     });
 
             kpi.setTotalGoods(totalGoods != null ? totalGoods : BigDecimal.ZERO);
-            kpi.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
+            kpi.setTotalNetWeight(Math.round((totalNetWeight + totalPartial) * 100.0) / 100.0);
         }
 
         Map<String, RouteStaffPerformance> result = new TreeMap<>();
@@ -686,7 +688,12 @@ public class DashBoardService {
         return resultMap;
     }
 
-    public Map<String, GoodsAndWeight> getGoodsAndWeight(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+    public Map<String, GoodsAndWeight> getGoodsAndWeight(
+            LocalDate start,
+            LocalDate end,
+            DashboardFilterType filterType,
+            Long routeId
+    ) {
         StartEndDate dateRange = getDateStartEnd(filterType);
         LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
         LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
@@ -696,28 +703,39 @@ public class DashBoardService {
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
 
-        List<Object[]> goodsResults = ordersRepository.getGoodsValue(staff.getAccountId(), startDateTime, endDateTime, routeId);
+        List<Object[]> goodsResults =
+                ordersRepository.getGoodsValue(staff.getAccountId(), startDateTime, endDateTime, routeId);
         Map<String, BigDecimal> goodsMap = new HashMap<>();
         for (Object[] row : goodsResults) {
             String routeName = (String) row[0];
-            BigDecimal totalGoods = row[1] instanceof BigDecimal ? (BigDecimal) row[1] :
-                    row[1] instanceof Number ? BigDecimal.valueOf(((Number) row[1]).doubleValue()) : BigDecimal.ZERO;
+            BigDecimal totalGoods =
+                    row[1] instanceof BigDecimal
+                            ? (BigDecimal) row[1]
+                            : row[1] instanceof Number
+                            ? BigDecimal.valueOf(((Number) row[1]).doubleValue())
+                            : BigDecimal.ZERO;
+
             goodsMap.put(routeName, totalGoods);
         }
-
-        List<Object[]> weightResults = ordersRepository.getShippingWeight(staff.getAccountId(), startDateTime, endDateTime, routeId);
+        List<Object[]> weightResults =
+                ordersRepository.getShippingWeight(staff.getAccountId(), startDateTime, endDateTime, routeId);
         Map<String, Double> weightMap = new HashMap<>();
         for (Object[] row : weightResults) {
             String routeName = (String) row[0];
-            Double totalNetWeight = row[1] != null ? Math.round(((Number) row[1]).doubleValue() * 10.0) / 10.0 : 0.0;
+            Double shippingWeight =
+                    row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
+            Double partialWeight =
+                    row.length > 2 && row[2] != null
+                            ? ((Number) row[2]).doubleValue()
+                            : 0.0;
+            Double totalNetWeight =
+                    Math.round((shippingWeight + partialWeight) * 10.0) / 10.0;
             weightMap.put(routeName, totalNetWeight);
         }
-
         Map<String, GoodsAndWeight> resultMap = new LinkedHashMap<>();
         Set<String> allRoutes = new HashSet<>();
         allRoutes.addAll(goodsMap.keySet());
         allRoutes.addAll(weightMap.keySet());
-
         for (String routeName : allRoutes) {
             BigDecimal goods = goodsMap.getOrDefault(routeName, BigDecimal.ZERO);
             Double weight = weightMap.getOrDefault(routeName, 0.0);
