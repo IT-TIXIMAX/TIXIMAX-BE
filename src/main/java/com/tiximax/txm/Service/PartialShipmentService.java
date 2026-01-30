@@ -773,6 +773,8 @@ public List<PartialShipment> createPartialShipmentByShipCode(
         customerVoucherRepository.save(customerVoucher);
     }
 
+    draftDomesticService.updatePayment(draftDomestic);
+
     messagingTemplate.convertAndSend(
             "/topic/Tiximax",
             Map.of(
