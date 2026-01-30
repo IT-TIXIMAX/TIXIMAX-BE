@@ -450,93 +450,117 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
 
     @Query(value = """
             WITH
-                payment_ship_qualified AS (
-                    SELECT DISTINCT
-                        p.payment_id,
-                        w.warehouse_id,
-                        w.net_weight,
-                        r.route_id,
-                        r.name AS route_name,
-                        r.min_weight,
-                        o.staff_id
-                    FROM payment p
-                    INNER JOIN payment_orders po ON po.payment_id = p.payment_id
-                    INNER JOIN orders o ON o.order_id = po.order_id
-                    INNER JOIN warehouse w ON w.order_id = o.order_id
-                    INNER JOIN route r ON o.route_id = r.route_id
-                    WHERE p.status = 'DA_THANH_TOAN_SHIP'
-                      AND p.staff_id = o.staff_id
-                      AND p.action_at >= :start
-                      AND p.action_at < :end
-                      AND (:routeId IS NULL OR r.route_id = :routeId)
-                ),
-                raw_weight_per_payment AS (
-                    -- Tính tổng raw net_weight theo từng payment + route + staff
-                    SELECT
-                        route_id,
-                        staff_id,
-                        payment_id,
-                        SUM(net_weight) AS raw_total_weight,
-                        MIN(min_weight) AS min_weight
-                    FROM payment_ship_qualified
-                    GROUP BY route_id, staff_id, payment_id
-                ),
-                adjusted_weight_by_staff_route AS (
-                    SELECT
-                        route_id,
-                        staff_id,
-                        SUM(
-                            CASE
-                                WHEN raw_total_weight < COALESCE(min_weight, 0)
-                                THEN COALESCE(min_weight, raw_total_weight)
-                                ELSE raw_total_weight
-                            END
-                        ) AS total_shipping_weight_adjusted
-                    FROM raw_weight_per_payment
-                    GROUP BY route_id, staff_id
-                ),
-                goods_by_staff_route AS (
-                    SELECT
-                        o.route_id,
-                        o.staff_id,
-                        COALESCE(SUM(ol.total_web), 0) AS total_goods
-                    FROM order_links ol
-                    LEFT JOIN warehouse w ON ol.warehouse_id = w.warehouse_id
-                    LEFT JOIN purchases p ON ol.purchase_id = p.purchase_id
-                    LEFT JOIN orders o ON o.order_id = COALESCE(w.order_id, p.order_id)
-                    WHERE COALESCE(w.created_at, p.purchase_time) >= :start
-                      AND COALESCE(w.created_at, p.purchase_time) < :end
-                      AND (:routeId IS NULL OR o.route_id = :routeId)
-                      AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
-                    GROUP BY o.route_id, o.staff_id
-                )
-            SELECT
-                COALESCE(r.name, 'Không xác định') AS route_name,
-                s.staff_code,
-                a.name AS staff_name,
-                COALESCE(g.total_goods, 0) AS total_goods,
-                COALESCE(aw.total_shipping_weight_adjusted, 0) AS total_shipping_weight
-            FROM orders o
-            JOIN staff s ON o.staff_id = s.account_id
-            JOIN account a ON s.account_id = a.account_id
-            LEFT JOIN route r ON o.route_id = r.route_id
-            LEFT JOIN adjusted_weight_by_staff_route aw
-                   ON aw.route_id = o.route_id
-                  AND aw.staff_id = o.staff_id
-            LEFT JOIN goods_by_staff_route g
-                   ON g.route_id = o.route_id
-                  AND g.staff_id = o.staff_id
-            WHERE a.role IN ('STAFF_SALE', 'LEAD_SALE')
-               AND (:routeId IS NULL OR o.route_id = :routeId)
-            GROUP BY
-                r.name,
-                s.staff_code,
-                a.name,
-                g.total_goods,
-                aw.total_shipping_weight_adjusted
-            ORDER BY
-                route_name ASC,
-                total_goods DESC;
+                 payment_ship_qualified AS (
+                     SELECT DISTINCT
+                         p.payment_id,
+                         w.warehouse_id,
+                         w.net_weight,
+                         r.route_id,
+                         r.name AS route_name,
+                         r.min_weight,
+                         o.staff_id
+                     FROM payment p
+                     INNER JOIN payment_orders po ON po.payment_id = p.payment_id
+                     INNER JOIN orders o ON o.order_id = po.order_id
+                     INNER JOIN warehouse w ON w.order_id = o.order_id
+                     INNER JOIN route r ON o.route_id = r.route_id
+                     WHERE p.status = 'DA_THANH_TOAN_SHIP'
+                       AND p.staff_id = o.staff_id
+                       AND p.action_at >= :start
+                       AND p.action_at < :end
+                       AND (:routeId IS NULL OR r.route_id = :routeId)
+                 ),
+                 raw_weight_per_payment AS (
+                     SELECT
+                         route_id,
+                         staff_id,
+                         payment_id,
+                         SUM(net_weight) AS raw_total_weight,
+                         MIN(min_weight) AS min_weight
+                     FROM payment_ship_qualified
+                     GROUP BY route_id, staff_id, payment_id
+                 ),
+                 adjusted_weight_by_staff_route AS (
+                     SELECT
+                         route_id,
+                         staff_id,
+                         SUM(
+                             CASE
+                                 WHEN raw_total_weight < COALESCE(min_weight, 0)
+                                 THEN COALESCE(min_weight, raw_total_weight)
+                                 ELSE raw_total_weight
+                             END
+                         ) AS total_shipping_weight_adjusted
+                     FROM raw_weight_per_payment
+                     GROUP BY route_id, staff_id
+                 ),
+                 goods_by_staff_route AS (
+                     SELECT
+                         o.route_id,
+                         o.staff_id,
+                         COALESCE(SUM(ol.total_web), 0) AS total_goods
+                     FROM order_links ol
+                     LEFT JOIN warehouse w ON ol.warehouse_id = w.warehouse_id
+                     LEFT JOIN purchases p ON ol.purchase_id = p.purchase_id
+                     LEFT JOIN orders o ON o.order_id = COALESCE(w.order_id, p.order_id)
+                     WHERE COALESCE(w.created_at, p.purchase_time) >= :start
+                       AND COALESCE(w.created_at, p.purchase_time) < :end
+                       AND (:routeId IS NULL OR o.route_id = :routeId)
+                       AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
+                     GROUP BY o.route_id, o.staff_id
+                 ),
+                 partial_weight_by_staff_route AS (
+                     SELECT
+                         r.route_id,
+                         r.name AS route_name,
+                         o.staff_id,
+                         ROUND(CAST(SUM(COALESCE(ps.collect_weight, 0)) AS numeric), 3) AS tong_collect_weight_partial
+                     FROM partial_shipment ps
+                     INNER JOIN orders o ON o.order_id = ps.order_id
+                     INNER JOIN route r ON o.route_id = r.route_id
+                     INNER JOIN staff s ON o.staff_id = s.account_id
+                     INNER JOIN account a ON s.account_id = a.account_id
+                     WHERE ps.collect_weight IS NOT NULL
+                       AND ps.collect_weight > 0
+                       AND ps.shipment_date >= :start
+                       AND ps.shipment_date < :end
+                       AND (:routeId IS NULL OR r.route_id = :routeId)
+                       AND a.role IN ('STAFF_SALE', 'LEAD_SALE')
+                     GROUP BY r.route_id, r.name, o.staff_id
+                     HAVING SUM(COALESCE(ps.collect_weight, 0)) > 0
+                 )
+             SELECT
+                 COALESCE(r.name, 'Không xác định') AS route_name,
+                 s.staff_code,
+                 a.name AS staff_name,
+                 COALESCE(g.total_goods, 0) AS total_goods,
+                 COALESCE(aw.total_shipping_weight_adjusted, 0) AS total_shipping_weight_adjusted,
+                 COALESCE(pw.tong_collect_weight_partial, 0) AS tong_collect_weight_partial
+             FROM orders o
+             JOIN staff s ON o.staff_id = s.account_id
+             JOIN account a ON s.account_id = a.account_id
+             LEFT JOIN route r ON o.route_id = r.route_id
+             LEFT JOIN adjusted_weight_by_staff_route aw
+                    ON aw.route_id = o.route_id
+                   AND aw.staff_id = o.staff_id
+             LEFT JOIN goods_by_staff_route g
+                    ON g.route_id = o.route_id
+                   AND g.staff_id = o.staff_id
+             LEFT JOIN partial_weight_by_staff_route pw
+                    ON pw.route_id = o.route_id
+                   AND pw.staff_id = o.staff_id
+             WHERE a.role IN ('STAFF_SALE', 'LEAD_SALE')
+                AND (:routeId IS NULL OR o.route_id = :routeId)
+             GROUP BY
+                 r.name,
+                 s.staff_code,
+                 a.name,
+                 g.total_goods,
+                 aw.total_shipping_weight_adjusted,
+                 pw.tong_collect_weight_partial
+             ORDER BY
+                 route_name ASC,
+                 total_goods DESC;
     """, nativeQuery = true)
     List<Object[]> aggregateStaffKPIByRoute(
             @Param("start") LocalDateTime start,
@@ -591,51 +615,72 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     );
 
     @Query(value = """
-        WITH
-            payment_ship_qualified AS (
-                SELECT DISTINCT
-                    p.payment_id,
-                    w.warehouse_id,
-                    w.net_weight,
-                    r.route_id,
-                    r.name AS route_name,
-                    r.min_weight
-                FROM payment p
-                INNER JOIN payment_orders po ON po.payment_id = p.payment_id
-                INNER JOIN orders o ON o.order_id = po.order_id
-                INNER JOIN warehouse w ON w.order_id = o.order_id
-                INNER JOIN route r ON o.route_id = r.route_id
-                WHERE p.status = 'DA_THANH_TOAN_SHIP'
-                  AND p.staff_id = :staffId
-                  AND p.action_at >= :start
-                  AND p.action_at < :end
-                  AND (:routeId IS NULL OR r.route_id = :routeId)
-            ),
-            raw_weight_per_payment AS (
-                SELECT
-                    route_id,
-                    route_name,
-                    SUM(net_weight) AS raw_total_weight,
-                    min_weight
-                FROM payment_ship_qualified
-                GROUP BY route_id, route_name, payment_id, min_weight
-            ),
-            adjusted_weight AS (
-                SELECT
-                    route_name,
-                    SUM(
-                        CASE
-                            WHEN raw_total_weight < COALESCE(min_weight, 0)
-                            THEN COALESCE(min_weight, raw_total_weight)
-                            ELSE raw_total_weight
-                        END
-                    ) AS total_net_weight
-                FROM raw_weight_per_payment
-                GROUP BY route_name
-            )
-        SELECT route_name, total_net_weight FROM adjusted_weight
-        ORDER BY route_name ASC
-    """, nativeQuery = true)
+    WITH
+        payment_ship_qualified AS (
+            SELECT DISTINCT
+                p.payment_id,
+                w.warehouse_id,
+                w.net_weight,
+                r.route_id,
+                r.name AS route_name,
+                r.min_weight
+            FROM payment p
+            INNER JOIN payment_orders po ON po.payment_id = p.payment_id
+            INNER JOIN orders o ON o.order_id = po.order_id
+            INNER JOIN warehouse w ON w.order_id = o.order_id
+            INNER JOIN route r ON o.route_id = r.route_id
+            WHERE p.status = 'DA_THANH_TOAN_SHIP'
+              AND p.staff_id = :staffId
+              AND p.action_at >= :start
+              AND p.action_at < :end
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+        ),
+        raw_weight_per_payment AS (
+            SELECT
+                route_id,
+                route_name,
+                SUM(net_weight) AS raw_total_weight,
+                min_weight
+            FROM payment_ship_qualified
+            GROUP BY route_id, route_name, payment_id, min_weight
+        ),
+        adjusted_weight AS (
+            SELECT
+                route_name,
+                SUM(
+                    CASE
+                        WHEN raw_total_weight < COALESCE(min_weight, 0)
+                        THEN COALESCE(min_weight, raw_total_weight)
+                        ELSE raw_total_weight
+                    END
+                ) AS total_net_weight
+            FROM raw_weight_per_payment
+            GROUP BY route_name
+        ),
+        partial_weight_by_route AS (
+            SELECT
+                r.name AS route_name,
+                ROUND(CAST(SUM(COALESCE(ps.collect_weight, 0)) AS numeric), 3) AS total_partial_weight
+            FROM partial_shipment ps
+            INNER JOIN orders o ON o.order_id = ps.order_id
+            INNER JOIN route r ON o.route_id = r.route_id
+            WHERE ps.collect_weight IS NOT NULL
+              AND ps.collect_weight > 0
+              AND o.staff_id = :staffId
+              AND ps.shipment_date >= :start
+              AND ps.shipment_date < :end
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            GROUP BY r.name
+        )
+    SELECT
+        aw.route_name,
+        aw.total_net_weight,
+        COALESCE(pw.total_partial_weight, 0) AS total_partial_weight
+    FROM adjusted_weight aw
+    LEFT JOIN partial_weight_by_route pw
+           ON pw.route_name = aw.route_name
+    ORDER BY aw.route_name ASC
+""", nativeQuery = true)
     List<Object[]> getShippingWeight(
             @Param("staffId") Long staffId,
             @Param("start") LocalDateTime start,

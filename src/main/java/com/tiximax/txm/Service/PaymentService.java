@@ -272,6 +272,7 @@ public class PaymentService {
         payment.setPurpose(PaymentPurpose.THANH_TOAN_VAN_CHUYEN);
         payment.setStaff((Staff) accountUtils.getAccountCurrent());
         payment.setIsMergedPayment(true);
+        payment.setCollectWeight(totalWeight.setScale(2, RoundingMode.HALF_UP).doubleValue());
         payment.setRelatedOrders(new HashSet<>(ordersList));
         payment.setOrders(null);
 

@@ -54,6 +54,8 @@ public class Payment {
     @Column(nullable = false)
     private Boolean isMergedPayment;
 
+    private Double collectWeight;
+
     @ManyToOne
     @JoinColumn(name="customer_id", nullable = false)
     @JsonIgnore
