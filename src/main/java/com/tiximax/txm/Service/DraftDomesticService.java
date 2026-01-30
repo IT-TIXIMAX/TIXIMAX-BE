@@ -167,44 +167,50 @@ public class DraftDomesticService {
   public List<ShipCodePayment> getAllShipByStaff(
         Long staffId,
         String keyword,
+        Boolean payment,   
         Pageable pageable
 ) {
 
     Page<DraftDomestic> drafts =
             (keyword == null || keyword.isBlank())
-                    ? draftDomesticRepository.findByStaff(staffId, pageable)
+                    ? draftDomesticRepository.findByStaff(
+                            staffId,
+                            payment,
+                            pageable
+                      )
                     : draftDomesticRepository.searchByStaffAndKeyword(
-                            staffId, keyword, pageable
-                    );
+                            staffId,
+                            keyword,
+                            payment,
+                            pageable
+                      );
 
     if (drafts.isEmpty()) {
         return List.of();
     }
 
-    // 1. shipCode -> DraftDomestic
-    Map<String, DraftDomestic> shipCodeDraftMap =
+    List<DraftDomestic> validDrafts =
             drafts.stream()
                     .filter(d ->
                             d.getShippingList() != null &&
                             !d.getShippingList().isEmpty()
                     )
-                    .collect(Collectors.toMap(
-                            DraftDomestic::getShipCode,
-                            d -> d,
-                            (a, b) -> a
-                    ));
+                    .toList();
 
-    if (shipCodeDraftMap.isEmpty()) {
+    if (validDrafts.isEmpty()) {
         return List.of();
     }
 
-    // 2. shipCode -> trackingCodes
+    Map<String, DraftDomestic> shipCodeDraftMap =
+            validDrafts.stream()
+                    .collect(Collectors.toMap(
+                            DraftDomestic::getShipCode,
+                            d -> d,
+                            (a, b) -> a 
+                    ));
+
     Map<String, List<String>> shipCodeTrackingMap =
-            drafts.stream()
-                    .filter(d ->
-                            d.getShippingList() != null &&
-                            !d.getShippingList().isEmpty()
-                    )
+            validDrafts.stream()
                     .collect(Collectors.groupingBy(
                             DraftDomestic::getShipCode,
                             Collectors.flatMapping(
@@ -213,7 +219,6 @@ public class DraftDomesticService {
                             )
                     ));
 
-    // 3. gom toàn bộ trackingCodes (1 query warehouse)
     List<String> allTrackingCodes =
             shipCodeTrackingMap.values().stream()
                     .flatMap(List::stream)
@@ -237,7 +242,7 @@ public class DraftDomesticService {
                             shipCodeTrackingMap
                     );
 
-    // 4. build response
+    // 5️⃣ build response
     List<ShipCodePayment> result = new ArrayList<>();
 
     for (Map.Entry<String, List<String>> entry : shipCodeTrackingMap.entrySet()) {
@@ -254,7 +259,10 @@ public class DraftDomesticService {
                         .filter(Objects::nonNull)
                         .toList();
 
-        BigDecimal totalPriceShip = feeMap.get(shipCode);
+        BigDecimal totalPriceShip = feeMap.getOrDefault(
+                shipCode,
+                BigDecimal.ZERO
+        );
 
         ShipCodePayment item = new ShipCodePayment();
         item.setShipCode(shipCode);
@@ -269,9 +277,11 @@ public class DraftDomesticService {
     return result;
 }
 
+public void updatePayment(DraftDomestic draft){
+    draft.setPayment(true);
+    draftDomesticRepository.save(draft);
+}
 
-
- 
  public DraftDomesticResponse getDraftDomestic(Long id){
     var draftDomestic = draftDomesticRepository.findById(id).get();
     if(draftDomestic == null){
