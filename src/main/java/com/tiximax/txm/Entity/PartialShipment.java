@@ -36,6 +36,8 @@ public class PartialShipment {
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
+    private Double collectWeight;
+
     private String note;
 
     @ManyToOne
