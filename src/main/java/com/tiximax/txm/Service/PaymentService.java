@@ -741,7 +741,6 @@ public class PaymentService {
         confirmedPaymentShipment(txmCode);
     }
 
-    
     } catch (JsonProcessingException e) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,

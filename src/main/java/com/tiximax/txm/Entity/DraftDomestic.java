@@ -38,14 +38,14 @@ public class DraftDomestic{
     private List<String> shippingList ;
     @Column(nullable = false)
     private String shipCode;
-
-   @Column(nullable = true)
-   private Double weight;
-
+    @Column(nullable = true)
+    private Double weight;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Carrier carrier;
 
+    @Column(nullable = false)
+    private boolean payment = false;
 
     @Column(nullable = true)
     private String noteTracking;

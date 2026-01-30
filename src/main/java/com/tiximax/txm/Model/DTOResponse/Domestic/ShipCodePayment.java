@@ -11,6 +11,9 @@ import lombok.Setter;
 @Setter
 public class ShipCodePayment {
     private String shipCode;
+    private String customerId ;
+    private String customerName;
+    private boolean payment;
     private List<WarehouseShip> warehouseShips;
     private BigDecimal totalPriceShip;
 }
