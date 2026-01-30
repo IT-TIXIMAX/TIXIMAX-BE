@@ -140,6 +140,7 @@ List<DraftDomestic> findDraftByShipmentCodes(
     FROM DraftDomestic d
     WHERE d.staff.accountId = :staffId
         And d.status = 'DRAFT'
+        And d.payment = false
     """)
  Page<DraftDomestic> findByStaff(
         @Param("staffId") Long staffId,
