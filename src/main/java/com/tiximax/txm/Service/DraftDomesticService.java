@@ -119,108 +119,169 @@ public class DraftDomesticService {
         return new DraftDomesticResponse(draftDomestic);
     }
 
-       public ShipCodePayment getShipCodePayment(String shipCode) {
+    public ShipCodePayment getShipCodePayment(String shipCode) {
 
-        // 1. Lấy draft domestic
-        DraftDomestic draft = draftDomesticRepository
-                .findByShipCode(shipCode)
-                .orElseThrow(() ->
-                        new RuntimeException("Không tìm thấy DraftDomestic"));
-
-        // 2. Lấy danh sách trackingCode
-        List<String> trackingCodes = draft.getShippingList();
-        if (trackingCodes == null || trackingCodes.isEmpty()) {
-            throw new RuntimeException("DraftDomestic chưa có shippingList");
-        }
-
-           List<WarehouseShip> warehouseShips =
-            warehouseRepository.findWarehouseShips(
-                    draft.getShippingList()
+    // 1. Lấy DraftDomestic
+    DraftDomestic draft = draftDomesticRepository
+            .findByShipCode(shipCode)
+            .orElseThrow(() ->
+                    new RuntimeException("Không tìm thấy DraftDomestic")
             );
-        // 5. Tính tổng tiền ship
-        BigDecimal totalPriceShip = partialShipmentService.calculateTotalShippingFee(trackingCodes);
 
-        ShipCodePayment shipcodePayment = new ShipCodePayment();
-        shipcodePayment.setShipCode(shipCode);
-        shipcodePayment.setWarehouseShips(warehouseShips);
-        shipcodePayment.setTotalPriceShip(totalPriceShip);
-
-        return shipcodePayment;
+    List<String> trackingCodes = draft.getShippingList();
+    if (trackingCodes == null || trackingCodes.isEmpty()) {
+        throw new RuntimeException("DraftDomestic chưa có shippingList");
     }
-    public List<ShipCodePayment> getAllShipByStaff(
-            Long staffId,
-            String keyword,
-            Pageable pageable
-    ) {
 
-     Page<DraftDomestic> drafts;
+    List<WarehouseShip> warehouseShips =
+            warehouseRepository.findWarehouseShips(trackingCodes);
 
-        if (keyword == null || keyword.isBlank()) {
-            drafts = draftDomesticRepository.findByStaff(staffId, pageable);
-        } else {
-            drafts = draftDomesticRepository
-                    .searchByStaffAndKeyword(staffId, keyword,pageable);
-        }
+    Map<String, List<String>> shipCodeTrackingMap =
+            Map.of(shipCode, trackingCodes);
 
-        if (drafts.isEmpty()) return List.of();
+    BigDecimal totalPriceShip =
+            partialShipmentService
+                    .calculateFeeByShipCodeAllowMultiRoute(
+                            shipCodeTrackingMap
+                    )
+                    .get(shipCode);
 
-        Map<String, List<String>> shipCodeMap = drafts.stream()
-                .filter(d -> d.getShippingList() != null && !d.getShippingList().isEmpty())
-                .collect(Collectors.groupingBy(
-                        DraftDomestic::getShipCode,
-                        Collectors.flatMapping(
-                                d -> d.getShippingList().stream(),
-                                Collectors.toList()
-                        )
-                ));
+    if (totalPriceShip == null ||
+        totalPriceShip.compareTo(BigDecimal.ZERO) <= 0) {
+        throw new RuntimeException("Không thể tính phí vận chuyển");
+    }
 
-        if (shipCodeMap.isEmpty()) return List.of();
+    Customer customer = draft.getCustomer();
 
-        // 3. Gom toàn bộ trackingCodes (1 query)
-        List<String> allTrackingCodes = shipCodeMap.values().stream()
-                .flatMap(List::stream)
-                .distinct()
-                .toList();
+    ShipCodePayment shipCodePayment = new ShipCodePayment();
+    shipCodePayment.setShipCode(shipCode);
+    shipCodePayment.setCustomerId(customer.getAccountId().toString());
+    shipCodePayment.setCustomerName(customer.getName());
+    shipCodePayment.setWarehouseShips(warehouseShips);
+    shipCodePayment.setTotalPriceShip(totalPriceShip);
+    shipCodePayment.setPayment(draft.isPayment());
 
-        List<WarehouseShip> allWarehouseShips =
-                warehouseRepository.findWarehouseShips(allTrackingCodes);
+    return shipCodePayment;
+}
 
-        Map<String, WarehouseShip> warehouseShipMap =
-                allWarehouseShips.stream()
-                        .collect(Collectors.toMap(
-                                ws -> ws.getShipmentCode(),
-                                ws -> ws,
-                                (a, b) -> a
-                        ));
+  public List<ShipCodePayment> getAllShipByStaff(
+        Long staffId,
+        String keyword,
+        Boolean payment,   
+        Pageable pageable
+) {
 
-        List<ShipCodePayment> result = new ArrayList<>();
+    Page<DraftDomestic> drafts =
+            (keyword == null || keyword.isBlank())
+                    ? draftDomesticRepository.findByStaff(
+                            staffId,
+                            payment,
+                            pageable
+                      )
+                    : draftDomesticRepository.searchByStaffAndKeyword(
+                            staffId,
+                            keyword,
+                            payment,
+                            pageable
+                      );
 
-        for (Map.Entry<String, List<String>> entry : shipCodeMap.entrySet()) {
+    if (drafts.isEmpty()) {
+        return List.of();
+    }
 
-            String shipCode = entry.getKey();
-            List<String> trackingCodes = entry.getValue();
-
-            List<WarehouseShip> warehouseShips = trackingCodes.stream()
-                    .map(warehouseShipMap::get)
-                    .filter(Objects::nonNull)
+    List<DraftDomestic> validDrafts =
+            drafts.stream()
+                    .filter(d ->
+                            d.getShippingList() != null &&
+                            !d.getShippingList().isEmpty()
+                    )
                     .toList();
 
-            BigDecimal totalPriceShip =
-                    partialShipmentService.calculateTotalShippingFee(trackingCodes);
-
-            ShipCodePayment item = new ShipCodePayment();
-            item.setShipCode(shipCode);
-            item.setWarehouseShips(warehouseShips);
-            item.setTotalPriceShip(totalPriceShip);
-
-            result.add(item);
-        }
-
-        return result;
+    if (validDrafts.isEmpty()) {
+        return List.of();
     }
 
+    Map<String, DraftDomestic> shipCodeDraftMap =
+            validDrafts.stream()
+                    .collect(Collectors.toMap(
+                            DraftDomestic::getShipCode,
+                            d -> d,
+                            (a, b) -> a 
+                    ));
 
- 
+    Map<String, List<String>> shipCodeTrackingMap =
+            validDrafts.stream()
+                    .collect(Collectors.groupingBy(
+                            DraftDomestic::getShipCode,
+                            Collectors.flatMapping(
+                                    d -> d.getShippingList().stream(),
+                                    Collectors.toList()
+                            )
+                    ));
+
+    List<String> allTrackingCodes =
+            shipCodeTrackingMap.values().stream()
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+
+    List<WarehouseShip> allWarehouseShips =
+            warehouseRepository.findWarehouseShips(allTrackingCodes);
+
+    Map<String, WarehouseShip> warehouseShipMap =
+            allWarehouseShips.stream()
+                    .collect(Collectors.toMap(
+                            WarehouseShip::getShipmentCode,
+                            ws -> ws,
+                            (a, b) -> a
+                    ));
+
+    Map<String, BigDecimal> feeMap =
+            partialShipmentService
+                    .calculateFeeByShipCodeAllowMultiRoute(
+                            shipCodeTrackingMap
+                    );
+
+    // 5️⃣ build response
+    List<ShipCodePayment> result = new ArrayList<>();
+
+    for (Map.Entry<String, List<String>> entry : shipCodeTrackingMap.entrySet()) {
+
+        String shipCode = entry.getKey();
+        List<String> trackingCodes = entry.getValue();
+
+        DraftDomestic draft = shipCodeDraftMap.get(shipCode);
+        Customer customer = draft.getCustomer();
+
+        List<WarehouseShip> warehouseShips =
+                trackingCodes.stream()
+                        .map(warehouseShipMap::get)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+        BigDecimal totalPriceShip = feeMap.getOrDefault(
+                shipCode,
+                BigDecimal.ZERO
+        );
+
+        ShipCodePayment item = new ShipCodePayment();
+        item.setShipCode(shipCode);
+        item.setCustomerId(customer.getAccountId().toString());
+        item.setCustomerName(customer.getName());
+        item.setWarehouseShips(warehouseShips);
+        item.setTotalPriceShip(totalPriceShip);
+
+        result.add(item);
+    }
+
+    return result;
+}
+
+public void updatePayment(DraftDomestic draft){
+    draft.setPayment(true);
+    draftDomesticRepository.save(draft);
+}
+
  public DraftDomesticResponse getDraftDomestic(Long id){
     var draftDomestic = draftDomesticRepository.findById(id).get();
     if(draftDomestic == null){

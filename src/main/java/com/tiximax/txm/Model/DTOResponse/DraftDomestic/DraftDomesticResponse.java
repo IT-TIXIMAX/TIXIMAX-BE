@@ -20,6 +20,7 @@ public class DraftDomesticResponse {
     private String weight;
     private String VNPostTrackingCode;
     private String staffCode;
+    private boolean payment;
    
     public DraftDomesticResponse(DraftDomestic draftDomestic) {
         this.id = draftDomestic.getId();
@@ -30,6 +31,6 @@ public class DraftDomesticResponse {
         this.VNPostTrackingCode = draftDomestic.getVNPostTrackingCode();
         this.customerName = draftDomestic.getCustomer().getName();
         this.staffCode = draftDomestic.getStaff().getStaffCode();
-    }
-    
+        this.payment = draftDomestic.isPayment();
+    }   
 }

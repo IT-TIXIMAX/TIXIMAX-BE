@@ -672,50 +672,42 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
     if (orderLinks.isEmpty()) {
         return Collections.emptyList();
     }
-
     orderLinks.forEach(l -> Hibernate.initialize(l.getWarehouse()));
 
-    // === LẤY WAREHOUSE KHÔNG TRÙNG TRACKING ===
-    Map<String, Warehouse> warehouseMap = new LinkedHashMap<>();
-    for (OrderLinks link : orderLinks) {
-        Warehouse wh = link.getWarehouse();
-        warehouseMap.putIfAbsent(wh.getTrackingCode(), wh);
-    }
+    Map<String, List<OrderLinks>> shipmentCodeMap =
+            orderLinks.stream()
+                    .collect(Collectors.groupingBy(OrderLinks::getShipmentCode));
 
-    List<Warehouse> warehouses = new ArrayList<>(warehouseMap.values());
+    // shipmentCode -> trackingCodes
+    Map<String, List<String>> shipCodeTrackingMap =
+            shipmentCodeMap.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            e -> e.getValue().stream()
+                                    .map(OrderLinks::getTrackingCode)
+                                    .distinct()
+                                    .toList()
+                    ));
 
-    // === TÍNH TỔNG PHÍ SHIP (CHUẨN NHƯ CREATE) ===
-    BigDecimal totalShippingFee = partialShipmentService.calculateTotalShippingFee(
-            warehouses.stream()
-                    .map(Warehouse::getTrackingCode)
-                    .toList()
-    );
 
-    BigDecimal totalNetWeight = warehouses.stream()
-            .map(w -> BigDecimal.valueOf(w.getNetWeight()))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    Map<String, BigDecimal> feeMap =
+            partialShipmentService
+                    .calculateFeeByShipCodeAllowMultiRoute(
+                            shipCodeTrackingMap
+                    );
 
-    // === ĐÁNH DẤU SHIPMENT ĐÃ TÍNH ===
-    Set<String> calculatedShipmentCodes = new HashSet<>();
-
+ 
     return orderLinks.stream()
             .map(link -> {
 
                 Warehouse wh = link.getWarehouse();
                 String shipmentCode = link.getShipmentCode();
 
-                BigDecimal finalShip = BigDecimal.ZERO;
-
-                if (!calculatedShipmentCodes.contains(shipmentCode)) {
-
-                    BigDecimal ratio = BigDecimal.valueOf(wh.getNetWeight())
-                            .divide(totalNetWeight, 6, RoundingMode.HALF_UP);
-
-                   finalShip = roundToHundreds(totalShippingFee.multiply(ratio));
-
-
-                    calculatedShipmentCodes.add(shipmentCode);
-                }
+                BigDecimal finalShip =
+                        feeMap.getOrDefault(
+                                shipmentCode,
+                                BigDecimal.ZERO
+                        );
 
                 WareHouseOrderLink dto = new WareHouseOrderLink();
 
@@ -740,7 +732,7 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
                 dto.setExtraCharge(link.getExtraCharge());
                 dto.setFinalPriceVnd(link.getFinalPriceVnd());
 
-                // ✅ ship đồng bộ 100%
+                // ✅ PHÍ SHIP ĐÚNG NGHIỆP VỤ
                 dto.setFinalPriceShip(finalShip);
 
                 dto.setTrackingCode(link.getTrackingCode());

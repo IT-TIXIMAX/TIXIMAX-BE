@@ -140,9 +140,12 @@ List<DraftDomestic> findDraftByShipmentCodes(
     FROM DraftDomestic d
     WHERE d.staff.accountId = :staffId
         And d.status = 'DRAFT'
+        And d.payment = false
+        AND (:payment IS NULL OR d.payment = :payment)
     """)
  Page<DraftDomestic> findByStaff(
         @Param("staffId") Long staffId,
+        @Param ("payment") Boolean payment,
         Pageable pageable
  );
         
@@ -152,6 +155,7 @@ List<DraftDomestic> findDraftByShipmentCodes(
         LEFT JOIN d.shippingList s
         WHERE d.staff.accountId = :staffId
           AND d.status = 'DRAFT'
+          AND (:payment IS NULL OR d.payment = :payment)
           AND (
                 LOWER(d.shipCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
              OR LOWER(s) LIKE LOWER(CONCAT('%', :keyword, '%'))
@@ -159,10 +163,10 @@ List<DraftDomestic> findDraftByShipmentCodes(
     """)
     Page<DraftDomestic> searchByStaffAndKeyword(
             @Param("staffId") Long staffId,
-            @Param("keyword") String keyword
+            @Param("keyword") String keyword,
+            @Param ("payment") Boolean payment
           ,Pageable pageable
     );
-
 }
 
 

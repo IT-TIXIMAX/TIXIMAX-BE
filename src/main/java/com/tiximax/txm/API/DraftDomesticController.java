@@ -85,20 +85,28 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.updateDraftInfo(id, request)
         );
         }
-        @GetMapping("/ship-code/payment/{page}/{size}")
-        public ResponseEntity<List<ShipCodePayment>> getAllShipByStaff(
+    @GetMapping("/ship-code/payment/{page}/{size}")
+public ResponseEntity<List<ShipCodePayment>> getAllShipByStaff(
         @PathVariable int page,
         @PathVariable int size,
-        @RequestParam(required = false) String shipCode
-    ) {
-        Staff staff = (Staff) accountUtils.getAccountCurrent();
-        Sort sort = Sort.by("createdAt").descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-        return ResponseEntity.ok(
-                draftDomesticService.getAllShipByStaff(staff.getAccountId(),shipCode,pageable)
-        );
-    }
+        @RequestParam(required = false) String keyword,   // shipCode / trackingCode
+        @RequestParam(required = false) Boolean payment   // ✅ filter optional
+) {
 
+    Staff staff = (Staff) accountUtils.getAccountCurrent();
+
+    Sort sort = Sort.by("createdAt").descending();
+    Pageable pageable = PageRequest.of(page, size, sort);
+
+    return ResponseEntity.ok(
+            draftDomesticService.getAllShipByStaff(
+                    staff.getAccountId(),
+                    keyword,
+                    payment,
+                    pageable
+            )
+    );
+}
     @PostMapping("/{id}/shipments/add")
     public ResponseEntity<?> addShipments(
             @PathVariable Long id,
