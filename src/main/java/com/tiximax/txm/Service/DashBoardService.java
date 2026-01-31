@@ -14,6 +14,7 @@ import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
+import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
@@ -941,6 +942,39 @@ public class DashBoardService {
             case BALANCE      -> customerRepository.findTopByBalance(customerCode, pageable);
         };
     }
+
+    public List<CustomerInventoryQuantity> getDashboardInventory(Long routeId) {
+
+    List<CustomerInventoryProjection> rows =
+            warehouseRepository.dashboardInventory(routeId);
+
+    return rows.stream().map(r -> {
+
+        InventoryQuantity iq = new InventoryQuantity();
+        iq.setExportedCode(
+                r.getExportedCode() == null ? 0D : r.getExportedCode().doubleValue()
+        );
+        iq.setExportedWeightKg(
+                r.getExportedWeight() == null ? 0D : r.getExportedWeight()
+        );
+        iq.setRemainingCode(
+                r.getRemainingCode() == null ? 0D : r.getRemainingCode().doubleValue()
+        );
+        iq.setRemainingWeightKg(
+                r.getRemainingWeight() == null ? 0D : r.getRemainingWeight()
+        );
+
+        CustomerInventoryQuantity dto = new CustomerInventoryQuantity();
+        dto.setCustomerCode(r.getCustomerCode());
+        dto.setCustomerName(r.getCustomerName());
+        dto.setStaffCode(r.getStaffCode());
+        dto.setStaffName(r.getStaffName());
+        dto.setInventoryQuantity(iq);
+
+        return dto;
+    }).toList();
+}
+
 
     public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         Staff staff = (Staff) accountUtils.getAccountCurrent();

@@ -303,5 +303,13 @@ public class DashBoardController {
 
         return ResponseEntity.ok(dashBoardService.getDailyInventory(startDate, endDate, filterType, routeId));
     }
+    @GetMapping("/customer/inventory")
+    public ResponseEntity<List<CustomerInventoryQuantity>> getInventoryDashboard(
+            @RequestParam(required = false) Long routeId
+    ) {
+        return ResponseEntity.ok(
+                dashBoardService.getDashboardInventory(routeId)
+        );
+    }
 
 }
