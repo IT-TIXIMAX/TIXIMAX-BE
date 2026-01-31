@@ -65,7 +65,7 @@ public class Payment {
     @JoinColumn(name="staff_id", nullable = false)
     @JsonIgnore
     Staff staff;
-
+    
     @ManyToOne
     @JoinColumn(name="order_id", nullable = true)
     @JsonIgnore
@@ -83,6 +83,4 @@ public class Payment {
    @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL)
     @JsonIgnore
     private Set<PartialShipment> partialShipments = new HashSet<>();
-    
-
 }
