@@ -13,6 +13,8 @@ import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.PerformanceWHResponse;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.StaffWHPerformanceSummary;
 import com.tiximax.txm.Repository.CustomerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -310,6 +312,25 @@ public class DashBoardController {
         return ResponseEntity.ok(
                 dashBoardService.getDashboardInventory(routeId)
         );
+    }
+
+    @GetMapping("/location/{locationId}/overview")
+    public ResponseEntity<PerformanceWHResponse> getLocationOverview(
+            @PathVariable Long locationId,
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false, defaultValue = "30") Integer lastDays) {
+
+        return ResponseEntity.ok(dashBoardService.getLocationOverview(locationId, month, lastDays));
+    }
+
+    // Nhân viên trong kho
+    @GetMapping("/location/{locationId}/staff")
+    public ResponseEntity<List<StaffWHPerformanceSummary>> getStaffInLocation(
+            @PathVariable Long locationId,
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false, defaultValue = "30") Integer lastDays) {
+
+        return ResponseEntity.ok(dashBoardService.getStaffPerformancesInLocation(locationId, month, lastDays));
     }
 
 }

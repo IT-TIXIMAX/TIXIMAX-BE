@@ -721,4 +721,48 @@ WarehouseStatisticRow exportByCarrierWithDate(
 List<CustomerInventoryProjection> dashboardInventory(
         @Param("routeId") Long routeId
 );
+    @Query("""
+        SELECT 
+            FUNCTION('DATE', w.createdAt) as date,
+            COUNT(w) as inboundCount,
+            COALESCE(SUM(COALESCE(w.weight, 0)), 0) as inboundKg,
+            COALESCE(SUM(COALESCE(w.netWeight, 0)), 0) as inboundNetKg,
+            COUNT(CASE WHEN w.packing IS NOT NULL THEN 1 END) as packedCount,
+            COALESCE(SUM(CASE WHEN w.packing IS NOT NULL THEN COALESCE(w.weight, 0) ELSE 0 END), 0) as packedKg
+        FROM Warehouse w
+        WHERE w.createdAt >= :start
+          AND w.createdAt < :end
+          AND w.location.id = :locationId
+        GROUP BY FUNCTION('DATE', w.createdAt)
+        ORDER BY date
+        """)
+    List<Object[]> findDailyStatsByLocation(
+            @Param("locationId") Long locationId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("""
+        SELECT
+            w.staff.id as staffId,
+            w.staff.staffCode as staffCode,
+            w.staff.name as name,
+            w.staff.department as department,
+            COUNT(w) as inboundCount,
+            COALESCE(SUM(COALESCE(w.weight, 0)), 0) as inboundKg,
+            COALESCE(SUM(COALESCE(w.netWeight, 0)), 0) as inboundNetKg,
+            COUNT(CASE WHEN w.packing IS NOT NULL THEN 1 END) as packedCount,
+            COALESCE(SUM(CASE WHEN w.packing IS NOT NULL THEN COALESCE(w.weight, 0) ELSE 0 END), 0) as packedKg
+        FROM Warehouse w
+        WHERE w.createdAt >= :start
+          AND w.createdAt < :end
+          AND w.location.id = :locationId
+        GROUP BY w.staff.id, w.staff.staffCode, w.staff.name, w.staff.department
+        ORDER BY inboundCount DESC
+        """)
+    List<Object[]> findStaffSummaryByLocation(
+            @Param("locationId") Long locationId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

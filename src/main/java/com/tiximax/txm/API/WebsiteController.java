@@ -26,13 +26,6 @@ public class WebsiteController {
         return ResponseEntity.ok(savedWebsite);
     }
 
-//    // Get all websites
-//    @GetMapping
-//    public ResponseEntity<List<Websites>> getAllWebsites() {
-//        List<Websites> websites = websiteService.getAllWebsites();
-//        return ResponseEntity.ok(websites);
-//    }
-
     @GetMapping("/{websiteId}")
     public ResponseEntity<Websites> getWebsiteById(@PathVariable Long websiteId) {
         Optional<Websites> website = websiteService.getWebsiteById(websiteId);
