@@ -10,10 +10,10 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
+
+@AllArgsConstructor@Data
 @Getter
 @Setter
-@AllArgsConstructor
 
 public class OrderInfo {
     private Long orderId;

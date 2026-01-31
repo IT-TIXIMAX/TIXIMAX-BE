@@ -2,10 +2,8 @@ package com.tiximax.txm.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import com.tiximax.txm.Entity.*;
@@ -13,11 +11,14 @@ import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseSummary;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.*;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -1031,4 +1032,109 @@ public class DashBoardService {
         ls.setNetWeight(stock.getNetWeight());
         return ls;
     }
+
+
+    public PerformanceWHResponse getLocationOverview(Long locationId, String month, Integer lastDays) {
+        LocalDateTime[] range = getDateRange(month, lastDays);
+        List<Object[]> raw = warehouseRepository.findDailyStatsByLocation(locationId, range[0], range[1]);
+
+        Map<LocalDate, PerformanceWHDaily> map = raw.stream().collect(Collectors.toMap(
+                row -> ((java.sql.Date) row[0]).toLocalDate(),
+                row -> PerformanceWHDaily.builder()
+                        .date(((java.sql.Date) row[0]).toLocalDate())
+                        .inboundCount((Long) row[1])
+                        .inboundKg((Double) row[2])
+                        .inboundNetKg((Double) row[3])
+                        .packedCount((Long) row[4])
+                        .packedKg((Double) row[5])
+                        .build(),
+                (old, neu) -> old
+        ));
+
+        List<PerformanceWHDaily> dailyList = new ArrayList<>();
+        LocalDate current = range[0].toLocalDate();
+        LocalDate endDate = range[1].toLocalDate().minusDays(1);
+
+        while (!current.isAfter(endDate)) {
+            dailyList.add(map.getOrDefault(current, PerformanceWHDaily.builder()
+                    .date(current)
+                    .inboundCount(0L)
+                    .inboundKg(0.0)
+                    .inboundNetKg(0.0)
+                    .packedCount(0L)
+                    .packedKg(0.0)
+                    .build()));
+            current = current.plusDays(1);
+        }
+
+        long totalInboundCount = dailyList.stream()
+                .mapToLong(PerformanceWHDaily::getInboundCount)
+                .sum();
+
+        double totalInboundKg = dailyList.stream()
+                .mapToDouble(PerformanceWHDaily::getInboundKg)
+                .sum();
+
+        double totalInboundNetKg = dailyList.stream()
+                .mapToDouble(PerformanceWHDaily::getInboundNetKg)
+                .sum();
+
+        long totalPackedCount = dailyList.stream()
+                .mapToLong(PerformanceWHDaily::getPackedCount)
+                .sum();
+
+        double totalPackedKg = dailyList.stream()
+                .mapToDouble(PerformanceWHDaily::getPackedKg)
+                .sum();
+
+        PerformanceWHSummary totals = PerformanceWHSummary.builder()
+                .totalInboundCount(totalInboundCount)
+                .totalInboundKg(totalInboundKg)
+                .totalInboundNetKg(totalInboundNetKg)
+                .totalPackedCount(totalPackedCount)
+                .totalPackedKg(totalPackedKg)
+                .build();
+
+        return PerformanceWHResponse.builder()
+                .dailyData(dailyList)
+                .totals(totals)
+                .build();
+    }
+
+    public List<StaffWHPerformanceSummary> getStaffPerformancesInLocation(Long locationId, String month, Integer lastDays) {
+        LocalDateTime[] range = getDateRange(month, lastDays);
+        List<Object[]> raw = warehouseRepository.findStaffSummaryByLocation(locationId, range[0], range[1]);
+
+        List<StaffWHPerformanceSummary> list = new ArrayList<>();
+        for (Object[] row : raw) {
+            list.add(StaffWHPerformanceSummary.builder()
+                    .staffId((Long) row[0])
+                    .staffCode((String) row[1])
+                    .name((String) row[2])
+                    .department((String) row[3])
+                    .totals(PerformanceWHSummary.builder()
+                            .totalInboundCount((Long) row[4])
+                            .totalInboundKg((Double) row[5])
+                            .totalInboundNetKg((Double) row[6])
+                            .totalPackedCount((Long) row[7])
+                            .totalPackedKg((Double) row[8])
+                            .build())
+                    .build());
+        }
+        return list;
+    }
+
+    private LocalDateTime[] getDateRange(String month, Integer lastDays) {
+        LocalDateTime start, end;
+        if (month != null && month.matches("\\d{4}-\\d{2}")) {
+            YearMonth ym = YearMonth.parse(month);
+            start = ym.atDay(1).atStartOfDay();
+            end = ym.plusMonths(1).atDay(1).atStartOfDay();
+        } else {
+            end = LocalDate.now().plusDays(1).atStartOfDay();
+            start = end.minusDays(lastDays != null ? lastDays : 30);
+        }
+        return new LocalDateTime[]{start, end};
+    }
+
 }
