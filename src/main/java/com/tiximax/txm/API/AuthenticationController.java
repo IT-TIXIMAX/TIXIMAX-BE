@@ -378,7 +378,7 @@ public class AuthenticationController {
     public ResponseEntity<Payment> processBalanceMoney(
             @PathVariable Long customerId,
             @RequestParam(required = true) String image,
-            @RequestParam(required = true) BigDecimal amount) {
+            @RequestParam(required = true) Double amount) {
         Payment payment = paymentService.refundFromBalance(customerId, amount, image);
         return ResponseEntity.ok(payment);
     }

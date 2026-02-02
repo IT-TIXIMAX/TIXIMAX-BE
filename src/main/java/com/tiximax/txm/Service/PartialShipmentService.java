@@ -425,7 +425,7 @@ public Map<String, BigDecimal> calculateFeeByShipCodeAllowMultiRoute(
                 if (!samePrice) {
                     throw new BadRequestException(
                             "ShipCode " + shipCode +
-                            " có priceShip khác nhau trong cùng tuyến"
+                            " có giá cước khác nhau trong cùng tuyến"
                     );
                 }
 
@@ -443,19 +443,20 @@ public Map<String, BigDecimal> calculateFeeByShipCodeAllowMultiRoute(
                                 })
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                // min weight theo tuyến
                 BigDecimal chargeableWeight;
 
-                if ("Tuyến Nhật".equals(route.getNote())) {
-                    chargeableWeight =
-                            totalNetWeight.compareTo(BigDecimal.valueOf(0.5)) < 0
-                                    ? BigDecimal.valueOf(0.5)
-                                    : totalNetWeight;
+                if (totalNetWeight.compareTo(BigDecimal.ONE) < 0) {
+                    if (route.getMinWeight().compareTo(new BigDecimal("0.50")) == 0) {
+                        if (totalNetWeight.compareTo(new BigDecimal("0.5")) <= 0) {
+                            chargeableWeight = new BigDecimal("0.5");
+                        } else {
+                            chargeableWeight = BigDecimal.ONE;
+                        }
+                    } else {
+                        chargeableWeight = BigDecimal.ONE;
+                    }
                 } else {
-                    chargeableWeight =
-                            totalNetWeight.compareTo(BigDecimal.ONE) < 0
-                                    ? BigDecimal.ONE
-                                    : totalNetWeight;
+                    chargeableWeight = totalNetWeight.setScale(2, RoundingMode.HALF_UP);
                 }
 
                 BigDecimal routeFee =
