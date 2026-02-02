@@ -944,37 +944,61 @@ public class DashBoardService {
         };
     }
 
-    public List<CustomerInventoryQuantity> getDashboardInventory(Long routeId) {
+public Page<CustomerInventoryQuantity> getDashboardInventory(
+        Long routeId,
+        Integer month,
+        Pageable pageable
+) {
 
-    List<CustomerInventoryProjection> rows =
-            warehouseRepository.dashboardInventory(routeId);
+    // ✅ Nếu không truyền month → lấy tháng hiện tại
+    YearMonth now = YearMonth.now();
 
-    return rows.stream().map(r -> {
+    if (month == null) {
+        month = now.getMonthValue();
+    }
 
+    if (month < 1 || month > 12) {
+        throw new BadRequestException("month phải từ 1 đến 12");
+    }
+
+    int year = now.getYear();
+
+    // ✅ Nếu chọn tháng lớn hơn tháng hiện tại → lùi 1 năm
+    if (month > now.getMonthValue()) {
+        year = year - 1;
+    }
+
+    YearMonth ym = YearMonth.of(year, month);
+
+    LocalDateTime startDate = ym.atDay(1).atStartOfDay();
+    LocalDateTime endDate   = ym.atEndOfMonth().atTime(23, 59, 59);
+
+    Page<CustomerInventoryProjection> page =
+            warehouseRepository.dashboardInventory(
+                    routeId,
+                    startDate,
+                    endDate,
+                    pageable
+            );
+
+    return page.map(p -> {
         InventoryQuantity iq = new InventoryQuantity();
-        iq.setExportedCode(
-                r.getExportedCode() == null ? 0D : r.getExportedCode().doubleValue()
-        );
-        iq.setExportedWeightKg(
-                r.getExportedWeight() == null ? 0D : r.getExportedWeight()
-        );
-        iq.setRemainingCode(
-                r.getRemainingCode() == null ? 0D : r.getRemainingCode().doubleValue()
-        );
-        iq.setRemainingWeightKg(
-                r.getRemainingWeight() == null ? 0D : r.getRemainingWeight()
-        );
+        iq.setExportedCode(p.getExportedCode());
+        iq.setExportedWeightKg(p.getExportedWeight());
+        iq.setRemainingCode(p.getRemainingCode());
+        iq.setRemainingWeightKg(p.getRemainingWeight());
 
         CustomerInventoryQuantity dto = new CustomerInventoryQuantity();
-        dto.setCustomerCode(r.getCustomerCode());
-        dto.setCustomerName(r.getCustomerName());
-        dto.setStaffCode(r.getStaffCode());
-        dto.setStaffName(r.getStaffName());
+        dto.setCustomerCode(p.getCustomerCode());
+        dto.setCustomerName(p.getCustomerName());
+        dto.setStaffCode(p.getStaffCode());
+        dto.setStaffName(p.getStaffName());
         dto.setInventoryQuantity(iq);
 
         return dto;
-    }).toList();
+    });
 }
+
 
 
     public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {

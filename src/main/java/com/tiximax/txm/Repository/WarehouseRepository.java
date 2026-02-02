@@ -660,10 +660,10 @@ WarehouseStatisticRow exportByCarrierWithDate(
 
 @Query("""
     SELECT
-        c.customerCode           AS customerCode,
-        c.name                   AS customerName,
-        s.staffCode              AS staffCode,
-        s.name                   AS staffName,
+        c.customerCode AS customerCode,
+        c.name         AS customerName,
+        s.staffCode    AS staffCode,
+        s.name         AS staffName,
 
         COUNT(
             CASE
@@ -681,7 +681,6 @@ WarehouseStatisticRow exportByCarrierWithDate(
             ),
             0
         ) AS exportedWeight,
-
         COUNT(
             CASE
                 WHEN w.status IN (
@@ -711,6 +710,12 @@ WarehouseStatisticRow exportByCarrierWithDate(
     JOIN o.staff s
 
     WHERE (:routeId IS NULL OR o.route.routeId = :routeId)
+      AND w.status IN (
+          com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO,
+          com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+          com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+      )
+      AND w.createdAt BETWEEN :startDate AND :endDate
 
     GROUP BY
         c.customerCode,
@@ -718,9 +723,14 @@ WarehouseStatisticRow exportByCarrierWithDate(
         s.staffCode,
         s.name
 """)
-List<CustomerInventoryProjection> dashboardInventory(
-        @Param("routeId") Long routeId
+Page<CustomerInventoryProjection> dashboardInventory(
+        @Param("routeId") Long routeId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        Pageable pageable
 );
+
+
     @Query("""
         SELECT 
             FUNCTION('DATE', w.createdAt) as date,
