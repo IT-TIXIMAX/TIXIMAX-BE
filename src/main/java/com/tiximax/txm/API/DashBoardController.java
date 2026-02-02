@@ -317,6 +317,15 @@ public class DashBoardController {
                 dashBoardService.getDashboardInventory(routeId,month,pageable)
         );
     }
+    @GetMapping("/exported")
+public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
+    @RequestParam(required = false) Long routeId, 
+    @RequestParam(required = false) Integer month
+) {
+    return ResponseEntity.ok(
+        dashBoardService.getExportedDashboard(routeId, month)
+    );
+    }
 
     @GetMapping("/location/{locationId}/overview")
     public ResponseEntity<PerformanceWHResponse> getLocationOverview(
