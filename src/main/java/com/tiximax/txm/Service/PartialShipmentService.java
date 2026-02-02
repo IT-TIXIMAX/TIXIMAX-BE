@@ -583,9 +583,7 @@ public List<PartialShipment> createPartialShipmentByShipCode(
         );
     }
 
-    // === TẠO PARTIAL SHIPMENT THEO ORDER ===
     for (Map.Entry<Orders, List<OrderLinks>> entry : orderToLinksMap.entrySet()) {
-
         Orders order = entry.getKey();
         List<OrderLinks> orderLinks = entry.getValue();
 
@@ -664,7 +662,6 @@ public List<PartialShipment> createPartialShipmentByShipCode(
         } else {
             discount = voucher.getValue();
         }
-
         finalAmount =
                 totalShippingFee.subtract(discount)
                         .max(BigDecimal.ZERO)
@@ -685,7 +682,6 @@ public List<PartialShipment> createPartialShipmentByShipCode(
                     .add(priceShipDos)
                     .setScale(0, RoundingMode.HALF_UP);
 
-    // === TRỪ SỐ DƯ ===
     BigDecimal balance =
             commonCustomer.getBalance() != null
                     ? commonCustomer.getBalance()
@@ -700,7 +696,6 @@ public List<PartialShipment> createPartialShipmentByShipCode(
         qrAmount = collect.subtract(usedBalance);
     }
 
-    // === TẠO PAYMENT ===
     Payment payment = new Payment();
     payment.setPaymentCode(paymentService.generatePaymentCode());
     payment.setContent(
@@ -746,7 +741,6 @@ public List<PartialShipment> createPartialShipmentByShipCode(
         partialShipmentRepository.save(p);
     });
 
-    // === UPDATE ORDER ===
     for (Orders order : ordersList) {
 
         order.setLeftoverMoney(BigDecimal.ZERO);
@@ -765,17 +759,15 @@ public List<PartialShipment> createPartialShipmentByShipCode(
     }
 
     if (isUseBalance && usedBalance.compareTo(BigDecimal.ZERO) > 0) {
-        authenticationRepository.save(commonCustomer);
-    }
+        authenticationRepository.save(commonCustomer);    
+}
 
     if (customerVoucher != null) {
         customerVoucher.setUsed(true);
         customerVoucher.setUsedDate(LocalDateTime.now());
         customerVoucherRepository.save(customerVoucher);
     }
-
     draftDomesticService.updatePayment(draftDomestic);
-
     messagingTemplate.convertAndSend(
             "/topic/Tiximax",
             Map.of(

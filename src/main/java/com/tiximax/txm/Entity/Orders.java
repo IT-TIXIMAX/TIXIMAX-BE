@@ -93,12 +93,10 @@ public class Orders {
     @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
     @JsonIgnore
     Set<ShipmentTracking> shipmentTrackings;
-
     @ManyToOne
     @JoinColumn(name="route_id", nullable = false)
     @JsonIgnore
     Route route;
-
     @ManyToOne
     @JoinColumn(name="destination_id", nullable = false)
     @JsonIgnore

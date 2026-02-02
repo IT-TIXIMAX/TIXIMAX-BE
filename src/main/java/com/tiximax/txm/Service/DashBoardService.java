@@ -13,6 +13,7 @@ import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseSummary;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
+import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.*;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import com.tiximax.txm.Repository.*;
@@ -942,6 +943,63 @@ public class DashBoardService {
             case BALANCE      -> customerRepository.findTopByBalance(customerCode, pageable);
         };
     }
+
+public Page<CustomerInventoryQuantity> getDashboardInventory(
+        Long routeId,
+        Integer month,
+        Pageable pageable
+) {
+
+    // ✅ Nếu không truyền month → lấy tháng hiện tại
+    YearMonth now = YearMonth.now();
+
+    if (month == null) {
+        month = now.getMonthValue();
+    }
+
+    if (month < 1 || month > 12) {
+        throw new BadRequestException("month phải từ 1 đến 12");
+    }
+
+    int year = now.getYear();
+
+    // ✅ Nếu chọn tháng lớn hơn tháng hiện tại → lùi 1 năm
+    if (month > now.getMonthValue()) {
+        year = year - 1;
+    }
+
+    YearMonth ym = YearMonth.of(year, month);
+
+    LocalDateTime startDate = ym.atDay(1).atStartOfDay();
+    LocalDateTime endDate   = ym.atEndOfMonth().atTime(23, 59, 59);
+
+    Page<CustomerInventoryProjection> page =
+            warehouseRepository.dashboardInventory(
+                    routeId,
+                    startDate,
+                    endDate,
+                    pageable
+            );
+
+    return page.map(p -> {
+        InventoryQuantity iq = new InventoryQuantity();
+        iq.setExportedCode(p.getExportedCode());
+        iq.setExportedWeightKg(p.getExportedWeight());
+        iq.setRemainingCode(p.getRemainingCode());
+        iq.setRemainingWeightKg(p.getRemainingWeight());
+
+        CustomerInventoryQuantity dto = new CustomerInventoryQuantity();
+        dto.setCustomerCode(p.getCustomerCode());
+        dto.setCustomerName(p.getCustomerName());
+        dto.setStaffCode(p.getStaffCode());
+        dto.setStaffName(p.getStaffName());
+        dto.setInventoryQuantity(iq);
+
+        return dto;
+    });
+}
+
+
 
     public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         Staff staff = (Staff) accountUtils.getAccountCurrent();

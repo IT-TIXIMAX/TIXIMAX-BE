@@ -7,6 +7,7 @@ import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary;
 import com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip;
 import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
+import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
 import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
@@ -656,6 +657,79 @@ WarehouseStatisticRow exportByCarrierWithDate(
     List<Warehouse> findByTrackingCodeInFetchOrders(
             @Param("trackingCodes") List<String> trackingCodes
     );
+
+@Query("""
+    SELECT
+        c.customerCode AS customerCode,
+        c.name         AS customerName,
+        s.staffCode    AS staffCode,
+        s.name         AS staffName,
+
+        COUNT(
+            CASE
+                WHEN w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+                THEN 1
+            END
+        ) AS exportedCode,
+
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+                    THEN w.netWeight
+                END
+            ),
+            0
+        ) AS exportedWeight,
+        COUNT(
+            CASE
+                WHEN w.status IN (
+                    com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                    com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+                )
+                THEN 1
+            END
+        ) AS remainingCode,
+
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN w.status IN (
+                        com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                        com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+                    )
+                    THEN w.netWeight
+                END
+            ),
+            0
+        ) AS remainingWeight
+
+    FROM Warehouse w
+    JOIN w.orders o
+    JOIN o.customer c
+    JOIN o.staff s
+
+    WHERE (:routeId IS NULL OR o.route.routeId = :routeId)
+      AND w.status IN (
+          com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO,
+          com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+          com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+      )
+      AND w.createdAt BETWEEN :startDate AND :endDate
+
+    GROUP BY
+        c.customerCode,
+        c.name,
+        s.staffCode,
+        s.name
+""")
+Page<CustomerInventoryProjection> dashboardInventory(
+        @Param("routeId") Long routeId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        Pageable pageable
+);
+
 
     @Query("""
         SELECT 

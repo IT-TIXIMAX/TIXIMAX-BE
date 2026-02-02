@@ -8,8 +8,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class InventoryQuantity {
-    private Double exportedCode;
-    private double exportedWeightKg;  
-    private double remainingCode;
-    private double remainingWeightKg;
+    private Long exportedCode;
+    private Double exportedWeightKg;  
+    private Long remainingCode;
+    private Double remainingWeightKg;
 }
