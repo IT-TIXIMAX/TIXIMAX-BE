@@ -14,6 +14,7 @@ import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseSummary;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
+import com.tiximax.txm.Model.Projections.ExportedQuantityProjection;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.*;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import com.tiximax.txm.Repository.*;
@@ -999,7 +1000,71 @@ public Page<CustomerInventoryQuantity> getDashboardInventory(
     });
 }
 
+ public List<ExportedQuantity> getExportedDashboard(
+        Long routeId,
+        Integer month
+) {
+    YearMonth now = YearMonth.now();
 
+    if (month == null) {
+        month = now.getMonthValue();
+    }
+
+    if (month < 1 || month > 12) {
+        throw new BadRequestException("month phải từ 1 đến 12");
+    }
+
+    int year = now.getYear();
+    if (month > now.getMonthValue()) {
+        year = year - 1;
+    }
+
+    YearMonth ym = YearMonth.of(year, month);
+
+    LocalDate start = ym.atDay(1);
+    LocalDate end   = ym.atEndOfMonth();
+
+    LocalDateTime startDate = start.atStartOfDay();
+    LocalDateTime endDate   = end.atTime(23, 59, 59);
+
+    List<ExportedQuantityProjection> rows =
+            warehouseRepository.getExportedQuantityDaily(
+                    routeId,
+                    startDate,
+                    endDate
+            );
+
+    // Map theo ngày
+    Map<LocalDate, ExportedQuantity> map = new HashMap<>();
+
+    for (ExportedQuantityProjection p : rows) {
+        ExportedQuantity dto = new ExportedQuantity();
+        dto.setDate(p.getDate());
+        dto.setTotalCode(p.getTotalCode());
+        dto.setTotalWeight(p.getTotalWeight());
+        dto.setTotalCustomers(p.getTotalCustomers());
+        map.put(p.getDate(), dto);
+    }
+
+    // Fill đủ ngày
+    List<ExportedQuantity> result = new ArrayList<>();
+    for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+        result.add(
+            map.getOrDefault(d, emptyDaily(d))
+        );
+    }
+
+    return result;
+}
+
+private ExportedQuantity emptyDaily(LocalDate date) {
+    ExportedQuantity dto = new ExportedQuantity();
+    dto.setDate(date);
+    dto.setTotalCode(0L);
+    dto.setTotalWeight(0.0);
+    dto.setTotalCustomers(0L);
+    return dto;
+}
 
     public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         Staff staff = (Staff) accountUtils.getAccountCurrent();
