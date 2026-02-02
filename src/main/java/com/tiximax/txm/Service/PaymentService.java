@@ -10,6 +10,9 @@ import com.tiximax.txm.Model.DTORequest.Payment.SmsRequest;
 import com.tiximax.txm.Model.DTOResponse.Payment.PaymentAuctionResponse;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -28,6 +31,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 
+@Slf4j
 @Service
 public class PaymentService {
 
@@ -319,13 +323,20 @@ public class PaymentService {
         );
         return savedPayment;
     }
- @Transactional
+@Transactional
 public Payment confirmedPaymentShipment(String paymentCode) {
 
+    log.info("[CONFIRM_SHIP] START paymentCode={}", paymentCode);
     Payment payment = paymentRepository.findByPaymentCode(paymentCode)
             .orElseThrow(() ->
                     new BadRequestException("Không tìm thấy giao dịch này!")
             );
+
+    log.info(
+        "[CONFIRM_SHIP] Payment status={}, paymentId={}",
+        payment.getStatus(),
+        payment.getPaymentId()
+    );
 
     if (payment.getStatus() != PaymentStatus.CHO_THANH_TOAN_SHIP) {
         throw new BadRequestException(
@@ -696,10 +707,13 @@ public Payment confirmedPaymentShipment(String paymentCode) {
     autoPaymentService.create(req.getAmount(), txmCode , payment.getPurpose());
 
     if(payment.getPurpose() == PaymentPurpose.THANH_TOAN_DON_HANG){
+         log.info("[VERIFY_RAW] Calling confirmedPayment({})", txmCode);
         confirmedPayment(txmCode);
     } else {
+         log.info("[VERIFY_RAW] Calling confirmedPaymentShipment({})", txmCode);
         confirmedPaymentShipment(txmCode);
     }
+      log.info("[VERIFY_RAW] End verifyRaw OK");
 
     } catch (JsonProcessingException e) {
         throw new ResponseStatusException(

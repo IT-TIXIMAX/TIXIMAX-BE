@@ -305,12 +305,16 @@ public class DashBoardController {
 
         return ResponseEntity.ok(dashBoardService.getDailyInventory(startDate, endDate, filterType, routeId));
     }
-    @GetMapping("/customer/inventory")
-    public ResponseEntity<List<CustomerInventoryQuantity>> getInventoryDashboard(
-            @RequestParam(required = false) Long routeId
+    @GetMapping("/customer/inventory/{page}/{size}")
+    public ResponseEntity<Page<CustomerInventoryQuantity>> getInventoryDashboard(
+            @RequestParam(required = false) Long routeId,
+            @RequestParam(required = false) Integer month,
+            @PathVariable int page,
+            @PathVariable int size
     ) {
+        Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                dashBoardService.getDashboardInventory(routeId)
+                dashBoardService.getDashboardInventory(routeId,month,pageable)
         );
     }
 
@@ -332,5 +336,4 @@ public class DashBoardController {
 
         return ResponseEntity.ok(dashBoardService.getStaffPerformancesInLocation(locationId, month, lastDays));
     }
-
 }
