@@ -325,17 +325,12 @@ public class PaymentService {
 @Transactional
 public Payment confirmedPaymentShipment(String paymentCode) {
 
-    log.info("[CONFIRM_SHIP] START paymentCode={}", paymentCode);
+
     Payment payment = paymentRepository.findByPaymentCode(paymentCode)
             .orElseThrow(() ->
                     new BadRequestException("Không tìm thấy giao dịch này!")
             );
 
-    log.info(
-        "[CONFIRM_SHIP] Payment status={}, paymentId={}",
-        payment.getStatus(),
-        payment.getPaymentId()
-    );
 
     if (payment.getStatus() != PaymentStatus.CHO_THANH_TOAN_SHIP) {
         throw new BadRequestException(

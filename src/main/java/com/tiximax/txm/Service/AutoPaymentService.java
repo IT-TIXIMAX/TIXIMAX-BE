@@ -120,6 +120,8 @@ public class AutoPaymentService {
             );
         }
 
+
+    System.out.println("SEND SMS RECEIVED");
     String txmCode = extractTXMGD(req.getContent());
 
     if (txmCode == null) {

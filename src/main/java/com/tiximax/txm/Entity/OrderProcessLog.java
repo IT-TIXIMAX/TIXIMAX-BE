@@ -32,7 +32,7 @@ public class OrderProcessLog {
     private LocalDateTime timestamp;
 
     @ManyToOne
-    @JoinColumn(name="staff_id", nullable = false)
+    @JoinColumn(name="staff_id", nullable = true)
     @JsonIgnore
     Staff staff;
 
