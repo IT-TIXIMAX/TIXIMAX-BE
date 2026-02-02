@@ -272,7 +272,6 @@ public class PaymentService {
         payment.setPurpose(PaymentPurpose.THANH_TOAN_VAN_CHUYEN);
         payment.setStaff((Staff) accountUtils.getAccountCurrent());
         payment.setIsMergedPayment(true);
-        payment.setCollectWeight(totalWeight.setScale(2, RoundingMode.HALF_UP).doubleValue());
         payment.setRelatedOrders(new HashSet<>(ordersList));
         payment.setOrders(null);
 
@@ -774,7 +773,7 @@ public static String extractTXMGD(String content) {
 
    
 
-    public Payment refundFromBalance(Long customerId, BigDecimal amount, String imageUrl) {
+    public Payment refundFromBalance(Long customerId, Double amount, String imageUrl) {
         Customer customer = customerRepository.getCustomerById(customerId);
         if (customer == null){
             throw new NotFoundException("Không tìm thấy khách hàng này!");
@@ -782,11 +781,11 @@ public static String extractTXMGD(String content) {
         if (customer.getBalance().equals(BigDecimal.ZERO)){
             throw new BadRequestException("Số dư phải lớn hơn 0 thì mới được sử dụng tính năng này!");
         }
-        if (amount.compareTo(BigDecimal.ZERO) < 0){
+        if (BigDecimal.valueOf(amount).compareTo(BigDecimal.ZERO) < 0){
             throw new BadRequestException("Không cho phép truyền vào số âm!");
         }
-        if (customer.getBalance().compareTo(amount) >= 0){
-            customer.setBalance(customer.getBalance().subtract(amount));
+        if (customer.getBalance().compareTo(BigDecimal.valueOf(amount)) >= 0){
+            customer.setBalance(customer.getBalance().subtract(BigDecimal.valueOf(amount)));
             customerRepository.save(customer);
         } else {
             throw new BadRequestException("Số tiền bạn chuyển lớn hơn số tiền trong ví của khách!");
@@ -796,8 +795,8 @@ public static String extractTXMGD(String content) {
         refundPayment.setPaymentCode(generatePaymentCode());
         refundPayment.setContent("Hoàn tiền từ ví, số dư còn lại " + customer.getBalance());
         refundPayment.setPaymentType(PaymentType.MA_QR);
-        refundPayment.setAmount(amount.negate());
-        refundPayment.setCollectedAmount(amount.negate());
+        refundPayment.setAmount(BigDecimal.valueOf(amount).negate());
+        refundPayment.setCollectedAmount(BigDecimal.valueOf(amount).negate());
         refundPayment.setStatus(PaymentStatus.DA_HOAN_TIEN);
         refundPayment.setQrCode(imageUrl);
         refundPayment.setActionAt(LocalDateTime.now());
