@@ -4,6 +4,7 @@ import com.tiximax.txm.Entity.ExpenseRequest;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.ExpenseStatus;
 import com.tiximax.txm.Enums.PaymentMethod;
+import com.tiximax.txm.Enums.VatStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.Route.CreateExpenseRequest;
@@ -48,7 +49,17 @@ public class ExpenseRequestService {
         expenseRequest.setPaymentMethod(request.getPaymentMethod());
         expenseRequest.setBankInfo(request.getBankInfo());
         expenseRequest.setVatStatus(request.getVatStatus());
-        expenseRequest.setVatInfo(request.getVatInfo());
+        if (expenseRequest.getVatStatus().equals(VatStatus.CO_VAT)){
+            expenseRequest.setVatInfo(
+                    "Mst: 0402170386\n" +
+                    "Tên: Công ty cổ phần Tiximax\n" +
+                    "Địa chỉ: 338 Nguyễn Hữu Thọ, Phường Khuê Trung, Quận Cẩm Lệ, Thành phố Đà Nẵng, Việt Nam\n" +
+                    "Email: minhductran244@gmail.com\n" +
+                    "SĐT: 0382407571"
+            );
+        } else {
+            expenseRequest.setVatInfo(null);
+        }
         expenseRequest.setStatus(ExpenseStatus.CHO_DUYET);
         expenseRequest.setRequester(currentStaff);
         expenseRequest.setDepartment(currentStaff.getDepartment());
