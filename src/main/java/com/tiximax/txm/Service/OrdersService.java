@@ -269,16 +269,31 @@ public Orders addConsignment(
         return orderLinkCode;
     }
 
-    public void addProcessLog(Orders orders, String actionCode, ProcessLogAction processLogAction){
-        OrderProcessLog orderProcessLog = new OrderProcessLog();
-        orderProcessLog.setOrders(orders);
-        orderProcessLog.setStaff((Staff) accountUtils.getAccountCurrent());
-        orderProcessLog.setAction(processLogAction);
-        orderProcessLog.setActionCode(actionCode);
-        orderProcessLog.setTimestamp(LocalDateTime.now());
-        orderProcessLog.setRoleAtTime(((Staff) accountUtils.getAccountCurrent()).getRole());
-        processLogRepository.save(orderProcessLog);
+   public void addProcessLog(
+        Orders orders,
+        String actionCode,
+        ProcessLogAction processLogAction
+) {
+    OrderProcessLog orderProcessLog = new OrderProcessLog();
+    orderProcessLog.setOrders(orders);
+    orderProcessLog.setAction(processLogAction);
+    orderProcessLog.setActionCode(actionCode);
+    orderProcessLog.setTimestamp(LocalDateTime.now());
+
+    Account currentAccount = accountUtils.getAccountCurrent();
+
+    if (currentAccount instanceof Staff staff) {
+        orderProcessLog.setStaff(staff);
+        orderProcessLog.setRoleAtTime(staff.getRole());
+    } else {
+        orderProcessLog.setStaff(null);
+        orderProcessLog.setRoleAtTime(AccountRoles.MANAGER); 
+        orderProcessLog.setActionCode("BANK_SMS");
     }
+
+    processLogRepository.save(orderProcessLog);
+}
+
 
     public Page<Orders> getAllOrdersPaging(Pageable pageable, String shipmentCode, String customerCode, String orderCode) {
     Account currentAccount = accountUtils.getAccountCurrent();

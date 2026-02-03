@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tiximax.txm.Entity.Payment;
 import com.tiximax.txm.Model.DTORequest.Payment.SmsRequest;
 import com.tiximax.txm.Model.DTOResponse.Payment.PaymentAuctionResponse;
+import com.tiximax.txm.Service.AutoPaymentService;
 import com.tiximax.txm.Service.PaymentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,8 @@ public class PaymentController {
 
     @Autowired
     private PaymentService paymentService;
+    @Autowired 
+    private AutoPaymentService  autoPaymentService;
 
     @GetMapping("/order/{orderCode}")
     public ResponseEntity<List<Payment>> getPaymentsByOrderId(@PathVariable String orderCode) {
@@ -127,7 +130,7 @@ public class PaymentController {
             @RequestBody String rawBody
     ) throws Exception {
 
-        paymentService.verifyRaw(rawBody, signature);
+        autoPaymentService.verifyRaw(rawBody, signature);
 
         SmsRequest request =
             new ObjectMapper().readValue(rawBody, SmsRequest.class);
@@ -136,7 +139,6 @@ public class PaymentController {
         System.out.println("From: " + request.getSender());
         System.out.println("Amount: " + request.getAmount());
         System.out.println("Content: " + request.getContent());
-
         return ResponseEntity.ok("OK");
     }
 

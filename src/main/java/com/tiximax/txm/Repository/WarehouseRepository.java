@@ -11,6 +11,7 @@ import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
 import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
+import com.tiximax.txm.Model.Projections.ExportedQuantityProjection;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -775,4 +776,29 @@ Page<CustomerInventoryProjection> dashboardInventory(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+@Query("""
+    SELECT
+        FUNCTION('date', w.createdAt)              AS date,
+        COUNT(w.warehouseId)                       AS totalCode,
+        COALESCE(SUM(w.netWeight), 0)              AS totalWeight,
+        COUNT(DISTINCT c.accountId)                AS totalCustomers
+    FROM Warehouse w
+        JOIN w.orders o
+        JOIN o.customer c
+        JOIN o.route r
+    WHERE
+        w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+        AND w.createdAt BETWEEN :startDate AND :endDate
+        AND (:routeId IS NULL OR r.routeId = :routeId)
+    GROUP BY FUNCTION('date', w.createdAt)
+    ORDER BY FUNCTION('date', w.createdAt)
+""")
+List<ExportedQuantityProjection> getExportedQuantityDaily(
+        @Param("routeId") Long routeId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate
+);
+
+
 }
