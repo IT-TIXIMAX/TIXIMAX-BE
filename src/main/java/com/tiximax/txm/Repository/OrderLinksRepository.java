@@ -56,7 +56,10 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
           @Param("status") OrderLinkStatus status
   );
 
-
+ boolean existsByShipmentCodeAndStatusNot(
+            String shipmentCode,
+            OrderLinkStatus status
+    );
     // OrderLinksRepository.java
     @Query("""
             SELECT ol FROM OrderLinks ol 
@@ -169,5 +172,10 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
             Collection<String> shipmentCodes,
             OrderLinkStatus status
     );
+    boolean existsByShipmentCodeInAndStatusNot(
+        Collection<String> shipmentCodes,
+        OrderLinkStatus status
+);
+
 }
 

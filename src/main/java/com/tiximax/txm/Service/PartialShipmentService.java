@@ -14,6 +14,7 @@ import com.tiximax.txm.Model.DTORequest.OrderLink.ShipmentCodesRequest;
 import com.tiximax.txm.Model.DTOResponse.Payment.PartialPayment;
 import com.tiximax.txm.Repository.AuthenticationRepository;
 import com.tiximax.txm.Repository.CustomerVoucherRepository;
+import com.tiximax.txm.Repository.DraftDomesticShipmentRepository;
 import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.OrdersRepository;
 import com.tiximax.txm.Repository.PartialShipmentRepository;
@@ -69,6 +70,9 @@ public class PartialShipmentService {
 
     @Autowired
     private WarehouseRepository warehouseRepository;
+
+    @Autowired
+    private DraftDomesticShipmentRepository draftDomesticShipmentRepository;
 
     @Autowired
     private PaymentRepository paymentRepository;
@@ -531,13 +535,15 @@ public class PartialShipmentService {
         DraftDomestic draftDomestic =
                 draftDomesticService.getDraftDomesticByShipCode(shipCode);
 
-        List<String> allTrackingCodes = draftDomestic.getShippingList();
-        if (allTrackingCodes == null || allTrackingCodes.isEmpty()) {
+    List<String> allTrackingCodes =
+            draftDomesticShipmentRepository
+                    .findShipmentCodesByShipCode(shipCode);
+    List<PartialShipment> createdPartials = new ArrayList<>();
+
+     if (allTrackingCodes == null || allTrackingCodes.isEmpty()) {
             throw new NotFoundException("Không có mã vận đơn nào được chọn!");
         }
-
-        List<PartialShipment> createdPartials = new ArrayList<>();
-
+        
         // === Lấy OrderLinks ===
         List<OrderLinks> allLinks =
                 orderLinksRepository.findByShipmentCodeIn(allTrackingCodes);

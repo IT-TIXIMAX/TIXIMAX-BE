@@ -3,34 +3,69 @@ package com.tiximax.txm.Model.DTOResponse.DraftDomestic;
 import java.util.List;
 
 import com.tiximax.txm.Entity.DraftDomestic;
+import com.tiximax.txm.Entity.DraftDomesticShipment;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class DraftDomesticResponse {
+
     private Long id;
     private String customerName;
     private String phoneNumber;
     private String address;
-    private List<String> shippingList;
     private String shipCode;
-    private String weight;
     private String VNPostTrackingCode;
     private String staffCode;
-    private boolean payment;
-   
-    public DraftDomesticResponse(DraftDomestic draftDomestic) {
-        this.id = draftDomestic.getId();
-        this.phoneNumber = draftDomestic.getPhoneNumber();
-        this.address = draftDomestic.getAddress();
-        this.shippingList = draftDomestic.getShippingList();
-        this.shipCode = draftDomestic.getShipCode();
-        this.VNPostTrackingCode = draftDomestic.getVNPostTrackingCode();
-        this.customerName = draftDomestic.getCustomer().getName();
-        this.staffCode = draftDomestic.getStaff().getStaffCode();
-        this.payment = draftDomestic.isPayment();
-    }   
+    private Boolean payment;
+    private String weight;
+
+    // set sau
+    private List<String> shippingList;
+
+    // 🔥 CONSTRUCTOR DÙNG CHO JPQL
+    public DraftDomesticResponse(
+            Long id,
+            String customerName,
+            String phoneNumber,
+            String address,
+            String shipCode,
+            String VNPostTrackingCode,
+            String staffCode,
+            Boolean payment,
+            String weight
+    ) {
+        this.id = id;
+        this.customerName = customerName;
+        this.phoneNumber = phoneNumber;
+        this.address = address;
+        this.shipCode = shipCode;
+        this.VNPostTrackingCode = VNPostTrackingCode;
+        this.staffCode = staffCode;
+        this.payment = payment;
+        this.weight = weight;
+    }
+    public DraftDomesticResponse(DraftDomestic draft) {
+    this.id = draft.getId();
+    this.customerName = draft.getCustomer().getName();
+    this.phoneNumber = draft.getPhoneNumber();
+    this.address = draft.getAddress();
+    this.shipCode = draft.getShipCode();
+    this.VNPostTrackingCode = draft.getVNPostTrackingCode();
+    this.staffCode =
+            draft.getStaff() != null
+                    ? draft.getStaff().getStaffCode()
+                    : null;
+    this.payment = draft.isPayment();
+    this.weight = draft.getWeight().toString();
+
+    if (draft.getShipments() != null) {
+        this.shippingList = draft.getShipments()
+                .stream()
+                .map(DraftDomesticShipment::getShipmentCode)
+                .toList();
+    }
+}
 }
