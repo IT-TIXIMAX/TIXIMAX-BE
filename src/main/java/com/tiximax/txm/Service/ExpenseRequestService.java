@@ -49,6 +49,8 @@ public class ExpenseRequestService {
         expenseRequest.setPaymentMethod(request.getPaymentMethod());
         expenseRequest.setBankInfo(request.getBankInfo());
         expenseRequest.setVatStatus(request.getVatStatus());
+        expenseRequest.setTransferImage(request.getTransferImage());
+        expenseRequest.setInvoiceImage(request.getInvoiceImage());
         if (expenseRequest.getVatStatus().equals(VatStatus.CO_VAT)){
             expenseRequest.setVatInfo(
                     "Mst: 0402170386\n" +
