@@ -923,7 +923,43 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
 //        }
 //    }
 
-    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(Pageable pageable) {
+//    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(Pageable pageable) {
+//        Account currentAccount = accountUtils.getAccountCurrent();
+//        if (!(currentAccount instanceof Staff)) {
+//            throw new AccessDeniedException("Chỉ nhân viên mới có quyền truy cập danh sách đơn hàng này!");
+//        }
+//        Staff staff = (Staff) currentAccount;
+//        Long staffId = staff.getAccountId();
+//        AccountRoles role = staff.getRole();
+//
+//        Page<Orders> ordersPage;
+//
+//        if (AccountRoles.MANAGER.equals(role)) {
+//            ordersPage = ordersRepository.findOrdersWithRefundableCancelledLinks(
+//                    BigDecimal.ZERO, pageable);
+//        } else if (AccountRoles.STAFF_SALE.equals(role) || AccountRoles.LEAD_SALE.equals(role)) {
+//            ordersPage = ordersRepository.findByStaffIdAndRefundableCancelledLinks(
+//                    staffId, BigDecimal.ZERO, pageable);
+//        } else {
+//            throw new AccessDeniedException("Vai trò không hợp lệ!");
+//        }
+//
+//        Page<RefundResponse> result = ordersPage.map(order -> {
+//            RefundResponse response = new RefundResponse();
+//            response.setOrder(order);
+//
+//            List<OrderLinks> cancelledLinks = order.getOrderLinks().stream()
+//                    .filter(link -> link.getStatus() == OrderLinkStatus.DA_HUY)
+//                    .toList();
+//
+//            response.setCancelledLinks(cancelledLinks);
+//            return response;
+//        });
+//
+//        return result;
+//    }
+
+    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(String orderCode, Pageable pageable) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff)) {
             throw new AccessDeniedException("Chỉ nhân viên mới có quyền truy cập danh sách đơn hàng này!");
@@ -932,31 +968,15 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
         Long staffId = staff.getAccountId();
         AccountRoles role = staff.getRole();
 
-        Page<Orders> ordersPage;
-
         if (AccountRoles.MANAGER.equals(role)) {
-            ordersPage = ordersRepository.findOrdersWithRefundableCancelledLinks(
+            return ordersRepository.findOrdersWithRefundableCancelledLinks(orderCode,
                     BigDecimal.ZERO, pageable);
         } else if (AccountRoles.STAFF_SALE.equals(role) || AccountRoles.LEAD_SALE.equals(role)) {
-            ordersPage = ordersRepository.findByStaffIdAndRefundableCancelledLinks(
+            return ordersRepository.findByStaffIdAndRefundableCancelledLinks(
                     staffId, BigDecimal.ZERO, pageable);
         } else {
             throw new AccessDeniedException("Vai trò không hợp lệ!");
         }
-
-        Page<RefundResponse> result = ordersPage.map(order -> {
-            RefundResponse response = new RefundResponse();
-            response.setOrder(order);
-
-            List<OrderLinks> cancelledLinks = order.getOrderLinks().stream()
-                    .filter(link -> link.getStatus() == OrderLinkStatus.DA_HUY)
-                    .toList();
-
-            response.setCancelledLinks(cancelledLinks);
-            return response;
-        });
-
-        return result;
     }
 
     public Orders processNegativeLeftoverMoney(Long orderId, String image, boolean refundToCustomer) {
@@ -2053,4 +2073,7 @@ public void updateOrderStatusIfCompleted(Long orderId) {
         };
     }
 
+    public List<OrderLinkRefund> getCancelledLinksForRefund(Long orderId) {
+        return ordersRepository.findRefundableCancelledLinksByOrderId(orderId);
+    }
 }

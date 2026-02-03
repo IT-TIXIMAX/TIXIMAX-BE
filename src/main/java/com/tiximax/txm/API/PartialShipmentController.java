@@ -38,7 +38,7 @@ public class PartialShipmentController {
                                                                     @PathVariable BigDecimal priceShipDos,
                                                                     @RequestParam(required = false) Long customerVoucherId) {
         List<PartialShipment> partial = partialShipmentService.createPartialShipment(selectedTrackingCode, isUseBalance, bankId, priceShipDos, customerVoucherId);
-        Payment payment = partial.get(0).getPayment();                                                             
+        Payment payment = partial.get(0).getPayment();
         return ResponseEntity.ok(payment);
     }
     @GetMapping("/{id}")
