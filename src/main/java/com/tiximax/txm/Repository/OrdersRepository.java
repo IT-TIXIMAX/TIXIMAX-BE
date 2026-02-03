@@ -10,6 +10,8 @@ import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderLinkRefund;
+import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 
 import org.springframework.data.domain.Page;
@@ -233,31 +235,103 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
 
     List<Orders> findByCustomerAndLeftoverMoneyGreaterThan(Customer customer, BigDecimal zero);
 
-    @Query("SELECT o FROM Orders o " +
-            "WHERE o.leftoverMoney IS NOT NULL " +
-            "AND o.leftoverMoney < :threshold " +
-            "AND EXISTS (" +
-            "   SELECT 1 FROM OrderLinks ol " +
-            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
-            ")")
-    Page<Orders> findOrdersWithRefundableCancelledLinks(
+//    @Query("SELECT o FROM Orders o " +
+//            "WHERE o.leftoverMoney IS NOT NULL " +
+//            "AND o.leftoverMoney < :threshold " +
+//            "AND EXISTS (" +
+//            "   SELECT 1 FROM OrderLinks ol " +
+//            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
+//            ")")
+//    Page<Orders> findOrdersWithRefundableCancelledLinks(
+//            @Param("threshold") BigDecimal threshold,
+//            Pageable pageable
+//    );
+
+    @Query("""
+    SELECT NEW com.tiximax.txm.Model.DTOResponse.Order.RefundResponse(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+    )
+    FROM Orders o
+    JOIN o.orderLinks ol
+    WHERE o.leftoverMoney IS NOT NULL
+      AND o.leftoverMoney < :threshold
+      AND ol.status = 'DA_HUY'
+    GROUP BY
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+""")
+    Page<RefundResponse> findOrdersWithRefundableCancelledLinks(
             @Param("threshold") BigDecimal threshold,
             Pageable pageable
     );
 
-    @Query("SELECT o FROM Orders o " +
-            "WHERE o.staff.accountId = :staffId " +
-            "AND o.leftoverMoney IS NOT NULL " +
-            "AND o.leftoverMoney < :threshold " +
-            "AND EXISTS (" +
-            "   SELECT 1 FROM OrderLinks ol " +
-            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
-            ")")
-    Page<Orders> findByStaffIdAndRefundableCancelledLinks(
+    @Query("""
+    SELECT NEW com.tiximax.txm.Model.DTOResponse.Order.RefundResponse(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+    )
+    FROM Orders o
+    JOIN o.orderLinks ol
+    WHERE o.leftoverMoney IS NOT NULL
+      AND o.leftoverMoney < :threshold
+      AND o.staff.accountId = :staffId
+      AND ol.status = 'DA_HUY'
+    GROUP BY
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+""")
+    Page<RefundResponse> findByStaffIdAndRefundableCancelledLinks(
             @Param("staffId") Long staffId,
             @Param("threshold") BigDecimal threshold,
             Pageable pageable
     );
+
+//    @Query("SELECT o FROM Orders o " +
+//            "WHERE o.staff.accountId = :staffId " +
+//            "AND o.leftoverMoney IS NOT NULL " +
+//            "AND o.leftoverMoney < :threshold " +
+//            "AND EXISTS (" +
+//            "   SELECT 1 FROM OrderLinks ol " +
+//            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
+//            ")")
+//    Page<RefundResponse> findByStaffIdAndRefundableCancelledLinks(
+//            @Param("staffId") Long staffId,
+//            @Param("threshold") BigDecimal threshold,
+//            Pageable pageable
+//    );
 
     @Query("""
     SELECT DISTINCT o FROM Orders o
@@ -787,6 +861,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
             o.orderId,
+            o.orderCode,
             o.orderType,
             o.status,
             c.customerCode,
@@ -806,6 +881,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
             o.orderId,
+            o.orderCode,
             o.orderType,
             o.status,
             c.customerCode,
@@ -829,6 +905,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
             o.orderId,
+            o.orderCode,
             o.orderType,
             o.status,
             c.customerCode,
@@ -843,4 +920,33 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
           AND o.status = :status
         """)
     Page<OrderInfo> findOrderInfoByRouteIdAndStatus(Long routeId, OrderStatus status, Pageable pageable);
+
+    @Query("""
+    SELECT NEW com.tiximax.txm.Model.DTOResponse.Order.OrderLinkRefund(
+        ol.linkId,
+        ol.productLink,
+        ol.productName,
+        ol.quantity,
+        ol.priceWeb,
+        ol.shipWeb,
+        ol.totalWeb,
+        ol.purchaseFee,
+        ol.extraCharge,
+        ol.finalPriceVnd,
+        ol.trackingCode,
+        ol.classify,
+        ol.purchaseImage,
+        ol.website,
+        ol.shipmentCode,
+        ol.status,
+        ol.note,
+        ol.groupTag
+    )
+    FROM OrderLinks ol
+    WHERE ol.orders.orderId = :orderId
+      AND ol.status = 'DA_HUY'
+""")
+    List<OrderLinkRefund> findRefundableCancelledLinksByOrderId(
+            @Param("orderId") Long orderId
+    );
 }
