@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 
 public class OrderInfo {
     private Long orderId;
+    private String orderCode;
     private OrderType orderType;
     private OrderStatus status;
     private String customerCode;

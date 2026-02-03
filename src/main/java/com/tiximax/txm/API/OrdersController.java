@@ -278,6 +278,7 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
         return ResponseEntity.ok(readyOrders);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER','LEAD_SALE','STAFF_SALE')")
     @GetMapping("/refund/{page}/{size}")
     public ResponseEntity<Page<RefundResponse>> getOrdersWithNegativeLeftoverMoney(
             @PathVariable int page,
@@ -287,6 +288,15 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
         Page<RefundResponse> ordersPage = ordersService.getOrdersWithNegativeLeftoverMoney(pageable);
         return ResponseEntity.ok(ordersPage);
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER','LEAD_SALE','STAFF_SALE')")
+    @GetMapping("/cancelled-links/{orderId}")
+    public ResponseEntity<List<OrderLinkRefund>> getCancelledLinksForRefund(
+            @PathVariable Long orderId) {
+        List<OrderLinkRefund> links = ordersService.getCancelledLinksForRefund(orderId);
+        return ResponseEntity.ok(links);
+    }
+
     @PreAuthorize("hasAnyRole('MANAGER')")
     @PutMapping("/refund-confirm/{orderId}")
     public ResponseEntity<Orders> processNegativeLeftoverMoney(
