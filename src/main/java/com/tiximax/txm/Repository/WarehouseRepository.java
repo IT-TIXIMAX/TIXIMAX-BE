@@ -23,6 +23,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -321,21 +322,22 @@ List<String> findExistingTrackingCodesByStatus(
         join o.customer c
         join o.route r
         left join o.staff s
-        left join DraftDomestic d
-            on w.trackingCode in elements(d.shippingList)
-    where w.status IN :warehouseStatuses
+    where w.status in :warehouseStatuses
       and p.flightCode is not null
-      and d.id is null
       and (:staffId is null or s.accountId = :staffId)
       and (:customerCode is null or c.customerCode = :customerCode)
       and (:routeId is null or r.routeId = :routeId)
+      and not exists (
+            select 1
+            from DraftDomesticShipment ds
+            where ds.shipmentCode  = w.trackingCode
+      )
     group by
         c.customerCode,
         c.name,
         c.phone,
         r.name
 """)
-
 Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
         @Param("warehouseStatuses") List<WarehouseStatus> warehouseStatuses,
         @Param("staffId") Long staffId,
@@ -343,6 +345,7 @@ Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
         @Param("routeId") Long routeId,
         Pageable pageable
 );
+
 
 @Query("""
     select
@@ -353,14 +356,16 @@ Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
         join o.customer c
         join o.route r
         join w.packing p
-        left join DraftDomestic d
-            on w.trackingCode in elements(d.shippingList)
-      where w.status IN :warehouseStatuses
+    where w.status in :warehouseStatuses
       and p.flightCode is not null
-      and d.id is null
+      and c.customerCode in :customerCodes
       and (:staffId is null or o.staff.accountId = :staffId)
       and (:routeId is null or r.routeId = :routeId)
-      and c.customerCode in :customerCodes
+      and not exists (
+            select 1
+            from DraftDomesticShipment ds
+            where ds.shipmentCode  = w.trackingCode
+      )
 """)
 List<CustomerShipmentRow> findTrackingCodesByCustomerCodes(
         @Param("warehouseStatuses") List<WarehouseStatus> warehouseStatuses,
@@ -368,6 +373,7 @@ List<CustomerShipmentRow> findTrackingCodesByCustomerCodes(
         @Param("staffId") Long staffId,
         @Param("routeId") Long routeId
 );
+
 @Query("""
     SELECT COALESCE(SUM(w.weight), 0)
     FROM Warehouse w
@@ -402,10 +408,10 @@ Double sumWeightByTrackingCodes(
             @Param("shipmentCodes") List<String> shipmentCodes
     );
 
-    long countByTrackingCodeIn(Set<String> trackingCodes);
+    long countByTrackingCodeIn(Collection<String> trackingCodes);
 
     long countByTrackingCodeInAndStatus(
-            Set<String> trackingCodes,
+            Collection<String> trackingCodes,
             WarehouseStatus status
     );
 
@@ -525,21 +531,24 @@ WarehouseStatisticRow exportByCarrierWithDate(
                 @Param("trackingCodes") List<String> trackingCodes
         );
 
-        @Query("""
-        select count(w)
-        from Warehouse w
-            join w.orders o
-            join o.customer c
-            left join DraftDomestic d
-                on w.trackingCode in elements(d.shippingList)
-        where c.customerCode = :customerCode
-          and w.status in :statuses
-          and d.id is null
-    """)
-    int countAvailableByCustomerCode(
-            @Param("customerCode") String customerCode,
-            @Param("statuses") List<WarehouseStatus> statuses
-    );
+   @Query("""
+    select count(w)
+    from Warehouse w
+        join w.orders o
+        join o.customer c
+    where c.customerCode = :customerCode
+      and w.status in :statuses
+      and not exists (
+            select 1
+            from DraftDomesticShipment ds
+            where ds.shipmentCode  = w.trackingCode
+      )
+""")
+int countAvailableByCustomerCode(
+        @Param("customerCode") String customerCode,
+        @Param("statuses") List<WarehouseStatus> statuses
+);
+
 
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary(

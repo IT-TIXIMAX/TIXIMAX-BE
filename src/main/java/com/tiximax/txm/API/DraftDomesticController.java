@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Page;
@@ -53,7 +54,7 @@ public class DraftDomesticController {
         return ResponseEntity.ok(response);
     }
 @GetMapping("/{page}/{size}")
-public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
+public ResponseEntity<Slice<DraftDomesticResponse>> getAllDraftDomestic(
         @RequestParam(required = false) String customerCode,
         @RequestParam(required = false) String shipmentCode,
         @RequestParam(required = false) DraftDomesticStatus status,
@@ -64,7 +65,7 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
 
     Pageable pageable = PageRequest.of(page, size);
 
-    Page<DraftDomesticResponse> result =
+    Slice<DraftDomesticResponse> result =
             draftDomesticService.getAllDraftDomestic(
                     customerCode,
                     shipmentCode,
@@ -180,7 +181,7 @@ public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
        public ResponseEntity<Map<String, Object>> lockDraftDomestic(
                 @RequestBody List<Long> draftIds
         ) {
-        Boolean result = draftDomesticService.ExportDraftDomestic(draftIds);
+        Boolean result = draftDomesticService.exportDraftDomestic(draftIds);
           return ResponseEntity.ok(
             Map.of(
                     "success", result,

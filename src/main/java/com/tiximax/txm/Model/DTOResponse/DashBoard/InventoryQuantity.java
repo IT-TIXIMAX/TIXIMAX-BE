@@ -12,4 +12,6 @@ public class InventoryQuantity {
     private Double exportedWeightKg;  
     private Long remainingCode;
     private Double remainingWeightKg;
+
+    
 }
