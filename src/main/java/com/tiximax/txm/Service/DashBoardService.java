@@ -1073,11 +1073,11 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         if (staff.getRole().equals(AccountRoles.STAFF_WAREHOUSE_FOREIGN)) {
             forcedLocationId = staff.getWarehouseLocation().getLocationId();
             if (forcedLocationId == null) {
-                throw new BadRequestException("Nhân viên kho chưa được gán location.");
+                throw new BadRequestException("Nhân viên kho chưa được gán vị trí kho!");
             }
             routeId = null;
         } else if (!staff.getRole().equals(AccountRoles.MANAGER)){
-            throw new BadRequestException("Vai trò không được phép xem dashboard này.");
+            throw new BadRequestException("Vai trò không được phép xem dashboard này!");
         }
 
         StartEndDate dateRange = getDateStartEnd(filterType);

@@ -279,13 +279,14 @@ public ResponseEntity<Page<ShipLinkForegin>> getOrderLinksForWarehouseForeign(
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER','LEAD_SALE','STAFF_SALE')")
-    @GetMapping("/refund/{page}/{size}")
+    @GetMapping("/refund/{orderCode}/{page}/{size}")
     public ResponseEntity<Page<RefundResponse>> getOrdersWithNegativeLeftoverMoney(
+            @RequestParam(required = false) String orderCode,
             @PathVariable int page,
             @PathVariable int size) {
         Sort sort = Sort.by("createdAt").descending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<RefundResponse> ordersPage = ordersService.getOrdersWithNegativeLeftoverMoney(pageable);
+        Page<RefundResponse> ordersPage = ordersService.getOrdersWithNegativeLeftoverMoney(orderCode, pageable);
         return ResponseEntity.ok(ordersPage);
     }
 

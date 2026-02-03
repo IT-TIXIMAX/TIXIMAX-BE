@@ -264,6 +264,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     JOIN o.orderLinks ol
     WHERE o.leftoverMoney IS NOT NULL
       AND o.leftoverMoney < :threshold
+      AND (:orderCode IS NULL OR o.orderCode = :orderCode)
       AND ol.status = 'DA_HUY'
     GROUP BY
         o.orderId,
@@ -278,6 +279,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         o.staff.name
 """)
     Page<RefundResponse> findOrdersWithRefundableCancelledLinks(
+            @Param("orderCode") String orderCode,
             @Param("threshold") BigDecimal threshold,
             Pageable pageable
     );
@@ -300,6 +302,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     WHERE o.leftoverMoney IS NOT NULL
       AND o.leftoverMoney < :threshold
       AND o.staff.accountId = :staffId
+      AND (:orderCode IS NULL OR o.orderCode = :orderCode)
       AND ol.status = 'DA_HUY'
     GROUP BY
         o.orderId,
@@ -400,7 +403,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         SELECT o FROM Orders o
         LEFT JOIN o.customer c
         LEFT JOIN o.orderLinks ol
-        WHERE 
+        WHERE
             o.route.routeId IN :routeIds
             AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
             AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)

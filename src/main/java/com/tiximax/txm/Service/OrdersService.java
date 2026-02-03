@@ -959,7 +959,7 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
 //        return result;
 //    }
 
-    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(Pageable pageable) {
+    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(String orderCode, Pageable pageable) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff)) {
             throw new AccessDeniedException("Chỉ nhân viên mới có quyền truy cập danh sách đơn hàng này!");
@@ -969,7 +969,7 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
         AccountRoles role = staff.getRole();
 
         if (AccountRoles.MANAGER.equals(role)) {
-            return ordersRepository.findOrdersWithRefundableCancelledLinks(
+            return ordersRepository.findOrdersWithRefundableCancelledLinks(orderCode,
                     BigDecimal.ZERO, pageable);
         } else if (AccountRoles.STAFF_SALE.equals(role) || AccountRoles.LEAD_SALE.equals(role)) {
             return ordersRepository.findByStaffIdAndRefundableCancelledLinks(
