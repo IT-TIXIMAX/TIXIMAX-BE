@@ -42,15 +42,15 @@ public class Purchases {
     @JsonIgnore
     Staff staff;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="order_id", nullable = false)
     @JsonIgnore
     Orders orders;
 
-    @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "purchase", fetch = FetchType.LAZY,cascade = CascadeType.ALL)
     Set<OrderLinks> orderLinks;
 
-    @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "purchase", fetch = FetchType.LAZY,cascade = CascadeType.ALL)
     Set<Warehouse> warehouses;
 
 }

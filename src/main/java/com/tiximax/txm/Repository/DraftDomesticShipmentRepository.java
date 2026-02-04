@@ -2,12 +2,15 @@ package com.tiximax.txm.Repository;
 
 import java.util.List;
 import java.util.Set;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.tiximax.txm.Entity.DraftDomesticShipment;
+import com.tiximax.txm.Model.Projections.ShipCodeBasicProjection;
 
 public interface DraftDomesticShipmentRepository  extends JpaRepository<DraftDomesticShipment, Long> {
       boolean existsByShipmentCode(String shipmentCode);
@@ -21,24 +24,54 @@ public interface DraftDomesticShipmentRepository  extends JpaRepository<DraftDom
     """)
     List<String> findCodesByDraftId(Long draftId);
 
-        @Query("""
+      @Query("""
         SELECT s
         FROM DraftDomesticShipment s
         JOIN FETCH s.draftDomestic d
         JOIN FETCH d.customer
-        WHERE d.staff.id = :staffId
-          AND (:payment IS NULL OR d.payment = :payment)
-          AND (
-              :keyword IS NULL
-              OR d.shipCode LIKE %:keyword%
-              OR s.shipmentCode LIKE %:keyword%
-          )
+        WHERE d.staff.accountId = :staffId
+        AND (:keyword IS NULL OR s.shipmentCode LIKE %:keyword% OR d.shipCode LIKE %:keyword%)
+        AND (:payment IS NULL OR d.payment = :payment)
     """)
-    List<DraftDomesticShipment> findShipmentsByStaff(
+    Page<DraftDomesticShipment> findShipmentsByStaff(
             Long staffId,
             String keyword,
-            Boolean payment
+            Boolean payment,
+            Pageable pageable
     );
+
+    @Query("""
+    SELECT DISTINCT
+        d.shipCode   AS shipCode,
+        c.accountId AS customerId,
+        c.name      AS customerName,
+        d.createdAt AS createdAt
+    FROM DraftDomesticShipment s
+        JOIN s.draftDomestic d
+        JOIN d.customer c
+    WHERE d.staff.accountId = :staffId
+      AND (:payment IS NULL OR d.payment = :payment)
+      AND (
+            :keywordLike IS NULL
+            OR d.shipCode LIKE :keywordLike
+            OR s.shipmentCode LIKE :keywordLike
+      )
+    ORDER BY d.createdAt DESC
+""")
+Page<ShipCodeBasicProjection> findShipCodesByStaff(
+        @Param("staffId") Long staffId,
+        @Param("keywordLike") String keywordLike,
+        @Param("payment") Boolean payment,
+        Pageable pageable
+);
+
+@Query("""
+    SELECT s
+    FROM DraftDomesticShipment s
+    JOIN FETCH s.draftDomestic d
+    WHERE d.shipCode IN :shipCodes
+""")
+List<DraftDomesticShipment> findByShipCodes(List<String> shipCodes);
         @Query("""
         SELECT s
         FROM DraftDomesticShipment s

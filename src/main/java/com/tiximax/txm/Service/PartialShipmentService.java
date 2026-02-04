@@ -12,6 +12,7 @@ import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.OrderLink.ShipmentCodesRequest;
 import com.tiximax.txm.Model.DTOResponse.Payment.PartialPayment;
+import com.tiximax.txm.Model.Projections.WarehouseFeeProjection;
 import com.tiximax.txm.Repository.AuthenticationRepository;
 import com.tiximax.txm.Repository.CustomerVoucherRepository;
 import com.tiximax.txm.Repository.DraftDomesticShipmentRepository;
@@ -362,118 +363,99 @@ public class PartialShipmentService {
         return partialShipmentRepository.findById(id);
     }
     public Map<String, BigDecimal> calculateFeeByShipCodeAllowMultiRoute(
-            Map<String, List<String>> shipCodeTrackingMap
-    ) {
+        Map<String, List<String>> shipCodeTrackingMap
+) {
 
-        // 1. gom toàn bộ trackingCodes (1 query)
-        List<String> allTrackingCodes =
-                shipCodeTrackingMap.values().stream()
-                        .flatMap(List::stream)
-                        .distinct()
-                        .toList();
-
-        List<Warehouse> warehouses =
-                warehouseRepository
-                        .findByTrackingCodeInFetchOrders(allTrackingCodes);
-
-        if (warehouses.isEmpty()) {
-            throw new NotFoundException("Không tìm thấy kiện hàng");
-        }
-
-        // 2. map trackingCode -> Warehouse
-        Map<String, Warehouse> warehouseMap =
-                warehouses.stream()
-                        .collect(Collectors.toMap(
-                                Warehouse::getTrackingCode,
-                                w -> w
-                        ));
-
-        Map<String, BigDecimal> result = new HashMap<>();
-
-        // 3. tính phí theo từng shipCode
-        for (Map.Entry<String, List<String>> entry : shipCodeTrackingMap.entrySet()) {
-
-            String shipCode = entry.getKey();
-            List<String> trackingCodes = entry.getValue();
-
-            List<Warehouse> ws = trackingCodes.stream()
-                    .map(warehouseMap::get)
-                    .filter(Objects::nonNull)
+    List<String> allTrackingCodes =
+            shipCodeTrackingMap.values().stream()
+                    .flatMap(List::stream)
+                    .distinct()
                     .toList();
 
-            BigDecimal totalFee = BigDecimal.ZERO;
+    List<WarehouseFeeProjection> rows =
+            warehouseRepository.findWarehouseFees(allTrackingCodes);
 
-            // 4. GROUP THEO ROUTE
-            Map<Long, List<Warehouse>> routeMap =
-                    ws.stream()
-                            .collect(Collectors.groupingBy(
-                                    w -> w.getOrders().getRoute().getRouteId()
-                            ));
-
-            for (List<Warehouse> routeWarehouses : routeMap.values()) {
-
-                Route route =
-                        routeWarehouses.get(0).getOrders().getRoute();
-
-                BigDecimal priceShip =
-                        routeWarehouses.get(0).getOrders().getPriceShip();
-
-                // validate priceShip trong cùng tuyến
-                boolean samePrice = routeWarehouses.stream()
-                        .allMatch(w ->
-                                w.getOrders().getPriceShip()
-                                        .compareTo(priceShip) == 0
-                        );
-
-                if (!samePrice) {
-                    throw new BadRequestException(
-                            "ShipCode " + shipCode +
-                                    " có giá cước khác nhau trong cùng tuyến"
-                    );
-                }
-
-                // tổng netWeight theo route
-                BigDecimal totalNetWeight =
-                        routeWarehouses.stream()
-                                .map(w -> {
-                                    if (w.getNetWeight() == null) {
-                                        throw new IllegalArgumentException(
-                                                "Thiếu netWeight: " +
-                                                        w.getTrackingCode()
-                                        );
-                                    }
-                                    return BigDecimal.valueOf(w.getNetWeight());
-                                })
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal chargeableWeight;
-
-                if (totalNetWeight.compareTo(BigDecimal.ONE) < 0) {
-                    if (route.getMinWeight().compareTo(new BigDecimal("0.50")) == 0) {
-                        if (totalNetWeight.compareTo(new BigDecimal("0.5")) <= 0) {
-                            chargeableWeight = new BigDecimal("0.5");
-                        } else {
-                            chargeableWeight = BigDecimal.ONE;
-                        }
-                    } else {
-                        chargeableWeight = BigDecimal.ONE;
-                    }
-                } else {
-                    chargeableWeight = totalNetWeight.setScale(2, RoundingMode.HALF_UP);
-                }
-
-                BigDecimal routeFee =
-                        chargeableWeight.multiply(priceShip);
-
-                totalFee = totalFee.add(roundToHundreds(routeFee));
-            }
-
-            result.put(shipCode, totalFee);
-        }
-
-        return result;
+    if (rows.isEmpty()) {
+        throw new NotFoundException("Không tìm thấy kiện hàng");
     }
 
+    Map<String, Map<Long, List<WarehouseFeeProjection>>> grouped =
+            rows.stream()
+                .collect(Collectors.groupingBy(
+                    WarehouseFeeProjection::getShipCode,
+                    Collectors.groupingBy(
+                        WarehouseFeeProjection::getRouteId
+                    )
+                ));
+
+    Map<String, BigDecimal> result = new HashMap<>();
+
+    for (var shipEntry : grouped.entrySet()) {
+
+        String shipCode = shipEntry.getKey();
+        BigDecimal totalFee = BigDecimal.ZERO;
+
+        for (var routeEntry : shipEntry.getValue().values()) {
+
+            WarehouseFeeProjection first = routeEntry.get(0);
+
+            BigDecimal priceShip = first.getPriceShip();
+            BigDecimal minWeight = first.getMinWeight();
+
+            // validate price
+            boolean samePrice =
+                    routeEntry.stream()
+                        .allMatch(r ->
+                            r.getPriceShip()
+                             .compareTo(priceShip) == 0
+                        );
+
+            if (!samePrice) {
+                throw new BadRequestException(
+                        "ShipCode " + shipCode +
+                        " có giá cước khác nhau trong cùng tuyến"
+                );
+            }
+
+            BigDecimal totalNetWeight =
+                    routeEntry.stream()
+                        .map(r -> {
+                            if (r.getNetWeight() == null) {
+                                throw new IllegalArgumentException(
+                                    "Thiếu netWeight: " + r.getTrackingCode()
+                                );
+                            }
+                            return BigDecimal.valueOf(r.getNetWeight());
+                        })
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal chargeableWeight;
+
+            if (totalNetWeight.compareTo(BigDecimal.ONE) < 0) {
+                if (minWeight.compareTo(new BigDecimal("0.50")) == 0) {
+                    chargeableWeight =
+                        totalNetWeight.compareTo(new BigDecimal("0.5")) <= 0
+                            ? new BigDecimal("0.5")
+                            : BigDecimal.ONE;
+                } else {
+                    chargeableWeight = BigDecimal.ONE;
+                }
+            } else {
+                chargeableWeight =
+                        totalNetWeight.setScale(2, RoundingMode.HALF_UP);
+            }
+
+            BigDecimal routeFee =
+                    chargeableWeight.multiply(priceShip);
+
+            totalFee = totalFee.add(roundToHundreds(routeFee));
+        }
+
+        result.put(shipCode, totalFee);
+    }
+
+    return result;
+}
 
 
     private BigDecimal roundUp(BigDecimal value) {

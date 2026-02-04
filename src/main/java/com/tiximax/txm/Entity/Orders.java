@@ -60,12 +60,12 @@ public class Orders {
     @Column(nullable = true)
     private LocalDateTime pinnedAt;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="customer_id", nullable = false)
     @JsonManagedReference
     Customer customer;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="staff_id", nullable = false)
     @JsonIgnore
     Staff staff;
@@ -93,11 +93,11 @@ public class Orders {
     @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
     @JsonIgnore
     Set<ShipmentTracking> shipmentTrackings;
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="route_id", nullable = false)
     @JsonIgnore
     Route route;
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="destination_id", nullable = false)
     @JsonIgnore
     Destination destination;
@@ -115,7 +115,7 @@ public class Orders {
     @JsonIgnore
     private Set<PartialShipment> partialShipments = new HashSet<>();
 
-    @ManyToOne(optional = true)
+    @ManyToOne(optional = true, fetch = FetchType.LAZY)
     @JoinColumn(name = "address_id", nullable = true)
     @JsonIgnore
     private Address address;

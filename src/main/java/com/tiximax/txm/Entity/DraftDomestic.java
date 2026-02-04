@@ -64,12 +64,12 @@ public class DraftDomestic{
     @Column(nullable = false)
     private DraftDomesticStatus status;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="customer_id", nullable = false)
     @JsonManagedReference
     Customer customer;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "staff_id", nullable = false)
     private Staff staff;
     @PrePersist
