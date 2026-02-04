@@ -25,6 +25,6 @@ public class DraftDomesticRequest {
 
     private Carrier carrier; 
 
-    private List<String> shipmentCodes;
+    private List<String> shippingList;
 
 }

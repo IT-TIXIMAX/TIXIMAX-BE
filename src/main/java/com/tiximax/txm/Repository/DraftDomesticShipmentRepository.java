@@ -48,7 +48,13 @@ public interface DraftDomesticShipmentRepository  extends JpaRepository<DraftDom
     """)
     List<DraftDomesticShipment> findByShipCode(String shipCode);
 
-    
+   @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        DELETE FROM DraftDomesticShipment s
+        WHERE s.draftDomestic.id = :draftId
+    """)
+    int deleteByDraftDomesticId(Long draftId);
+
     @Query("""
         SELECT s
         FROM DraftDomesticShipment s

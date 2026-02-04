@@ -91,15 +91,15 @@ public DraftDomesticResponse addDraftDomestic(
             );
 
     // 1️⃣ Validate shipmentCodes
-    if (request.getShipmentCodes() == null
-            || request.getShipmentCodes().isEmpty()) {
+    if (request.getShippingList() == null
+            || request.getShippingList().isEmpty()) {
         throw new BadRequestException(
                 "DraftDomestic phải có ít nhất 1 shipmentCode"
         );
     }
 
     Set<String> shipmentCodes =
-            request.getShipmentCodes().stream()
+            request.getShippingList().stream()
                     .map(String::trim)
                     .filter(s -> !s.isBlank())
                     .collect(Collectors.toSet());
@@ -638,6 +638,7 @@ public Boolean deleteDraftDomestic(Long draftId) {
                     new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa")
             );
      checkDraftEditable(draft);
+    draftDomesticShipmentRepository.deleteByDraftDomesticId(draftId);
     draftDomesticRepository.delete(draft);
     return true;
 }
@@ -944,7 +945,7 @@ public void syncAndLockDraftDomestic() {
     }
 }
 private void checkDraftEditable(DraftDomestic draft) {
-    if (draft.getStatus() != DraftDomesticStatus.DRAFT) {
+    if (draft.getStatus() != DraftDomesticStatus.WAIT_IMPORT) {
         throw new BadRequestException(
             "Mẫu vận chuyển đã " + draft.getStatus() + ", không thể chỉnh sửa"
         );
