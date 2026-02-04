@@ -12,6 +12,7 @@ import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
 import com.tiximax.txm.Model.Projections.ExportedQuantityProjection;
+import com.tiximax.txm.Model.Projections.WarehouseFeeProjection;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -667,6 +668,27 @@ int countAvailableByCustomerCode(
     List<Warehouse> findByTrackingCodeInFetchOrders(
             @Param("trackingCodes") List<String> trackingCodes
     );
+
+    @Query("""
+    SELECT
+        w.trackingCode AS trackingCode,
+        d.shipCode     AS shipCode,
+        r.routeId      AS routeId,
+        r.minWeight    AS minWeight,
+        o.priceShip    AS priceShip,
+        w.netWeight    AS netWeight
+    FROM Warehouse w
+    JOIN w.orders o
+    JOIN o.route r
+    JOIN DraftDomesticShipment s
+        ON s.shipmentCode = w.trackingCode
+    JOIN s.draftDomestic d
+    WHERE w.trackingCode IN :trackingCodes
+    """)
+    List<WarehouseFeeProjection> findWarehouseFees(
+            @Param("trackingCodes") List<String> trackingCodes
+    );
+
 
 @Query("""
     SELECT
