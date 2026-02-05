@@ -41,6 +41,7 @@ import com.tiximax.txm.Model.DTOResponse.DraftDomestic.AvailableAddDarfDomestic;
 import com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
+import com.tiximax.txm.Model.Projections.ShipCodeBasicProjection;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DraftDomesticRepository;
 import com.tiximax.txm.Repository.DraftDomesticShipmentRepository;
@@ -91,15 +92,15 @@ public DraftDomesticResponse addDraftDomestic(
             );
 
     // 1️⃣ Validate shipmentCodes
-    if (request.getShipmentCodes() == null
-            || request.getShipmentCodes().isEmpty()) {
+    if (request.getShippingList() == null
+            || request.getShippingList().isEmpty()) {
         throw new BadRequestException(
                 "DraftDomestic phải có ít nhất 1 shipmentCode"
         );
     }
 
     Set<String> shipmentCodes =
-            request.getShipmentCodes().stream()
+            request.getShippingList().stream()
                     .map(String::trim)
                     .filter(s -> !s.isBlank())
                     .collect(Collectors.toSet());
@@ -227,44 +228,54 @@ public List<ShipCodePayment> getAllShipByStaff(
         Pageable pageable
 ) {
 
-    List<DraftDomesticShipment> shipments =
-            draftDomesticShipmentRepository
-                    .findShipmentsByStaff(
-                            staffId,
-                            keyword,
-                            payment
-                    );
+        String keywordLike =
+        (keyword == null || keyword.isBlank())
+                ? null
+                : "%" + keyword.trim() + "%";
 
-    if (shipments.isEmpty()) {
+    Page<ShipCodeBasicProjection> shipCodePage =
+            draftDomesticShipmentRepository.findShipCodesByStaff(
+                    staffId,
+                    keywordLike,
+                    payment,
+                    pageable
+            );
+
+    if (shipCodePage.isEmpty()) {
         return List.of();
     }
 
-    // 1️⃣ Group theo shipCode
+    List<String> shipCodes =
+            shipCodePage.stream()
+                    .map(ShipCodeBasicProjection::getShipCode)
+                    .toList();
+
+    // 1️⃣ Shipments
+    List<DraftDomesticShipment> shipments =
+            draftDomesticShipmentRepository.findByShipCodes(shipCodes);
+
     Map<String, List<DraftDomesticShipment>> shipCodeShipmentMap =
             shipments.stream()
                     .collect(Collectors.groupingBy(
                             s -> s.getDraftDomestic().getShipCode()
                     ));
 
-    // 2️⃣ Lấy toàn bộ trackingCode
-    List<String> allTrackingCodes =
+    // 2️⃣ Warehouse
+    List<String> trackingCodes =
             shipments.stream()
                     .map(DraftDomesticShipment::getShipmentCode)
                     .distinct()
                     .toList();
 
-    // 3️⃣ Query warehouse
     Map<String, WarehouseShip> warehouseShipMap =
-            warehouseRepository
-                    .findWarehouseShips(allTrackingCodes)
+            warehouseRepository.findWarehouseShips(trackingCodes)
                     .stream()
                     .collect(Collectors.toMap(
                             WarehouseShip::getShipmentCode,
-                            ws -> ws,
-                            (a, b) -> a
+                            w -> w
                     ));
 
-    // 4️⃣ Tính phí ship
+    // 3️⃣ Fee
     Map<String, List<String>> shipCodeTrackingMap =
             shipCodeShipmentMap.entrySet()
                     .stream()
@@ -278,41 +289,36 @@ public List<ShipCodePayment> getAllShipByStaff(
 
     Map<String, BigDecimal> feeMap =
             partialShipmentService
-                    .calculateFeeByShipCodeAllowMultiRoute(
-                            shipCodeTrackingMap
-                    );
+                    .calculateFeeByShipCodeAllowMultiRoute(shipCodeTrackingMap);
 
     List<ShipCodePayment> result = new ArrayList<>();
 
-    for (var entry : shipCodeShipmentMap.entrySet()) {
+    for (ShipCodeBasicProjection base : shipCodePage) {
 
-        String shipCode = entry.getKey();
-        List<DraftDomesticShipment> shipmentList = entry.getValue();
-
-        DraftDomestic draft = shipmentList.get(0).getDraftDomestic();
-        Customer customer = draft.getCustomer();
+        String shipCode = base.getShipCode();
 
         List<WarehouseShip> warehouseShips =
-                shipmentList.stream()
+                shipCodeShipmentMap.get(shipCode)
+                        .stream()
                         .map(s -> warehouseShipMap.get(s.getShipmentCode()))
                         .filter(Objects::nonNull)
                         .toList();
 
-        BigDecimal totalPriceShip =
-                feeMap.getOrDefault(shipCode, BigDecimal.ZERO);
-
         ShipCodePayment item = new ShipCodePayment();
         item.setShipCode(shipCode);
-        item.setCustomerId(customer.getAccountId().toString());
-        item.setCustomerName(customer.getName());
+        item.setCustomerId(base.getCustomerId().toString());
+        item.setCustomerName(base.getCustomerName());
         item.setWarehouseShips(warehouseShips);
-        item.setTotalPriceShip(totalPriceShip);
+        item.setTotalPriceShip(
+                feeMap.getOrDefault(shipCode, BigDecimal.ZERO)
+        );
 
         result.add(item);
     }
 
     return result;
 }
+
 
 public void updatePayment(DraftDomestic draft){
     draft.setPayment(true);
@@ -638,6 +644,7 @@ public Boolean deleteDraftDomestic(Long draftId) {
                     new NotFoundException("Không tìm thấy mẫu vận chuyển nội địa")
             );
      checkDraftEditable(draft);
+    draftDomesticShipmentRepository.deleteByDraftDomesticId(draftId);
     draftDomesticRepository.delete(draft);
     return true;
 }
@@ -944,7 +951,7 @@ public void syncAndLockDraftDomestic() {
     }
 }
 private void checkDraftEditable(DraftDomestic draft) {
-    if (draft.getStatus() != DraftDomesticStatus.DRAFT) {
+    if (draft.getStatus() != DraftDomesticStatus.WAIT_IMPORT) {
         throw new BadRequestException(
             "Mẫu vận chuyển đã " + draft.getStatus() + ", không thể chỉnh sửa"
         );

@@ -16,6 +16,7 @@ import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DomesticRepository;
 import com.tiximax.txm.Repository.DraftDomesticRepository;
+import com.tiximax.txm.Repository.DraftDomesticShipmentRepository;
 import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.OrdersRepository;
 import com.tiximax.txm.Repository.PackingRepository;
@@ -62,6 +63,8 @@ public class DomesticService {
     private PartialShipmentRepository partialShipmentRepository;
     @Autowired
     private OrdersService ordersService;
+    @Autowired
+    private DraftDomesticShipmentRepository draftDomesticShippingListRepository;
     @Autowired
     private OrderLinksRepository orderLinksRepository;
 
@@ -588,8 +591,8 @@ public DomesticDelivery scanToShip(
 
     domesticRepository.save(domestic);
 
-    // ===== CLEANUP =====
-    draftDomesticRepository.delete(draftDomestic);
+    draftDomesticShippingListRepository.deleteByDraftDomesticId(draftDomestic.getId());
+    draftDomesticRepository.deleteById(draftDomestic.getId());
 
     return new DomesticDelivery(
             domestic.getCustomer().getCustomerCode(),

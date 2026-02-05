@@ -96,8 +96,7 @@ public ResponseEntity<List<ShipCodePayment>> getAllShipByStaff(
 
     Staff staff = (Staff) accountUtils.getAccountCurrent();
 
-    Sort sort = Sort.by("createdAt").descending();
-    Pageable pageable = PageRequest.of(page, size, sort);
+    Pageable pageable = PageRequest.of(page, size);
 
     return ResponseEntity.ok(
             draftDomesticService.getAllShipByStaff(
