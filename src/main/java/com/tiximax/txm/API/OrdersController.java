@@ -107,7 +107,7 @@ public class OrdersController {
     }
 
     @GetMapping("/{page}/{size}")
-    public ResponseEntity<Page<Orders>> getAllOrders(
+    public ResponseEntity<Page<OrderInfo>> getAllOrders(
             @PathVariable int page,
             @PathVariable int size,
             @RequestParam(required = false) String shipmentCode,
@@ -116,7 +116,7 @@ public class OrdersController {
     ) {
         Sort sort = Sort.by("createdAt").descending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Orders> ordersPage = ordersService.getAllOrdersPaging(pageable, shipmentCode, customerCode, orderCode); // Pass filter params
+        Page<OrderInfo> ordersPage = ordersService.getAllOrdersPaging(pageable, shipmentCode, customerCode, orderCode);
         return ResponseEntity.ok(ordersPage);
     }
 

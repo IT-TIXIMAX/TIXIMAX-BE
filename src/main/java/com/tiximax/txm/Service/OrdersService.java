@@ -294,11 +294,10 @@ public Orders addConsignment(
     processLogRepository.save(orderProcessLog);
 }
 
-
-    public Page<Orders> getAllOrdersPaging(Pageable pageable, String shipmentCode, String customerCode, String orderCode) {
+    public Page<OrderInfo> getAllOrdersPaging(Pageable pageable, String shipmentCode, String customerCode, String orderCode) {
     Account currentAccount = accountUtils.getAccountCurrent();
     
-    if (currentAccount.getRole().equals(AccountRoles.ADMIN) 
+    if (currentAccount.getRole().equals(AccountRoles.ADMIN)
             || currentAccount.getRole().equals(AccountRoles.MANAGER)) {
         return ordersRepository.findAllWithFilters(shipmentCode, customerCode, orderCode, pageable);
     } else if (currentAccount.getRole().equals(AccountRoles.STAFF_SALE)) {
