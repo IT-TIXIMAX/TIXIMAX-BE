@@ -5,11 +5,14 @@ import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.OrderType;
+import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderLinkRefund;
+import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 
 import org.springframework.data.domain.Page;
@@ -233,31 +236,106 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
 
     List<Orders> findByCustomerAndLeftoverMoneyGreaterThan(Customer customer, BigDecimal zero);
 
-    @Query("SELECT o FROM Orders o " +
-            "WHERE o.leftoverMoney IS NOT NULL " +
-            "AND o.leftoverMoney < :threshold " +
-            "AND EXISTS (" +
-            "   SELECT 1 FROM OrderLinks ol " +
-            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
-            ")")
-    Page<Orders> findOrdersWithRefundableCancelledLinks(
+//    @Query("SELECT o FROM Orders o " +
+//            "WHERE o.leftoverMoney IS NOT NULL " +
+//            "AND o.leftoverMoney < :threshold " +
+//            "AND EXISTS (" +
+//            "   SELECT 1 FROM OrderLinks ol " +
+//            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
+//            ")")
+//    Page<Orders> findOrdersWithRefundableCancelledLinks(
+//            @Param("threshold") BigDecimal threshold,
+//            Pageable pageable
+//    );
+
+    @Query("""
+    SELECT NEW com.tiximax.txm.Model.DTOResponse.Order.RefundResponse(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+    )
+    FROM Orders o
+    JOIN o.orderLinks ol
+    WHERE o.leftoverMoney IS NOT NULL
+      AND o.leftoverMoney < :threshold
+      AND (:orderCode IS NULL OR o.orderCode = :orderCode)
+      AND ol.status = 'DA_HUY'
+    GROUP BY
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+""")
+    Page<RefundResponse> findOrdersWithRefundableCancelledLinks(
+            @Param("orderCode") String orderCode,
             @Param("threshold") BigDecimal threshold,
             Pageable pageable
     );
 
-    @Query("SELECT o FROM Orders o " +
-            "WHERE o.staff.accountId = :staffId " +
-            "AND o.leftoverMoney IS NOT NULL " +
-            "AND o.leftoverMoney < :threshold " +
-            "AND EXISTS (" +
-            "   SELECT 1 FROM OrderLinks ol " +
-            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
-            ")")
-    Page<Orders> findByStaffIdAndRefundableCancelledLinks(
+    @Query("""
+    SELECT NEW com.tiximax.txm.Model.DTOResponse.Order.RefundResponse(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+    )
+    FROM Orders o
+    JOIN o.orderLinks ol
+    WHERE o.leftoverMoney IS NOT NULL
+      AND o.leftoverMoney < :threshold
+      AND o.staff.accountId = :staffId
+      AND (:orderCode IS NULL OR o.orderCode = :orderCode)
+      AND ol.status = 'DA_HUY'
+    GROUP BY
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.leftoverMoney,
+        o.customer.name,
+        o.staff.name
+""")
+    Page<RefundResponse> findByStaffIdAndRefundableCancelledLinks(
             @Param("staffId") Long staffId,
             @Param("threshold") BigDecimal threshold,
             Pageable pageable
     );
+
+//    @Query("SELECT o FROM Orders o " +
+//            "WHERE o.staff.accountId = :staffId " +
+//            "AND o.leftoverMoney IS NOT NULL " +
+//            "AND o.leftoverMoney < :threshold " +
+//            "AND EXISTS (" +
+//            "   SELECT 1 FROM OrderLinks ol " +
+//            "   WHERE ol.orders = o AND ol.status = 'DA_HUY'" +
+//            ")")
+//    Page<RefundResponse> findByStaffIdAndRefundableCancelledLinks(
+//            @Param("staffId") Long staffId,
+//            @Param("threshold") BigDecimal threshold,
+//            Pageable pageable
+//    );
 
     @Query("""
     SELECT DISTINCT o FROM Orders o
@@ -288,51 +366,139 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("isAdminOrManager") boolean isAdminOrManager,
             Pageable pageable
     );
+//    @Query("""
+//        SELECT o FROM Orders o
+//        LEFT JOIN o.customer c
+//        LEFT JOIN o.orderLinks ol
+//        WHERE
+//            (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
+//            AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
+//            AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
+//    """)
+//    Page<Orders> findAllWithFilters(
+//            @Param("shipmentCode") String shipmentCode,
+//            @Param("customerCode") String customerCode,
+//            @Param("orderCode") String orderCode,
+//            Pageable pageable
+//    );
+
     @Query("""
-        SELECT o FROM Orders o
+        SELECT DISTINCT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderCode,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
         LEFT JOIN o.customer c
-        LEFT JOIN o.orderLinks ol
-        WHERE 
+        LEFT JOIN o.staff s
+        LEFT JOIN o.orderLinks ol WITH (:shipmentCode IS NOT NULL)
+        WHERE
             (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
             AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
             AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
-    """)
-    Page<Orders> findAllWithFilters(
-            @Param("shipmentCode") String shipmentCode,
-            @Param("customerCode") String customerCode,
-            @Param("orderCode") String orderCode,
-            Pageable pageable
-    );
+        """)
+    Page<OrderInfo> findAllWithFilters(@Param("shipmentCode") String shipmentCode,
+                                       @Param("customerCode") String customerCode,
+                                       @Param("orderCode") String orderCode,
+                                       Pageable pageable);
+
+//    @Query("""
+//        SELECT o FROM Orders o
+//        LEFT JOIN o.customer c
+//        LEFT JOIN o.orderLinks ol
+//        WHERE
+//            o.staff.accountId = :accountId
+//            AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
+//            AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
+//            AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
+//    """)
+//    Page<Orders> findByStaffAccountIdWithFilters(
+//            @Param("accountId") Long accountId,
+//            @Param("shipmentCode") String shipmentCode,
+//            @Param("customerCode") String customerCode,
+//            @Param("orderCode") String orderCode,
+//            Pageable pageable
+//    );
 
     @Query("""
-        SELECT o FROM Orders o
-        LEFT JOIN o.customer c
-        LEFT JOIN o.orderLinks ol
-        WHERE 
+        SELECT DISTINCT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderCode,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
+        JOIN o.customer c
+        JOIN o.staff s
+        LEFT JOIN o.orderLinks ol WITH (:shipmentCode IS NOT NULL)
+        WHERE
             o.staff.accountId = :accountId
             AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
             AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
             AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
-    """)
-    Page<Orders> findByStaffAccountIdWithFilters(
-            @Param("accountId") Long accountId,
-            @Param("shipmentCode") String shipmentCode,
-            @Param("customerCode") String customerCode,
-            @Param("orderCode") String orderCode,
-            Pageable pageable
-    );
+        """)
+    Page<OrderInfo> findByStaffAccountIdWithFilters(
+                                       @Param("accountId") Long accountId,
+                                       @Param("shipmentCode") String shipmentCode,
+                                       @Param("customerCode") String customerCode,
+                                       @Param("orderCode") String orderCode,
+                                       Pageable pageable);
+
+//    @Query("""
+//        SELECT o FROM Orders o
+//        LEFT JOIN o.customer c
+//        LEFT JOIN o.orderLinks ol
+//        WHERE
+//            o.route.routeId IN :routeIds
+//            AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
+//            AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
+//            AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
+//    """)
+//    Page<Orders> findByRouteRouteIdInWithFilters(
+//            @Param("routeIds") Set<Long> routeIds,
+//            @Param("shipmentCode") String shipmentCode,
+//            @Param("customerCode") String customerCode,
+//            @Param("orderCode") String orderCode,
+//            Pageable pageable
+//    );
 
     @Query("""
-        SELECT o FROM Orders o
+        SELECT DISTINCT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderCode,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
         LEFT JOIN o.customer c
-        LEFT JOIN o.orderLinks ol
-        WHERE 
+        LEFT JOIN o.staff s
+        LEFT JOIN o.orderLinks ol WITH (:shipmentCode IS NOT NULL)
+        WHERE
             o.route.routeId IN :routeIds
             AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
             AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
             AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
-    """)
-    Page<Orders> findByRouteRouteIdInWithFilters(
+        """)
+    Page<OrderInfo> findByRouteRouteIdInWithFilters(
             @Param("routeIds") Set<Long> routeIds,
             @Param("shipmentCode") String shipmentCode,
             @Param("customerCode") String customerCode,
@@ -450,93 +616,117 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
 
     @Query(value = """
             WITH
-                payment_ship_qualified AS (
-                    SELECT DISTINCT
-                        p.payment_id,
-                        w.warehouse_id,
-                        w.net_weight,
-                        r.route_id,
-                        r.name AS route_name,
-                        r.min_weight,
-                        o.staff_id
-                    FROM payment p
-                    INNER JOIN payment_orders po ON po.payment_id = p.payment_id
-                    INNER JOIN orders o ON o.order_id = po.order_id
-                    INNER JOIN warehouse w ON w.order_id = o.order_id
-                    INNER JOIN route r ON o.route_id = r.route_id
-                    WHERE p.status = 'DA_THANH_TOAN_SHIP'
-                      AND p.staff_id = o.staff_id
-                      AND p.action_at >= :start
-                      AND p.action_at < :end
-                      AND (:routeId IS NULL OR r.route_id = :routeId)
-                ),
-                raw_weight_per_payment AS (
-                    -- Tính tổng raw net_weight theo từng payment + route + staff
-                    SELECT
-                        route_id,
-                        staff_id,
-                        payment_id,
-                        SUM(net_weight) AS raw_total_weight,
-                        MIN(min_weight) AS min_weight
-                    FROM payment_ship_qualified
-                    GROUP BY route_id, staff_id, payment_id
-                ),
-                adjusted_weight_by_staff_route AS (
-                    SELECT
-                        route_id,
-                        staff_id,
-                        SUM(
-                            CASE
-                                WHEN raw_total_weight < COALESCE(min_weight, 0)
-                                THEN COALESCE(min_weight, raw_total_weight)
-                                ELSE raw_total_weight
-                            END
-                        ) AS total_shipping_weight_adjusted
-                    FROM raw_weight_per_payment
-                    GROUP BY route_id, staff_id
-                ),
-                goods_by_staff_route AS (
-                    SELECT
-                        o.route_id,
-                        o.staff_id,
-                        COALESCE(SUM(ol.total_web), 0) AS total_goods
-                    FROM order_links ol
-                    LEFT JOIN warehouse w ON ol.warehouse_id = w.warehouse_id
-                    LEFT JOIN purchases p ON ol.purchase_id = p.purchase_id
-                    LEFT JOIN orders o ON o.order_id = COALESCE(w.order_id, p.order_id)
-                    WHERE COALESCE(w.created_at, p.purchase_time) >= :start
-                      AND COALESCE(w.created_at, p.purchase_time) < :end
-                      AND (:routeId IS NULL OR o.route_id = :routeId)
-                      AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
-                    GROUP BY o.route_id, o.staff_id
-                )
-            SELECT
-                COALESCE(r.name, 'Không xác định') AS route_name,
-                s.staff_code,
-                a.name AS staff_name,
-                COALESCE(g.total_goods, 0) AS total_goods,
-                COALESCE(aw.total_shipping_weight_adjusted, 0) AS total_shipping_weight
-            FROM orders o
-            JOIN staff s ON o.staff_id = s.account_id
-            JOIN account a ON s.account_id = a.account_id
-            LEFT JOIN route r ON o.route_id = r.route_id
-            LEFT JOIN adjusted_weight_by_staff_route aw
-                   ON aw.route_id = o.route_id
-                  AND aw.staff_id = o.staff_id
-            LEFT JOIN goods_by_staff_route g
-                   ON g.route_id = o.route_id
-                  AND g.staff_id = o.staff_id
-            WHERE a.role IN ('STAFF_SALE', 'LEAD_SALE')
-               AND (:routeId IS NULL OR o.route_id = :routeId)
-            GROUP BY
-                r.name,
-                s.staff_code,
-                a.name,
-                g.total_goods,
-                aw.total_shipping_weight_adjusted
-            ORDER BY
-                route_name ASC,
-                total_goods DESC;
+                 payment_ship_qualified AS (
+                     SELECT DISTINCT
+                         p.payment_id,
+                         w.warehouse_id,
+                         w.net_weight,
+                         r.route_id,
+                         r.name AS route_name,
+                         r.min_weight,
+                         o.staff_id
+                     FROM payment p
+                     INNER JOIN payment_orders po ON po.payment_id = p.payment_id
+                     INNER JOIN orders o ON o.order_id = po.order_id
+                     INNER JOIN warehouse w ON w.order_id = o.order_id
+                     INNER JOIN route r ON o.route_id = r.route_id
+                     WHERE p.status = 'DA_THANH_TOAN_SHIP'
+                       AND p.staff_id = o.staff_id
+                       AND p.action_at >= :start
+                       AND p.action_at < :end
+                       AND (:routeId IS NULL OR r.route_id = :routeId)
+                 ),
+                 raw_weight_per_payment AS (
+                     SELECT
+                         route_id,
+                         staff_id,
+                         payment_id,
+                         SUM(net_weight) AS raw_total_weight,
+                         MIN(min_weight) AS min_weight
+                     FROM payment_ship_qualified
+                     GROUP BY route_id, staff_id, payment_id
+                 ),
+                 adjusted_weight_by_staff_route AS (
+                     SELECT
+                         route_id,
+                         staff_id,
+                         SUM(
+                             CASE
+                                 WHEN raw_total_weight < COALESCE(min_weight, 0)
+                                 THEN COALESCE(min_weight, raw_total_weight)
+                                 ELSE raw_total_weight
+                             END
+                         ) AS total_shipping_weight_adjusted
+                     FROM raw_weight_per_payment
+                     GROUP BY route_id, staff_id
+                 ),
+                 goods_by_staff_route AS (
+                     SELECT
+                         o.route_id,
+                         o.staff_id,
+                         COALESCE(SUM(ol.total_web), 0) AS total_goods
+                     FROM order_links ol
+                     LEFT JOIN warehouse w ON ol.warehouse_id = w.warehouse_id
+                     LEFT JOIN purchases p ON ol.purchase_id = p.purchase_id
+                     LEFT JOIN orders o ON o.order_id = COALESCE(w.order_id, p.order_id)
+                     WHERE COALESCE(w.created_at, p.purchase_time) >= :start
+                       AND COALESCE(w.created_at, p.purchase_time) < :end
+                       AND (:routeId IS NULL OR o.route_id = :routeId)
+                       AND ol.status NOT IN ('CHO_MUA', 'DA_MUA', 'DA_HUY', 'MUA_SAU', 'DAU_GIA_THANH_CONG')
+                     GROUP BY o.route_id, o.staff_id
+                 ),
+                 partial_weight_by_staff_route AS (
+                     SELECT
+                         r.route_id,
+                         r.name AS route_name,
+                         o.staff_id,
+                         ROUND(CAST(SUM(COALESCE(ps.collect_weight, 0)) AS numeric), 3) AS tong_collect_weight_partial
+                     FROM partial_shipment ps
+                     INNER JOIN orders o ON o.order_id = ps.order_id
+                     INNER JOIN route r ON o.route_id = r.route_id
+                     INNER JOIN staff s ON o.staff_id = s.account_id
+                     INNER JOIN account a ON s.account_id = a.account_id
+                     WHERE ps.collect_weight IS NOT NULL
+                       AND ps.collect_weight > 0
+                       AND ps.shipment_date >= :start
+                       AND ps.shipment_date < :end
+                       AND (:routeId IS NULL OR r.route_id = :routeId)
+                       AND a.role IN ('STAFF_SALE', 'LEAD_SALE')
+                     GROUP BY r.route_id, r.name, o.staff_id
+                     HAVING SUM(COALESCE(ps.collect_weight, 0)) > 0
+                 )
+             SELECT
+                 COALESCE(r.name, 'Không xác định') AS route_name,
+                 s.staff_code,
+                 a.name AS staff_name,
+                 COALESCE(g.total_goods, 0) AS total_goods,
+                 COALESCE(aw.total_shipping_weight_adjusted, 0) AS total_shipping_weight_adjusted,
+                 COALESCE(pw.tong_collect_weight_partial, 0) AS tong_collect_weight_partial
+             FROM orders o
+             JOIN staff s ON o.staff_id = s.account_id
+             JOIN account a ON s.account_id = a.account_id
+             LEFT JOIN route r ON o.route_id = r.route_id
+             LEFT JOIN adjusted_weight_by_staff_route aw
+                    ON aw.route_id = o.route_id
+                   AND aw.staff_id = o.staff_id
+             LEFT JOIN goods_by_staff_route g
+                    ON g.route_id = o.route_id
+                   AND g.staff_id = o.staff_id
+             LEFT JOIN partial_weight_by_staff_route pw
+                    ON pw.route_id = o.route_id
+                   AND pw.staff_id = o.staff_id
+             WHERE a.role IN ('STAFF_SALE', 'LEAD_SALE')
+                AND (:routeId IS NULL OR o.route_id = :routeId)
+             GROUP BY
+                 r.name,
+                 s.staff_code,
+                 a.name,
+                 g.total_goods,
+                 aw.total_shipping_weight_adjusted,
+                 pw.tong_collect_weight_partial
+             ORDER BY
+                 route_name ASC,
+                 total_goods DESC;
     """, nativeQuery = true)
     List<Object[]> aggregateStaffKPIByRoute(
             @Param("start") LocalDateTime start,
@@ -591,51 +781,72 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     );
 
     @Query(value = """
-        WITH
-            payment_ship_qualified AS (
-                SELECT DISTINCT
-                    p.payment_id,
-                    w.warehouse_id,
-                    w.net_weight,
-                    r.route_id,
-                    r.name AS route_name,
-                    r.min_weight
-                FROM payment p
-                INNER JOIN payment_orders po ON po.payment_id = p.payment_id
-                INNER JOIN orders o ON o.order_id = po.order_id
-                INNER JOIN warehouse w ON w.order_id = o.order_id
-                INNER JOIN route r ON o.route_id = r.route_id
-                WHERE p.status = 'DA_THANH_TOAN_SHIP'
-                  AND p.staff_id = :staffId
-                  AND p.action_at >= :start
-                  AND p.action_at < :end
-                  AND (:routeId IS NULL OR r.route_id = :routeId)
-            ),
-            raw_weight_per_payment AS (
-                SELECT
-                    route_id,
-                    route_name,
-                    SUM(net_weight) AS raw_total_weight,
-                    min_weight
-                FROM payment_ship_qualified
-                GROUP BY route_id, route_name, payment_id, min_weight
-            ),
-            adjusted_weight AS (
-                SELECT
-                    route_name,
-                    SUM(
-                        CASE
-                            WHEN raw_total_weight < COALESCE(min_weight, 0)
-                            THEN COALESCE(min_weight, raw_total_weight)
-                            ELSE raw_total_weight
-                        END
-                    ) AS total_net_weight
-                FROM raw_weight_per_payment
-                GROUP BY route_name
-            )
-        SELECT route_name, total_net_weight FROM adjusted_weight
-        ORDER BY route_name ASC
-    """, nativeQuery = true)
+    WITH
+        payment_ship_qualified AS (
+            SELECT DISTINCT
+                p.payment_id,
+                w.warehouse_id,
+                w.net_weight,
+                r.route_id,
+                r.name AS route_name,
+                r.min_weight
+            FROM payment p
+            INNER JOIN payment_orders po ON po.payment_id = p.payment_id
+            INNER JOIN orders o ON o.order_id = po.order_id
+            INNER JOIN warehouse w ON w.order_id = o.order_id
+            INNER JOIN route r ON o.route_id = r.route_id
+            WHERE p.status = 'DA_THANH_TOAN_SHIP'
+              AND p.staff_id = :staffId
+              AND p.action_at >= :start
+              AND p.action_at < :end
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+        ),
+        raw_weight_per_payment AS (
+            SELECT
+                route_id,
+                route_name,
+                SUM(net_weight) AS raw_total_weight,
+                min_weight
+            FROM payment_ship_qualified
+            GROUP BY route_id, route_name, payment_id, min_weight
+        ),
+        adjusted_weight AS (
+            SELECT
+                route_name,
+                SUM(
+                    CASE
+                        WHEN raw_total_weight < COALESCE(min_weight, 0)
+                        THEN COALESCE(min_weight, raw_total_weight)
+                        ELSE raw_total_weight
+                    END
+                ) AS total_net_weight
+            FROM raw_weight_per_payment
+            GROUP BY route_name
+        ),
+        partial_weight_by_route AS (
+            SELECT
+                r.name AS route_name,
+                ROUND(CAST(SUM(COALESCE(ps.collect_weight, 0)) AS numeric), 3) AS total_partial_weight
+            FROM partial_shipment ps
+            INNER JOIN orders o ON o.order_id = ps.order_id
+            INNER JOIN route r ON o.route_id = r.route_id
+            WHERE ps.collect_weight IS NOT NULL
+              AND ps.collect_weight > 0
+              AND o.staff_id = :staffId
+              AND ps.shipment_date >= :start
+              AND ps.shipment_date < :end
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            GROUP BY r.name
+        )
+    SELECT
+        aw.route_name,
+        aw.total_net_weight,
+        COALESCE(pw.total_partial_weight, 0) AS total_partial_weight
+    FROM adjusted_weight aw
+    LEFT JOIN partial_weight_by_route pw
+           ON pw.route_name = aw.route_name
+    ORDER BY aw.route_name ASC
+""", nativeQuery = true)
     List<Object[]> getShippingWeight(
             @Param("staffId") Long staffId,
             @Param("start") LocalDateTime start,
@@ -742,6 +953,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
             o.orderId,
+            o.orderCode,
             o.orderType,
             o.status,
             c.customerCode,
@@ -752,8 +964,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             o.createdAt
         )
         FROM Orders o
-        JOIN o.customer c
-        JOIN o.staff s
+        LEFT JOIN o.customer c
+        LEFT JOIN o.staff s
         WHERE o.status = :status
         """)
     Page<OrderInfo> findOrderInfoByStatus(@Param("status") OrderStatus status, Pageable pageable);
@@ -761,6 +973,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
             o.orderId,
+            o.orderCode,
             o.orderType,
             o.status,
             c.customerCode,
@@ -771,8 +984,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             o.createdAt
         )
         FROM Orders o
-        JOIN o.customer c
-        JOIN o.staff s
+        LEFT JOIN o.customer c
+        LEFT JOIN o.staff s
         WHERE o.staff.accountId = :staffId
           AND o.status = :status
         """)
@@ -784,6 +997,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
             o.orderId,
+            o.orderCode,
             o.orderType,
             o.status,
             c.customerCode,
@@ -793,9 +1007,63 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             o.createdAt
         )
         FROM Orders o
-        JOIN o.customer c
+        LEFT JOIN o.customer c
         WHERE o.route.routeId IN :routeId
           AND o.status = :status
         """)
     Page<OrderInfo> findOrderInfoByRouteIdAndStatus(Long routeId, OrderStatus status, Pageable pageable);
+
+    @Query("""
+    SELECT NEW com.tiximax.txm.Model.DTOResponse.Order.OrderLinkRefund(
+        ol.linkId,
+        ol.productLink,
+        ol.productName,
+        ol.quantity,
+        ol.priceWeb,
+        ol.shipWeb,
+        ol.totalWeb,
+        ol.purchaseFee,
+        ol.extraCharge,
+        ol.finalPriceVnd,
+        ol.trackingCode,
+        ol.classify,
+        ol.purchaseImage,
+        ol.website,
+        ol.shipmentCode,
+        ol.status,
+        ol.note,
+        ol.groupTag
+    )
+    FROM OrderLinks ol
+    WHERE ol.orders.orderId = :orderId
+      AND ol.status = 'DA_HUY'
+""")
+    List<OrderLinkRefund> findRefundableCancelledLinksByOrderId(
+            @Param("orderId") Long orderId
+    );
+
+//    @Query("""
+//    SELECT NEW com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection(
+//        o.customer.accountId,
+//        o.customer.name,
+//        o.staff.accountId,
+//        o.staff.name,
+//        MAX(o.createdAt),
+//        COUNT(o.orderId)
+//    )
+//    FROM Orders o
+//    WHERE (:staffId IS NULL OR o.staff.accountId = :staffId)
+//    GROUP BY
+//        o.customer.accountId,
+//        o.customer.name,
+//        o.staff.accountId,
+//        o.staff.name
+//    HAVING
+//        COUNT(o.orderId) >= 2
+//        AND MAX(o.createdAt) < CURRENT_DATE - INTERVAL '1 month'
+//""")
+//    Page<InactiveCustomerProjection> findInactiveCustomersByStaff(
+//            @Param("staffId") Long staffId,
+//            Pageable pageable
+//    );
 }

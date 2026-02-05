@@ -2,22 +2,26 @@ package com.tiximax.txm.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
+import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseSummary;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
+import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
+import com.tiximax.txm.Model.Projections.ExportedQuantityProjection;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.*;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -621,6 +625,8 @@ public class DashBoardService {
 
             Double totalNetWeight = row[4] == null ? 0.0 : ((Number) row[4]).doubleValue();
 
+            Double totalPartial = row[5] == null ? 0.0 : ((Number) row[5]).doubleValue();
+
             StaffPerformanceKPI kpi = tempMap
                     .computeIfAbsent(routeName, k -> new HashMap<>())
                     .computeIfAbsent(staffCode, k -> {
@@ -633,7 +639,7 @@ public class DashBoardService {
                     });
 
             kpi.setTotalGoods(totalGoods != null ? totalGoods : BigDecimal.ZERO);
-            kpi.setTotalNetWeight(Math.round(totalNetWeight * 100.0) / 100.0);
+            kpi.setTotalNetWeight(Math.round((totalNetWeight + totalPartial) * 100.0) / 100.0);
         }
 
         Map<String, RouteStaffPerformance> result = new TreeMap<>();
@@ -686,7 +692,12 @@ public class DashBoardService {
         return resultMap;
     }
 
-    public Map<String, GoodsAndWeight> getGoodsAndWeight(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
+    public Map<String, GoodsAndWeight> getGoodsAndWeight(
+            LocalDate start,
+            LocalDate end,
+            DashboardFilterType filterType,
+            Long routeId
+    ) {
         StartEndDate dateRange = getDateStartEnd(filterType);
         LocalDate finalStart = (start != null) ? start : dateRange.getStartDate();
         LocalDate finalEnd = (end != null) ? end : dateRange.getEndDate();
@@ -696,28 +707,39 @@ public class DashBoardService {
 
         Staff staff = (Staff) accountUtils.getAccountCurrent();
 
-        List<Object[]> goodsResults = ordersRepository.getGoodsValue(staff.getAccountId(), startDateTime, endDateTime, routeId);
+        List<Object[]> goodsResults =
+                ordersRepository.getGoodsValue(staff.getAccountId(), startDateTime, endDateTime, routeId);
         Map<String, BigDecimal> goodsMap = new HashMap<>();
         for (Object[] row : goodsResults) {
             String routeName = (String) row[0];
-            BigDecimal totalGoods = row[1] instanceof BigDecimal ? (BigDecimal) row[1] :
-                    row[1] instanceof Number ? BigDecimal.valueOf(((Number) row[1]).doubleValue()) : BigDecimal.ZERO;
+            BigDecimal totalGoods =
+                    row[1] instanceof BigDecimal
+                            ? (BigDecimal) row[1]
+                            : row[1] instanceof Number
+                            ? BigDecimal.valueOf(((Number) row[1]).doubleValue())
+                            : BigDecimal.ZERO;
+
             goodsMap.put(routeName, totalGoods);
         }
-
-        List<Object[]> weightResults = ordersRepository.getShippingWeight(staff.getAccountId(), startDateTime, endDateTime, routeId);
+        List<Object[]> weightResults =
+                ordersRepository.getShippingWeight(staff.getAccountId(), startDateTime, endDateTime, routeId);
         Map<String, Double> weightMap = new HashMap<>();
         for (Object[] row : weightResults) {
             String routeName = (String) row[0];
-            Double totalNetWeight = row[1] != null ? Math.round(((Number) row[1]).doubleValue() * 10.0) / 10.0 : 0.0;
+            Double shippingWeight =
+                    row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
+            Double partialWeight =
+                    row.length > 2 && row[2] != null
+                            ? ((Number) row[2]).doubleValue()
+                            : 0.0;
+            Double totalNetWeight =
+                    Math.round((shippingWeight + partialWeight) * 10.0) / 10.0;
             weightMap.put(routeName, totalNetWeight);
         }
-
         Map<String, GoodsAndWeight> resultMap = new LinkedHashMap<>();
         Set<String> allRoutes = new HashSet<>();
         allRoutes.addAll(goodsMap.keySet());
         allRoutes.addAll(weightMap.keySet());
-
         for (String routeName : allRoutes) {
             BigDecimal goods = goodsMap.getOrDefault(routeName, BigDecimal.ZERO);
             Double weight = weightMap.getOrDefault(routeName, 0.0);
@@ -924,6 +946,127 @@ public class DashBoardService {
         };
     }
 
+public Page<CustomerInventoryQuantity> getDashboardInventory(
+        Long routeId,
+        Integer month,
+        Pageable pageable
+) {
+
+    // ✅ Nếu không truyền month → lấy tháng hiện tại
+    YearMonth now = YearMonth.now();
+
+    if (month == null) {
+        month = now.getMonthValue();
+    }
+
+    if (month < 1 || month > 12) {
+        throw new BadRequestException("month phải từ 1 đến 12");
+    }
+
+    int year = now.getYear();
+
+    // ✅ Nếu chọn tháng lớn hơn tháng hiện tại → lùi 1 năm
+    if (month > now.getMonthValue()) {
+        year = year - 1;
+    }
+
+    YearMonth ym = YearMonth.of(year, month);
+
+    LocalDateTime startDate = ym.atDay(1).atStartOfDay();
+    LocalDateTime endDate   = ym.atEndOfMonth().atTime(23, 59, 59);
+
+    Page<CustomerInventoryProjection> page =
+            warehouseRepository.dashboardInventory(
+                    routeId,
+                    startDate,
+                    endDate,
+                    pageable
+            );
+
+    return page.map(p -> {
+        InventoryQuantity iq = new InventoryQuantity();
+        iq.setExportedCode(p.getExportedCode());
+        iq.setExportedWeightKg(p.getExportedWeight());
+        iq.setRemainingCode(p.getRemainingCode());
+        iq.setRemainingWeightKg(p.getRemainingWeight());
+
+        CustomerInventoryQuantity dto = new CustomerInventoryQuantity();
+        dto.setCustomerCode(p.getCustomerCode());
+        dto.setCustomerName(p.getCustomerName());
+        dto.setStaffCode(p.getStaffCode());
+        dto.setStaffName(p.getStaffName());
+        dto.setInventoryQuantity(iq);
+
+        return dto;
+    });
+}
+
+ public List<ExportedQuantity> getExportedDashboard(
+        Long routeId,
+        Integer month
+) {
+    YearMonth now = YearMonth.now();
+
+    if (month == null) {
+        month = now.getMonthValue();
+    }
+
+    if (month < 1 || month > 12) {
+        throw new BadRequestException("month phải từ 1 đến 12");
+    }
+
+    int year = now.getYear();
+    if (month > now.getMonthValue()) {
+        year = year - 1;
+    }
+
+    YearMonth ym = YearMonth.of(year, month);
+
+    LocalDate start = ym.atDay(1);
+    LocalDate end   = ym.atEndOfMonth();
+
+    LocalDateTime startDate = start.atStartOfDay();
+    LocalDateTime endDate   = end.atTime(23, 59, 59);
+
+    List<ExportedQuantityProjection> rows =
+            warehouseRepository.getExportedQuantityDaily(
+                    routeId,
+                    startDate,
+                    endDate
+            );
+
+    // Map theo ngày
+    Map<LocalDate, ExportedQuantity> map = new HashMap<>();
+
+    for (ExportedQuantityProjection p : rows) {
+        ExportedQuantity dto = new ExportedQuantity();
+        dto.setDate(p.getDate());
+        dto.setTotalCode(p.getTotalCode());
+        dto.setTotalWeight(p.getTotalWeight());
+        dto.setTotalCustomers(p.getTotalCustomers());
+        map.put(p.getDate(), dto);
+    }
+
+    // Fill đủ ngày
+    List<ExportedQuantity> result = new ArrayList<>();
+    for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+        result.add(
+            map.getOrDefault(d, emptyDaily(d))
+        );
+    }
+
+    return result;
+}
+
+private ExportedQuantity emptyDaily(LocalDate date) {
+    ExportedQuantity dto = new ExportedQuantity();
+    dto.setDate(date);
+    dto.setTotalCode(0L);
+    dto.setTotalWeight(0.0);
+    dto.setTotalCustomers(0L);
+    return dto;
+}
+
     public InventoryDaily getDailyInventory(LocalDate start, LocalDate end, DashboardFilterType filterType, Long routeId) {
         Staff staff = (Staff) accountUtils.getAccountCurrent();
         Long forcedLocationId = null;
@@ -931,11 +1074,11 @@ public class DashBoardService {
         if (staff.getRole().equals(AccountRoles.STAFF_WAREHOUSE_FOREIGN)) {
             forcedLocationId = staff.getWarehouseLocation().getLocationId();
             if (forcedLocationId == null) {
-                throw new BadRequestException("Nhân viên kho chưa được gán location.");
+                throw new BadRequestException("Nhân viên kho chưa được gán vị trí kho!");
             }
             routeId = null;
         } else if (!staff.getRole().equals(AccountRoles.MANAGER)){
-            throw new BadRequestException("Vai trò không được phép xem dashboard này.");
+            throw new BadRequestException("Vai trò không được phép xem dashboard này!");
         }
 
         StartEndDate dateRange = getDateStartEnd(filterType);
@@ -1013,4 +1156,116 @@ public class DashBoardService {
         ls.setNetWeight(stock.getNetWeight());
         return ls;
     }
+
+
+    public PerformanceWHResponse getLocationOverview(Long locationId, String month, Integer lastDays) {
+        LocalDateTime[] range = getDateRange(month, lastDays);
+        List<Object[]> raw = warehouseRepository.findDailyStatsByLocation(locationId, range[0], range[1]);
+
+        Map<LocalDate, PerformanceWHDaily> map = raw.stream().collect(Collectors.toMap(
+                row -> ((java.sql.Date) row[0]).toLocalDate(),
+                row -> PerformanceWHDaily.builder()
+                        .date(((java.sql.Date) row[0]).toLocalDate())
+                        .inboundCount((Long) row[1])
+                        .inboundKg((Double) row[2])
+                        .inboundNetKg((Double) row[3])
+                        .packedCount((Long) row[4])
+                        .packedKg((Double) row[5])
+                        .build(),
+                (old, neu) -> old
+        ));
+
+        List<PerformanceWHDaily> dailyList = new ArrayList<>();
+        LocalDate current = range[0].toLocalDate();
+        LocalDate endDate = range[1].toLocalDate().minusDays(1);
+
+        while (!current.isAfter(endDate)) {
+            dailyList.add(map.getOrDefault(current, PerformanceWHDaily.builder()
+                    .date(current)
+                    .inboundCount(0L)
+                    .inboundKg(0.0)
+                    .inboundNetKg(0.0)
+                    .packedCount(0L)
+                    .packedKg(0.0)
+                    .build()));
+            current = current.plusDays(1);
+        }
+
+        long totalInboundCount = dailyList.stream()
+                .mapToLong(PerformanceWHDaily::getInboundCount)
+                .sum();
+
+        double totalInboundKg = dailyList.stream()
+                .mapToDouble(PerformanceWHDaily::getInboundKg)
+                .sum();
+
+        double totalInboundNetKg = dailyList.stream()
+                .mapToDouble(PerformanceWHDaily::getInboundNetKg)
+                .sum();
+
+        long totalPackedCount = dailyList.stream()
+                .mapToLong(PerformanceWHDaily::getPackedCount)
+                .sum();
+
+        double totalPackedKg = dailyList.stream()
+                .mapToDouble(PerformanceWHDaily::getPackedKg)
+                .sum();
+
+        PerformanceWHSummary totals = PerformanceWHSummary.builder()
+                .totalInboundCount(totalInboundCount)
+                .totalInboundKg(totalInboundKg)
+                .totalInboundNetKg(totalInboundNetKg)
+                .totalPackedCount(totalPackedCount)
+                .totalPackedKg(totalPackedKg)
+                .build();
+
+        return PerformanceWHResponse.builder()
+                .dailyData(dailyList)
+                .totals(totals)
+                .build();
+    }
+
+    public List<StaffWHPerformanceSummary> getStaffPerformancesInLocation(Long locationId, String month, Integer lastDays) {
+        LocalDateTime[] range = getDateRange(month, lastDays);
+        List<Object[]> raw = warehouseRepository.findStaffSummaryByLocation(locationId, range[0], range[1]);
+
+        List<StaffWHPerformanceSummary> list = new ArrayList<>();
+        for (Object[] row : raw) {
+            list.add(StaffWHPerformanceSummary.builder()
+                    .staffId((Long) row[0])
+                    .staffCode((String) row[1])
+                    .name((String) row[2])
+                    .department((String) row[3])
+                    .totals(PerformanceWHSummary.builder()
+                            .totalInboundCount((Long) row[4])
+                            .totalInboundKg((Double) row[5])
+                            .totalInboundNetKg((Double) row[6])
+                            .totalPackedCount((Long) row[7])
+                            .totalPackedKg((Double) row[8])
+                            .build())
+                    .build());
+        }
+        return list;
+    }
+
+    private LocalDateTime[] getDateRange(String month, Integer lastDays) {
+        LocalDateTime start, end;
+        if (month != null && month.matches("\\d{4}-\\d{2}")) {
+            YearMonth ym = YearMonth.parse(month);
+            start = ym.atDay(1).atStartOfDay();
+            end = ym.plusMonths(1).atDay(1).atStartOfDay();
+        } else {
+            end = LocalDate.now().plusDays(1).atStartOfDay();
+            start = end.minusDays(lastDays != null ? lastDays : 30);
+        }
+        return new LocalDateTime[]{start, end};
+    }
+
+//    public Page<InactiveCustomerProjection> getInactiveCustomersByStaff(
+//            Pageable pageable
+//    ) {
+//        Staff staff = (Staff) accountUtils.getAccountCurrent();
+//        return ordersRepository.findInactiveCustomersByStaff(staff.getAccountId(), pageable);
+//    }
+
 }

@@ -47,10 +47,10 @@ public class Purchases {
     @JsonIgnore
     Orders orders;
 
-    @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "purchase", fetch = FetchType.LAZY,cascade = CascadeType.ALL)
     Set<OrderLinks> orderLinks;
 
-    @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "purchase", fetch = FetchType.LAZY,cascade = CascadeType.ALL)
     Set<Warehouse> warehouses;
 
 }

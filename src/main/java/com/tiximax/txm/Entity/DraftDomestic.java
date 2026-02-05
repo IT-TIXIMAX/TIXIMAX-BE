@@ -13,11 +13,13 @@ import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,18 +36,20 @@ public class DraftDomestic{
     private String phoneNumber;
     @Column(nullable = false)
     private String address;
-    @ElementCollection
-    private List<String> shippingList ;
+    @OneToMany(
+    mappedBy = "draftDomestic",
+    fetch = FetchType.LAZY)
+    private List<DraftDomesticShipment> shipments;
     @Column(nullable = false)
     private String shipCode;
-
-   @Column(nullable = true)
-   private Double weight;
-
+    @Column(nullable = true)
+    private Double weight;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Carrier carrier;
 
+    @Column(nullable = false)
+    private boolean payment = false;
 
     @Column(nullable = true)
     private String noteTracking;
@@ -60,19 +64,19 @@ public class DraftDomestic{
     @Column(nullable = false)
     private DraftDomesticStatus status;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="customer_id", nullable = false)
     @JsonManagedReference
     Customer customer;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "staff_id", nullable = false)
     private Staff staff;
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         if (this.status == null) {
-        this.status = DraftDomesticStatus.DRAFT;
+        this.status = DraftDomesticStatus.WAIT_IMPORT;
     }
 }
 }

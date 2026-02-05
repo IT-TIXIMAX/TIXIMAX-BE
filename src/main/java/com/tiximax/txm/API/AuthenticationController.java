@@ -196,17 +196,6 @@ public class AuthenticationController {
         return ResponseEntity.ok(customers);
     }
 
-//    @GetMapping("/search-staff/{page}/{size}")
-//    public ResponseEntity<Page<StaffInfo>> searchStaff(
-//                        @PathVariable int page,
-//                        @PathVariable int size,
-//                        @RequestParam(required = false) String keyword) {
-//        Sort sort = Sort.by("createdAt").descending();
-//        Pageable pageable = PageRequest.of(page, size, sort);
-//        Page<StaffInfo> result = authenticationService.searchStaff(keyword, pageable);
-//        return ResponseEntity.ok(result);
-//    }
-
     @GetMapping("/enum-account-role")
     public ResponseEntity<List<String>> getAccountrole() {
         List<String> accountRole = Arrays.stream(AccountRoles.values())
@@ -226,14 +215,14 @@ public class AuthenticationController {
         return ResponseEntity.ok(staffPage);
     }
 
-    @GetMapping("/customers/{page}/{size}")
-    public ResponseEntity<Page<CustomerResponseDTO>> getAllCustomers(@PathVariable int page, @PathVariable int size) {
-        Sort sort = Sort.by("createdAt").descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Customer> customersPage = authenticationService.getAllCustomers(pageable);
-        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
-        return ResponseEntity.ok(dtoPage);
-    }
+//    @GetMapping("/customers/{page}/{size}")
+//    public ResponseEntity<Page<CustomerResponseDTO>> getAllCustomers(@PathVariable int page, @PathVariable int size) {
+//        Sort sort = Sort.by("createdAt").descending();
+//        Pageable pageable = PageRequest.of(page, size, sort);
+//        Page<Customer> customersPage = authenticationService.getAllCustomers(pageable);
+//        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
+//        return ResponseEntity.ok(dtoPage);
+//    }
 
     @GetMapping("/my-customers/{page}/{size}")
     public ResponseEntity<Page<CustomerResponseDTO>> getCustomersByStaff(
@@ -243,9 +232,9 @@ public class AuthenticationController {
     ) {
         Sort sort = Sort.by("createdAt").descending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Customer> customersPage = authenticationService.getCustomersByStaff(search, pageable);
-        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
-        return ResponseEntity.ok(dtoPage);
+        Page<CustomerResponseDTO> customersPage = authenticationService.getCustomersByStaff(search, pageable);
+//        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
+        return ResponseEntity.ok(customersPage);
     }
 
     @GetMapping("/sale-lead-staff/{page}/{size}")
@@ -389,7 +378,7 @@ public class AuthenticationController {
     public ResponseEntity<Payment> processBalanceMoney(
             @PathVariable Long customerId,
             @RequestParam(required = true) String image,
-            @RequestParam(required = true) BigDecimal amount) {
+            @RequestParam(required = true) Double amount) {
         Payment payment = paymentService.refundFromBalance(customerId, amount, image);
         return ResponseEntity.ok(payment);
     }

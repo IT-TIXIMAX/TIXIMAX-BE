@@ -6,17 +6,17 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
+
+@AllArgsConstructor@Data
 @Getter
 @Setter
-@AllArgsConstructor
 
 public class OrderInfo {
     private Long orderId;
+    private String orderCode;
     private OrderType orderType;
     private OrderStatus status;
     private String customerCode;

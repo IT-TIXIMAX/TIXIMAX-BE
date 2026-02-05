@@ -82,3 +82,4 @@ public class Warehouse {
     @JsonIgnore
     private FlightShipment flightShipment;
 }
+

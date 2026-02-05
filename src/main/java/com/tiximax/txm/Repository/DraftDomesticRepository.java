@@ -2,11 +2,13 @@ package com.tiximax.txm.Repository;
 
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,29 +18,64 @@ import com.tiximax.txm.Entity.DraftDomestic;
 import com.tiximax.txm.Enums.Carrier;
 import com.tiximax.txm.Enums.DraftDomesticStatus;
 import com.tiximax.txm.Enums.WarehouseStatus;
+import com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse;
 
 public interface DraftDomesticRepository extends JpaRepository<DraftDomestic, Long> {
-@Query("""
-    SELECT DISTINCT d
+ @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DraftDomestic.DraftDomesticResponse(
+        d.id,
+        c.name,
+        d.phoneNumber,
+        d.address,
+        d.shipCode,
+        d.VNPostTrackingCode,
+        s.staffCode,
+        d.payment,
+        CAST(d.weight AS string)
+    )
     FROM DraftDomestic d
     JOIN d.customer c
     JOIN d.staff s
-    LEFT JOIN d.shippingList sl
     WHERE
-      (:customerCode IS NULL OR c.customerCode = :customerCode)
-      AND (:shipmentCode IS NULL OR sl = :shipmentCode)
-      AND (:status IS NULL OR d.status = :status)
-      AND (:carrier IS NULL OR d.carrier = :carrier)
-      AND (:staffId IS NULL OR s.id = :staffId)
+        (:customerCode IS NULL OR c.customerCode = :customerCode)
+        AND (:status IS NULL OR d.status = :status)
+        AND (:carrier IS NULL OR d.carrier = :carrier)
+        AND (:staffId IS NULL OR s.id = :staffId)
+        AND (
+            :shipmentCode IS NULL
+            OR EXISTS (
+                SELECT 1
+                FROM DraftDomesticShipment ds
+                WHERE ds.draftDomestic.id = d.id
+                  AND ds.shipmentCode = :shipmentCode
+            )
+        )
+    ORDER BY d.createdAt DESC
 """)
-Page<DraftDomestic> findAllWithFilter(
-        @Param("customerCode") String customerCode,
-        @Param("shipmentCode") String shipmentCode,
-        @Param("status") DraftDomesticStatus status,
-        @Param("carrier") Carrier carrier,
-        @Param("staffId") Long staffId,
+Slice<DraftDomesticResponse> findDraftDomesticSlice(
+        String customerCode,
+        DraftDomesticStatus status,
+        Carrier carrier,
+        Long staffId,
+        String shipmentCode,
         Pageable pageable
 );
+  @Query("""
+      SELECT ds.draftDomestic.id, ds.shipmentCode
+      FROM DraftDomesticShipment ds
+      WHERE ds.draftDomestic.id IN :draftIds
+  """)
+  List<Object[]> findShipmentCodesByDraftIds(
+          @Param("draftIds") List<Long> draftIds
+  );
+@Query("""
+    SELECT DISTINCT d
+    FROM DraftDomesticShipment s
+    JOIN s.draftDomestic d
+    WHERE s.shipmentCode IN :codes
+""")
+List<DraftDomestic> findDraftByShipmentCodes(Set<String> codes);
+
 
 
     boolean existsByShipCode(String shipCode);
@@ -53,33 +90,38 @@ Page<DraftDomestic> findAllWithFilter(
             @Param("customerCode") String customerCode
     );
 
-   @Query("""
+@Query("""
     SELECT d
     FROM DraftDomestic d
     WHERE d.status = :status
+      AND (:staffId IS NULL OR d.staff.accountId = :staffId)
       AND d.carrier = :carrier
-      AND d.createdAt BETWEEN :startDate AND :endDate
+      AND d.createdAt >= :startDate
+      AND d.createdAt <  :endDate
     ORDER BY d.createdAt DESC
 """)
 List<DraftDomestic> findLockedBetween(
         @Param("status") DraftDomesticStatus status,
         @Param("carrier") Carrier carrier,
+        @Param("staffId") Long staffId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
 );
 
 
-
 @Query("""
     SELECT DISTINCT d
     FROM DraftDomestic d
-    JOIN d.shippingList s
-    JOIN Warehouse w ON w.trackingCode = s
-    WHERE w.status = com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
-      AND d.status = 'LOCKED'
-      AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
-      AND d.createdAt >= COALESCE(:startDateTime, d.createdAt)
-      AND d.createdAt <= COALESCE(:endDateTime, d.createdAt)
+    WHERE d.status = 'DRAFT'
+      AND (:startDateTime IS NULL OR d.createdAt >= :startDateTime)
+      AND (:endDateTime IS NULL OR d.createdAt < :endDateTime)
+      AND EXISTS (
+          SELECT 1
+          FROM DraftDomesticShipment s
+          JOIN Warehouse w ON w.trackingCode = s.shipmentCode
+          WHERE s.draftDomestic = d
+            AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
+      )
 """)
 Page<DraftDomestic> getDraftToExport(
         @Param("routeId") Long routeId,
@@ -91,25 +133,28 @@ Page<DraftDomestic> getDraftToExport(
 
 
 
-      @Query("""
-      SELECT s
-      FROM DraftDomestic d
-      JOIN d.shippingList s
-      WHERE s IN :codes
-  """)
-  List<String> findExistingTrackingCodesInDraft(
-          @Param("codes") List<String> codes
-  );
+
+   @Query("""
+    SELECT DISTINCT s.shipmentCode
+    FROM DraftDomesticShipment s
+    WHERE s.shipmentCode IN :codes
+      AND s.draftDomestic.status = 'DRAFT'
+""")
+List<String> findExistingTrackingCodesInDraft(
+        @Param("codes") List<String> codes
+);
+
   
   Optional<DraftDomestic> findByVNPostTrackingCode(String vnPostTrackingCode);
 
   Optional<DraftDomestic> findByShipCode(String shipCode);
   
- @Query("""
+@Query("""
     SELECT DISTINCT d
-    FROM DraftDomestic d, Warehouse w
-    WHERE w.trackingCode MEMBER OF d.shippingList
-      AND w.status = :status
+    FROM DraftDomestic d
+    JOIN DraftDomesticShipment s ON s.draftDomestic = d
+    JOIN Warehouse w ON w.trackingCode = s.shipmentCode
+    WHERE w.status = :status
       AND d.status = 'DRAFT'
       AND (:routeId IS NULL OR w.orders.route.routeId = :routeId)
 """)
@@ -123,10 +168,11 @@ List<DraftDomestic> findByStatus(DraftDomesticStatus status);
 
       @Query("""
     SELECT DISTINCT d
-    FROM DraftDomestic d
-    JOIN d.shippingList sl
-    WHERE d.status = 'DRAFT'
-      AND sl IN :shipmentCodes
+FROM DraftDomestic d
+JOIN DraftDomesticShipment s
+     ON s.draftDomestic = d
+  WHERE d.status = 'DRAFT'
+  AND s.shipmentCode IN :shipmentCodes
 """)
 List<DraftDomestic> findDraftByShipmentCodes(
         @Param("shipmentCodes") Collection<String> shipmentCodes
@@ -137,29 +183,36 @@ List<DraftDomestic> findDraftByShipmentCodes(
     FROM DraftDomestic d
     WHERE d.staff.accountId = :staffId
         And d.status = 'DRAFT'
+        And d.payment = false
+        AND (:payment IS NULL OR d.payment = :payment)
     """)
  Page<DraftDomestic> findByStaff(
         @Param("staffId") Long staffId,
+        @Param ("payment") Boolean payment,
         Pageable pageable
  );
         
   @Query("""
-        SELECT DISTINCT d
+       SELECT DISTINCT d
         FROM DraftDomestic d
-        LEFT JOIN d.shippingList s
+        LEFT JOIN DraftDomesticShipment s
+        ON s.draftDomestic = d
         WHERE d.staff.accountId = :staffId
-          AND d.status = 'DRAFT'
-          AND (
-                LOWER(d.shipCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
-             OR LOWER(s) LIKE LOWER(CONCAT('%', :keyword, '%'))
-          )
+        AND d.status = 'DRAFT'
+        AND (:payment IS NULL OR d.payment = :payment)
+        AND (
+        LOWER(d.shipCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        OR LOWER(s.shipmentCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        )
+        ORDER BY d.createdAt DESC
     """)
     Page<DraftDomestic> searchByStaffAndKeyword(
             @Param("staffId") Long staffId,
-            @Param("keyword") String keyword
+            @Param("keyword") String keyword,
+            @Param ("payment") Boolean payment
           ,Pageable pageable
     );
-
+    
 }
 
 

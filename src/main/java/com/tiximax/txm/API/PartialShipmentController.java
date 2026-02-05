@@ -38,7 +38,7 @@ public class PartialShipmentController {
                                                                     @PathVariable BigDecimal priceShipDos,
                                                                     @RequestParam(required = false) Long customerVoucherId) {
         List<PartialShipment> partial = partialShipmentService.createPartialShipment(selectedTrackingCode, isUseBalance, bankId, priceShipDos, customerVoucherId);
-        Payment payment = partial.get(0).getPayment();                                                             
+        Payment payment = partial.get(0).getPayment();
         return ResponseEntity.ok(payment);
     }
     @GetMapping("/{id}")
@@ -67,7 +67,7 @@ public ResponseEntity<Page<PartialPayment>> getPartialPayments(
 }
 
 @PreAuthorize("hasAnyRole('STAFF_SALE','LEAD_SALE')")
-@PostMapping("/by-ship-code/{shipCode}/{isUseBalance}/{bankId}/{priceShipDos}")
+@PostMapping("/by-ship-code/{shipCode}/{isUseBalance}/{bankId}/{priceShipDos}/{customerVoucherId}")
 public ResponseEntity<Payment> createPartialShipmentByShipCode(
         @PathVariable String shipCode,
         @PathVariable boolean isUseBalance,

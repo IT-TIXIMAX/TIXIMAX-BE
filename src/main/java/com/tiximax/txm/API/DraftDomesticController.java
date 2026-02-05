@@ -15,10 +15,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Page;
 
+import com.tiximax.txm.Entity.Account;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Enums.Carrier;
@@ -52,7 +54,7 @@ public class DraftDomesticController {
         return ResponseEntity.ok(response);
     }
 @GetMapping("/{page}/{size}")
-public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
+public ResponseEntity<Slice<DraftDomesticResponse>> getAllDraftDomestic(
         @RequestParam(required = false) String customerCode,
         @RequestParam(required = false) String shipmentCode,
         @RequestParam(required = false) DraftDomesticStatus status,
@@ -63,7 +65,7 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
 
     Pageable pageable = PageRequest.of(page, size);
 
-    Page<DraftDomesticResponse> result =
+    Slice<DraftDomesticResponse> result =
             draftDomesticService.getAllDraftDomestic(
                     customerCode,
                     shipmentCode,
@@ -84,20 +86,27 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.updateDraftInfo(id, request)
         );
         }
-        @GetMapping("/ship-code/payment/{page}/{size}")
-        public ResponseEntity<List<ShipCodePayment>> getAllShipByStaff(
+    @GetMapping("/ship-code/payment/{page}/{size}")
+public ResponseEntity<List<ShipCodePayment>> getAllShipByStaff(
         @PathVariable int page,
         @PathVariable int size,
-        @RequestParam(required = false) String shipCode
-    ) {
-        Staff staff = (Staff) accountUtils.getAccountCurrent();
-        Sort sort = Sort.by("createdAt").descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-        return ResponseEntity.ok(
-                draftDomesticService.getAllShipByStaff(staff.getAccountId(),shipCode,pageable)
-        );
-    }
+        @RequestParam(required = false) String keyword,   // shipCode / trackingCode
+        @RequestParam(required = false) Boolean payment   // ✅ filter optional
+) {
 
+    Staff staff = (Staff) accountUtils.getAccountCurrent();
+
+    Pageable pageable = PageRequest.of(page, size);
+
+    return ResponseEntity.ok(
+            draftDomesticService.getAllShipByStaff(
+                    staff.getAccountId(),
+                    keyword,
+                    payment,
+                    pageable
+            )
+    );
+}
     @PostMapping("/{id}/shipments/add")
     public ResponseEntity<?> addShipments(
             @PathVariable Long id,
@@ -116,15 +125,22 @@ public ResponseEntity<Page<DraftDomesticResponse>> getAllDraftDomestic(
                 draftDomesticService.removeShipments(id, request.getShippingCodes())
         );
     }
-    @GetMapping("locked")
+@GetMapping("locked")
 public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
         @RequestParam(required = false)
         @DateTimeFormat(pattern = "yyyy-MM-dd")
         LocalDate endDate,
         @RequestParam Carrier carrier
 ) {
+    Account staff = (Staff) accountUtils.getAccountCurrent();
+
+    Long staffId = null;
+    if (staff.getRole() == AccountRoles.STAFF_SALE) { 
+        staffId = staff.getAccountId();
+    }
+
     return ResponseEntity.ok(
-            draftDomesticService.getLockedDraftNotExported(endDate, carrier)
+        draftDomesticService.getLockedDraftNotExported(endDate, staffId, carrier)
     );
 }
 
@@ -164,7 +180,7 @@ public ResponseEntity<List<DraftDomesticResponse>> getLockedDraftNotExported(
        public ResponseEntity<Map<String, Object>> lockDraftDomestic(
                 @RequestBody List<Long> draftIds
         ) {
-        Boolean result = draftDomesticService.ExportDraftDomestic(draftIds);
+        Boolean result = draftDomesticService.exportDraftDomestic(draftIds);
           return ResponseEntity.ok(
             Map.of(
                     "success", result,

@@ -4,6 +4,7 @@ import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.OrderLinkStatus;
+import com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -56,7 +57,10 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
           @Param("status") OrderLinkStatus status
   );
 
-
+ boolean existsByShipmentCodeAndStatusNot(
+            String shipmentCode,
+            OrderLinkStatus status
+    );
     // OrderLinksRepository.java
     @Query("""
             SELECT ol FROM OrderLinks ol 
@@ -169,5 +173,118 @@ public interface OrderLinksRepository extends JpaRepository<OrderLinks, Long> {
             Collection<String> shipmentCodes,
             OrderLinkStatus status
     );
+    boolean existsByShipmentCodeInAndStatusNot(
+        Collection<String> shipmentCodes,
+        OrderLinkStatus status
+);
+        @Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending(
+        ol.linkId,
+        ol.productName,
+        ol.quantity,
+        ol.shipmentCode,
+        ol.shipWeb,
+        ol.website,
+        ol.classify,
+        ol.purchaseImage,
+        ol.trackingCode,
+        ol.status,
+        ol.orders.customer.customerCode,
+        ol.orders.customer.name,
+        ol.orders.staff.staffCode,
+        ol.orders.staff.name,
+        ol.purchase.purchaseId
+    )
+    FROM OrderLinks ol
+    WHERE ol.purchase.purchaseId IN :purchaseIds
+      AND (ol.shipmentCode IS NULL OR ol.shipmentCode = '')
+""")
+List<OrderLinkPending> findPendingLinksDTO(
+        @Param("purchaseIds") Set<Long> purchaseIds
+);
+
+@Query("""
+SELECT new com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending(
+    ol.linkId,
+    ol.productName,
+    ol.quantity,
+    ol.shipmentCode,
+    ol.shipWeb,
+    ol.website,
+    ol.classify,
+    ol.purchaseImage,
+    ol.trackingCode,
+    ol.status,
+    ol.purchase.purchaseId
+)
+FROM OrderLinks ol
+WHERE ol.purchase.purchaseId IN :purchaseIds
+  AND (:status IS NULL OR ol.status = :status)
+  AND (
+        :shipmentCode IS NULL
+        OR LOWER(ol.shipmentCode) LIKE CONCAT('%', :shipmentCode, '%')
+  )
+""")
+List<OrderLinkPending> findPendingLinksDTOv2(
+        @Param("purchaseIds") Set<Long> purchaseIds,
+        @Param("status") OrderLinkStatus status,
+        @Param("shipmentCode") String shipmentCode
+);
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending(
+        ol.linkId,
+        ol.productName,
+        ol.quantity,
+        ol.shipmentCode,
+        ol.shipWeb,
+        ol.website,
+        ol.classify,
+        ol.purchaseImage,
+        ol.trackingCode,
+        ol.status,
+        ol.orders.customer.customerCode,
+        ol.orders.customer.name,
+        ol.orders.staff.staffCode,        
+        ol.orders.staff.name,
+        ol.purchase.purchaseId
+    )
+    FROM OrderLinks ol
+    WHERE ol.purchase.purchaseId IN :purchaseIds
+      AND (:status IS NULL OR ol.status = :status)
+""")
+List<OrderLinkPending> findPendingLinksNoShipmentCode(
+        @Param("purchaseIds") List<Long> purchaseIds,
+        @Param("status") OrderLinkStatus status
+);
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending(
+        ol.linkId,
+        ol.productName,
+        ol.quantity,
+        ol.shipmentCode,
+        ol.shipWeb,
+        ol.website,
+        ol.classify,
+        ol.purchaseImage,
+        ol.trackingCode,
+        ol.status,
+        ol.orders.customer.customerCode,
+        ol.orders.customer.name,
+        ol.orders.staff.staffCode,
+        ol.orders.staff.name,
+        ol.purchase.purchaseId
+    )
+    FROM OrderLinks ol
+    WHERE ol.purchase.purchaseId IN :purchaseIds
+      AND (:status IS NULL OR ol.status = :status)
+      AND ol.shipmentCode LIKE CONCAT('%', :shipmentCode, '%')
+""")
+List<OrderLinkPending> findPendingLinksWithShipmentCode(
+        @Param("purchaseIds") List<Long> purchaseIds,
+        @Param("status") OrderLinkStatus status,
+        @Param("shipmentCode") String shipmentCode
+);
+
+
 }
 

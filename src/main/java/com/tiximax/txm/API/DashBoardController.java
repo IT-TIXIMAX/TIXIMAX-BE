@@ -11,8 +11,12 @@ import com.tiximax.txm.Enums.CustomerTopType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
+import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.PerformanceWHResponse;
+import com.tiximax.txm.Model.DTOResponse.Warehouse.StaffWHPerformanceSummary;
 import com.tiximax.txm.Repository.CustomerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -303,5 +307,55 @@ public class DashBoardController {
 
         return ResponseEntity.ok(dashBoardService.getDailyInventory(startDate, endDate, filterType, routeId));
     }
+    @GetMapping("/customer/inventory/{page}/{size}")
+    public ResponseEntity<Page<CustomerInventoryQuantity>> getInventoryDashboard(
+            @RequestParam(required = false) Long routeId,
+            @RequestParam(required = false) Integer month,
+            @PathVariable int page,
+            @PathVariable int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+                dashBoardService.getDashboardInventory(routeId,month,pageable)
+        );
+    }
+    @GetMapping("/exported")
+public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
+    @RequestParam(required = false) Long routeId, 
+    @RequestParam(required = false) Integer month
+) {
+    return ResponseEntity.ok(
+        dashBoardService.getExportedDashboard(routeId, month)
+    );
+    }
 
+    @GetMapping("/location/{locationId}/overview")
+    public ResponseEntity<PerformanceWHResponse> getLocationOverview(
+            @PathVariable Long locationId,
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false, defaultValue = "30") Integer lastDays) {
+
+        return ResponseEntity.ok(dashBoardService.getLocationOverview(locationId, month, lastDays));
+    }
+
+    // Nhân viên trong kho
+    @GetMapping("/location/{locationId}/staff")
+    public ResponseEntity<List<StaffWHPerformanceSummary>> getStaffInLocation(
+            @PathVariable Long locationId,
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false, defaultValue = "30") Integer lastDays) {
+
+        return ResponseEntity.ok(dashBoardService.getStaffPerformancesInLocation(locationId, month, lastDays));
+    }
+
+//    @GetMapping("/inactive-customers/{page}/{size}")
+//    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
+//            @PathVariable int page,
+//            @PathVariable int size
+//    ) {
+//        Pageable pageable = PageRequest.of(page, size);
+//        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
+//
+//        return ResponseEntity.ok(result);
+//    }
 }

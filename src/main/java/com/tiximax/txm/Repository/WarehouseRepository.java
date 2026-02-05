@@ -7,9 +7,12 @@ import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary;
 import com.tiximax.txm.Model.DTOResponse.Domestic.WarehouseShip;
 import com.tiximax.txm.Model.Projections.CustomerDeliveryRow;
+import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
 import com.tiximax.txm.Model.Projections.CustomerInventoryRow;
 import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Model.Projections.DraftDomesticDeliveryRow;
+import com.tiximax.txm.Model.Projections.ExportedQuantityProjection;
+import com.tiximax.txm.Model.Projections.WarehouseFeeProjection;
 import com.tiximax.txm.Model.Projections.WarehouseStatisticRow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +24,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -319,21 +323,22 @@ List<String> findExistingTrackingCodesByStatus(
         join o.customer c
         join o.route r
         left join o.staff s
-        left join DraftDomestic d
-            on w.trackingCode in elements(d.shippingList)
-    where w.status IN :warehouseStatuses
+    where w.status in :warehouseStatuses
       and p.flightCode is not null
-      and d.id is null
       and (:staffId is null or s.accountId = :staffId)
       and (:customerCode is null or c.customerCode = :customerCode)
       and (:routeId is null or r.routeId = :routeId)
+      and not exists (
+            select 1
+            from DraftDomesticShipment ds
+            where ds.shipmentCode  = w.trackingCode
+      )
     group by
         c.customerCode,
         c.name,
         c.phone,
         r.name
 """)
-
 Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
         @Param("warehouseStatuses") List<WarehouseStatus> warehouseStatuses,
         @Param("staffId") Long staffId,
@@ -341,6 +346,7 @@ Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
         @Param("routeId") Long routeId,
         Pageable pageable
 );
+
 
 @Query("""
     select
@@ -351,14 +357,16 @@ Page<DraftDomesticDeliveryRow> findDraftDomesticDelivery(
         join o.customer c
         join o.route r
         join w.packing p
-        left join DraftDomestic d
-            on w.trackingCode in elements(d.shippingList)
-      where w.status IN :warehouseStatuses
+    where w.status in :warehouseStatuses
       and p.flightCode is not null
-      and d.id is null
+      and c.customerCode in :customerCodes
       and (:staffId is null or o.staff.accountId = :staffId)
       and (:routeId is null or r.routeId = :routeId)
-      and c.customerCode in :customerCodes
+      and not exists (
+            select 1
+            from DraftDomesticShipment ds
+            where ds.shipmentCode  = w.trackingCode
+      )
 """)
 List<CustomerShipmentRow> findTrackingCodesByCustomerCodes(
         @Param("warehouseStatuses") List<WarehouseStatus> warehouseStatuses,
@@ -366,6 +374,7 @@ List<CustomerShipmentRow> findTrackingCodesByCustomerCodes(
         @Param("staffId") Long staffId,
         @Param("routeId") Long routeId
 );
+
 @Query("""
     SELECT COALESCE(SUM(w.weight), 0)
     FROM Warehouse w
@@ -400,10 +409,10 @@ Double sumWeightByTrackingCodes(
             @Param("shipmentCodes") List<String> shipmentCodes
     );
 
-    long countByTrackingCodeIn(Set<String> trackingCodes);
+    long countByTrackingCodeIn(Collection<String> trackingCodes);
 
     long countByTrackingCodeInAndStatus(
-            Set<String> trackingCodes,
+            Collection<String> trackingCodes,
             WarehouseStatus status
     );
 
@@ -523,21 +532,24 @@ WarehouseStatisticRow exportByCarrierWithDate(
                 @Param("trackingCodes") List<String> trackingCodes
         );
 
-        @Query("""
-        select count(w)
-        from Warehouse w
-            join w.orders o
-            join o.customer c
-            left join DraftDomestic d
-                on w.trackingCode in elements(d.shippingList)
-        where c.customerCode = :customerCode
-          and w.status in :statuses
-          and d.id is null
-    """)
-    int countAvailableByCustomerCode(
-            @Param("customerCode") String customerCode,
-            @Param("statuses") List<WarehouseStatus> statuses
-    );
+   @Query("""
+    select count(w)
+    from Warehouse w
+        join w.orders o
+        join o.customer c
+    where c.customerCode = :customerCode
+      and w.status in :statuses
+      and not exists (
+            select 1
+            from DraftDomesticShipment ds
+            where ds.shipmentCode  = w.trackingCode
+      )
+""")
+int countAvailableByCustomerCode(
+        @Param("customerCode") String customerCode,
+        @Param("statuses") List<WarehouseStatus> statuses
+);
+
 
     @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.StockSummary(
@@ -656,6 +668,168 @@ WarehouseStatisticRow exportByCarrierWithDate(
     List<Warehouse> findByTrackingCodeInFetchOrders(
             @Param("trackingCodes") List<String> trackingCodes
     );
+
+    @Query("""
+    SELECT
+        w.trackingCode AS trackingCode,
+        d.shipCode     AS shipCode,
+        r.routeId      AS routeId,
+        r.minWeight    AS minWeight,
+        o.priceShip    AS priceShip,
+        w.netWeight    AS netWeight
+    FROM Warehouse w
+    JOIN w.orders o
+    JOIN o.route r
+    JOIN DraftDomesticShipment s
+        ON s.shipmentCode = w.trackingCode
+    JOIN s.draftDomestic d
+    WHERE w.trackingCode IN :trackingCodes
+    """)
+    List<WarehouseFeeProjection> findWarehouseFees(
+            @Param("trackingCodes") List<String> trackingCodes
+    );
+
+
+@Query("""
+    SELECT
+        c.customerCode AS customerCode,
+        c.name         AS customerName,
+        s.staffCode    AS staffCode,
+        s.name         AS staffName,
+
+        COUNT(
+            CASE
+                WHEN w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+                THEN 1
+            END
+        ) AS exportedCode,
+
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+                    THEN w.netWeight
+                END
+            ),
+            0
+        ) AS exportedWeight,
+        COUNT(
+            CASE
+                WHEN w.status IN (
+                    com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                    com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+                )
+                THEN 1
+            END
+        ) AS remainingCode,
+
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN w.status IN (
+                        com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+                        com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+                    )
+                    THEN w.netWeight
+                END
+            ),
+            0
+        ) AS remainingWeight
+
+    FROM Warehouse w
+    JOIN w.orders o
+    JOIN o.customer c
+    JOIN o.staff s
+
+    WHERE (:routeId IS NULL OR o.route.routeId = :routeId)
+      AND w.status IN (
+          com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO,
+          com.tiximax.txm.Enums.WarehouseStatus.DA_NHAP_KHO_VN,
+          com.tiximax.txm.Enums.WarehouseStatus.CHO_GIAO
+      )
+      AND w.createdAt BETWEEN :startDate AND :endDate
+
+    GROUP BY
+        c.customerCode,
+        c.name,
+        s.staffCode,
+        s.name
+""")
+Page<CustomerInventoryProjection> dashboardInventory(
+        @Param("routeId") Long routeId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        Pageable pageable
+);
+
+
+    @Query("""
+        SELECT 
+            FUNCTION('DATE', w.createdAt) as date,
+            COUNT(w) as inboundCount,
+            COALESCE(SUM(COALESCE(w.weight, 0)), 0) as inboundKg,
+            COALESCE(SUM(COALESCE(w.netWeight, 0)), 0) as inboundNetKg,
+            COUNT(CASE WHEN w.packing IS NOT NULL THEN 1 END) as packedCount,
+            COALESCE(SUM(CASE WHEN w.packing IS NOT NULL THEN COALESCE(w.weight, 0) ELSE 0 END), 0) as packedKg
+        FROM Warehouse w
+        WHERE w.createdAt >= :start
+          AND w.createdAt < :end
+          AND w.location.id = :locationId
+        GROUP BY FUNCTION('DATE', w.createdAt)
+        ORDER BY date
+        """)
+    List<Object[]> findDailyStatsByLocation(
+            @Param("locationId") Long locationId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("""
+        SELECT
+            w.staff.id as staffId,
+            w.staff.staffCode as staffCode,
+            w.staff.name as name,
+            w.staff.department as department,
+            COUNT(w) as inboundCount,
+            COALESCE(SUM(COALESCE(w.weight, 0)), 0) as inboundKg,
+            COALESCE(SUM(COALESCE(w.netWeight, 0)), 0) as inboundNetKg,
+            COUNT(CASE WHEN w.packing IS NOT NULL THEN 1 END) as packedCount,
+            COALESCE(SUM(CASE WHEN w.packing IS NOT NULL THEN COALESCE(w.weight, 0) ELSE 0 END), 0) as packedKg
+        FROM Warehouse w
+        WHERE w.createdAt >= :start
+          AND w.createdAt < :end
+          AND w.location.id = :locationId
+        GROUP BY w.staff.id, w.staff.staffCode, w.staff.name, w.staff.department
+        ORDER BY inboundCount DESC
+        """)
+    List<Object[]> findStaffSummaryByLocation(
+            @Param("locationId") Long locationId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+@Query("""
+    SELECT
+        FUNCTION('date', w.createdAt)              AS date,
+        COUNT(w.warehouseId)                       AS totalCode,
+        COALESCE(SUM(w.netWeight), 0)              AS totalWeight,
+        COUNT(DISTINCT c.accountId)                AS totalCustomers
+    FROM Warehouse w
+        JOIN w.orders o
+        JOIN o.customer c
+        JOIN o.route r
+    WHERE
+        w.status = com.tiximax.txm.Enums.WarehouseStatus.DA_GIAO
+        AND w.createdAt BETWEEN :startDate AND :endDate
+        AND (:routeId IS NULL OR r.routeId = :routeId)
+    GROUP BY FUNCTION('date', w.createdAt)
+    ORDER BY FUNCTION('date', w.createdAt)
+""")
+List<ExportedQuantityProjection> getExportedQuantityDaily(
+        @Param("routeId") Long routeId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate
+);
 
 
 }

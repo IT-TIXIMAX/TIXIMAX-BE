@@ -16,6 +16,7 @@ import com.tiximax.txm.Model.Projections.CustomerShipmentRow;
 import com.tiximax.txm.Repository.CustomerRepository;
 import com.tiximax.txm.Repository.DomesticRepository;
 import com.tiximax.txm.Repository.DraftDomesticRepository;
+import com.tiximax.txm.Repository.DraftDomesticShipmentRepository;
 import com.tiximax.txm.Repository.OrderLinksRepository;
 import com.tiximax.txm.Repository.OrdersRepository;
 import com.tiximax.txm.Repository.PackingRepository;
@@ -55,11 +56,15 @@ public class DomesticService {
     @Autowired
     private DraftDomesticRepository draftDomesticRepository;
     @Autowired
+    private DraftDomesticService draftDomesticService;
+    @Autowired
     private WarehouseLocationRepository warehouseLocationRepository;
     @Autowired
     private PartialShipmentRepository partialShipmentRepository;
     @Autowired
     private OrdersService ordersService;
+    @Autowired
+    private DraftDomesticShipmentRepository draftDomesticShippingListRepository;
     @Autowired
     private OrderLinksRepository orderLinksRepository;
 
@@ -379,8 +384,12 @@ public boolean scanImportToDomestic(String shipmentCode) {
     orderLinksRepository.saveAll(orderLinks);
 
     updateOrderStatusIfAllLinksReady(orderLinks);
-    return true ;
+
+    draftDomesticService.syncDraftDomesticStatus(shipmentCode);
+
+    return true;
 }
+
 
     public CheckInDomestic getCheckInDomestic(String shipmentCode) {
 
@@ -564,7 +573,9 @@ public DomesticDelivery scanToShip(
     Domestic domestic = new Domestic();
     domestic.setAddress(draftDomestic.getAddress());
     domestic.setPhoneNumber(draftDomestic.getPhoneNumber());
-    domestic.setShippingList(draftDomestic.getShippingList());
+    domestic.setShippingList(draftDomestic.getShipments().stream()
+            .map(DraftDomesticShipment::getShipmentCode)
+            .toList());
     domestic.setFromLocation(currentLocation);
     domestic.setCarrier(draftDomestic.getCarrier());
     domestic.setCarrierTrackingCode(request.getTrackingCode());
@@ -580,8 +591,8 @@ public DomesticDelivery scanToShip(
 
     domesticRepository.save(domestic);
 
-    // ===== CLEANUP =====
-    draftDomesticRepository.delete(draftDomestic);
+    draftDomesticShippingListRepository.deleteByDraftDomesticId(draftDomestic.getId());
+    draftDomesticRepository.deleteById(draftDomestic.getId());
 
     return new DomesticDelivery(
             domestic.getCustomer().getCustomerCode(),
@@ -609,7 +620,9 @@ public DomesticDelivery scanToShip(
 
     private void checkAndUpdateWarehousesAndOrderLinks(DraftDomestic draftDomestic) {
 
-    List<String> trackingCodes = draftDomestic.getShippingList();
+    List<String> trackingCodes = draftDomestic.getShipments().stream()
+            .map(DraftDomesticShipment::getShipmentCode)
+            .toList();
     if (trackingCodes == null || trackingCodes.isEmpty()) {
         throw new BadRequestException("Danh sách trackingCode trống");
     }

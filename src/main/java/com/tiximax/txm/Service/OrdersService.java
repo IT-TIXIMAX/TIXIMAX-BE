@@ -269,21 +269,35 @@ public Orders addConsignment(
         return orderLinkCode;
     }
 
-    public void addProcessLog(Orders orders, String actionCode, ProcessLogAction processLogAction){
-        OrderProcessLog orderProcessLog = new OrderProcessLog();
-        orderProcessLog.setOrders(orders);
-        orderProcessLog.setStaff((Staff) accountUtils.getAccountCurrent());
-        orderProcessLog.setAction(processLogAction);
-        orderProcessLog.setActionCode(actionCode);
-        orderProcessLog.setTimestamp(LocalDateTime.now());
-        orderProcessLog.setRoleAtTime(((Staff) accountUtils.getAccountCurrent()).getRole());
-        processLogRepository.save(orderProcessLog);
+   public void addProcessLog(
+        Orders orders,
+        String actionCode,
+        ProcessLogAction processLogAction
+) {
+    OrderProcessLog orderProcessLog = new OrderProcessLog();
+    orderProcessLog.setOrders(orders);
+    orderProcessLog.setAction(processLogAction);
+    orderProcessLog.setActionCode(actionCode);
+    orderProcessLog.setTimestamp(LocalDateTime.now());
+
+    Account currentAccount = accountUtils.getAccountCurrent();
+
+    if (currentAccount instanceof Staff staff) {
+        orderProcessLog.setStaff(staff);
+        orderProcessLog.setRoleAtTime(staff.getRole());
+    } else {
+        orderProcessLog.setStaff(null);
+        orderProcessLog.setRoleAtTime(AccountRoles.MANAGER); 
+        orderProcessLog.setActionCode("BANK_SMS");
     }
 
-    public Page<Orders> getAllOrdersPaging(Pageable pageable, String shipmentCode, String customerCode, String orderCode) {
+    processLogRepository.save(orderProcessLog);
+}
+
+    public Page<OrderInfo> getAllOrdersPaging(Pageable pageable, String shipmentCode, String customerCode, String orderCode) {
     Account currentAccount = accountUtils.getAccountCurrent();
     
-    if (currentAccount.getRole().equals(AccountRoles.ADMIN) 
+    if (currentAccount.getRole().equals(AccountRoles.ADMIN)
             || currentAccount.getRole().equals(AccountRoles.MANAGER)) {
         return ordersRepository.findAllWithFilters(shipmentCode, customerCode, orderCode, pageable);
     } else if (currentAccount.getRole().equals(AccountRoles.STAFF_SALE)) {
@@ -672,50 +686,42 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
     if (orderLinks.isEmpty()) {
         return Collections.emptyList();
     }
-
     orderLinks.forEach(l -> Hibernate.initialize(l.getWarehouse()));
 
-    // === LẤY WAREHOUSE KHÔNG TRÙNG TRACKING ===
-    Map<String, Warehouse> warehouseMap = new LinkedHashMap<>();
-    for (OrderLinks link : orderLinks) {
-        Warehouse wh = link.getWarehouse();
-        warehouseMap.putIfAbsent(wh.getTrackingCode(), wh);
-    }
+    Map<String, List<OrderLinks>> shipmentCodeMap =
+            orderLinks.stream()
+                    .collect(Collectors.groupingBy(OrderLinks::getShipmentCode));
 
-    List<Warehouse> warehouses = new ArrayList<>(warehouseMap.values());
+    // shipmentCode -> trackingCodes
+    Map<String, List<String>> shipCodeTrackingMap =
+            shipmentCodeMap.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            e -> e.getValue().stream()
+                                    .map(OrderLinks::getTrackingCode)
+                                    .distinct()
+                                    .toList()
+                    ));
 
-    // === TÍNH TỔNG PHÍ SHIP (CHUẨN NHƯ CREATE) ===
-    BigDecimal totalShippingFee = partialShipmentService.calculateTotalShippingFee(
-            warehouses.stream()
-                    .map(Warehouse::getTrackingCode)
-                    .toList()
-    );
 
-    BigDecimal totalNetWeight = warehouses.stream()
-            .map(w -> BigDecimal.valueOf(w.getNetWeight()))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    Map<String, BigDecimal> feeMap =
+            partialShipmentService
+                    .calculateFeeByShipCodeAllowMultiRoute(
+                            shipCodeTrackingMap
+                    );
 
-    // === ĐÁNH DẤU SHIPMENT ĐÃ TÍNH ===
-    Set<String> calculatedShipmentCodes = new HashSet<>();
-
+ 
     return orderLinks.stream()
             .map(link -> {
 
                 Warehouse wh = link.getWarehouse();
                 String shipmentCode = link.getShipmentCode();
 
-                BigDecimal finalShip = BigDecimal.ZERO;
-
-                if (!calculatedShipmentCodes.contains(shipmentCode)) {
-
-                    BigDecimal ratio = BigDecimal.valueOf(wh.getNetWeight())
-                            .divide(totalNetWeight, 6, RoundingMode.HALF_UP);
-
-                   finalShip = roundToHundreds(totalShippingFee.multiply(ratio));
-
-
-                    calculatedShipmentCodes.add(shipmentCode);
-                }
+                BigDecimal finalShip =
+                        feeMap.getOrDefault(
+                                shipmentCode,
+                                BigDecimal.ZERO
+                        );
 
                 WareHouseOrderLink dto = new WareHouseOrderLink();
 
@@ -740,7 +746,7 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
                 dto.setExtraCharge(link.getExtraCharge());
                 dto.setFinalPriceVnd(link.getFinalPriceVnd());
 
-                // ✅ ship đồng bộ 100%
+                // ✅ PHÍ SHIP ĐÚNG NGHIỆP VỤ
                 dto.setFinalPriceShip(finalShip);
 
                 dto.setTrackingCode(link.getTrackingCode());
@@ -916,7 +922,43 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
 //        }
 //    }
 
-    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(Pageable pageable) {
+//    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(Pageable pageable) {
+//        Account currentAccount = accountUtils.getAccountCurrent();
+//        if (!(currentAccount instanceof Staff)) {
+//            throw new AccessDeniedException("Chỉ nhân viên mới có quyền truy cập danh sách đơn hàng này!");
+//        }
+//        Staff staff = (Staff) currentAccount;
+//        Long staffId = staff.getAccountId();
+//        AccountRoles role = staff.getRole();
+//
+//        Page<Orders> ordersPage;
+//
+//        if (AccountRoles.MANAGER.equals(role)) {
+//            ordersPage = ordersRepository.findOrdersWithRefundableCancelledLinks(
+//                    BigDecimal.ZERO, pageable);
+//        } else if (AccountRoles.STAFF_SALE.equals(role) || AccountRoles.LEAD_SALE.equals(role)) {
+//            ordersPage = ordersRepository.findByStaffIdAndRefundableCancelledLinks(
+//                    staffId, BigDecimal.ZERO, pageable);
+//        } else {
+//            throw new AccessDeniedException("Vai trò không hợp lệ!");
+//        }
+//
+//        Page<RefundResponse> result = ordersPage.map(order -> {
+//            RefundResponse response = new RefundResponse();
+//            response.setOrder(order);
+//
+//            List<OrderLinks> cancelledLinks = order.getOrderLinks().stream()
+//                    .filter(link -> link.getStatus() == OrderLinkStatus.DA_HUY)
+//                    .toList();
+//
+//            response.setCancelledLinks(cancelledLinks);
+//            return response;
+//        });
+//
+//        return result;
+//    }
+
+    public Page<RefundResponse> getOrdersWithNegativeLeftoverMoney(String orderCode, Pageable pageable) {
         Account currentAccount = accountUtils.getAccountCurrent();
         if (!(currentAccount instanceof Staff)) {
             throw new AccessDeniedException("Chỉ nhân viên mới có quyền truy cập danh sách đơn hàng này!");
@@ -925,31 +967,15 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
         Long staffId = staff.getAccountId();
         AccountRoles role = staff.getRole();
 
-        Page<Orders> ordersPage;
-
         if (AccountRoles.MANAGER.equals(role)) {
-            ordersPage = ordersRepository.findOrdersWithRefundableCancelledLinks(
+            return ordersRepository.findOrdersWithRefundableCancelledLinks(orderCode,
                     BigDecimal.ZERO, pageable);
         } else if (AccountRoles.STAFF_SALE.equals(role) || AccountRoles.LEAD_SALE.equals(role)) {
-            ordersPage = ordersRepository.findByStaffIdAndRefundableCancelledLinks(
+            return ordersRepository.findByStaffIdAndRefundableCancelledLinks(
                     staffId, BigDecimal.ZERO, pageable);
         } else {
             throw new AccessDeniedException("Vai trò không hợp lệ!");
         }
-
-        Page<RefundResponse> result = ordersPage.map(order -> {
-            RefundResponse response = new RefundResponse();
-            response.setOrder(order);
-
-            List<OrderLinks> cancelledLinks = order.getOrderLinks().stream()
-                    .filter(link -> link.getStatus() == OrderLinkStatus.DA_HUY)
-                    .toList();
-
-            response.setCancelledLinks(cancelledLinks);
-            return response;
-        });
-
-        return result;
     }
 
     public Orders processNegativeLeftoverMoney(Long orderId, String image, boolean refundToCustomer) {
@@ -1277,11 +1303,11 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
                 staff.getAccountId(), pageable);
 
         return ordersPage.map(order -> {
-            List<OrderLinkPending> pendingLinks = order.getOrderLinks().stream()
-                    .filter(link -> link.getShipmentCode() == null || link.getShipmentCode().trim().isEmpty())
-                    .map(OrderLinkPending::new)
-                    .toList();
-
+            List<OrderLinkPending> pendingLinks =
+        order.getOrderLinks().stream()
+                .filter(l -> l.getShipmentCode() == null || l.getShipmentCode().trim().isEmpty())
+                .map(OrderLinkPending::new)
+                .toList();
             return new OrdersPendingShipment(order, pendingLinks);
         });
     }
@@ -1317,7 +1343,8 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
         ));
 
         OrderWithLinks dto = new OrderWithLinks(order);
-        List<OrderLinkPending> pendingLinks = order.getOrderLinks().stream()
+        List<OrderLinkPending> pendingLinks =
+        order.getOrderLinks().stream()
                 .filter(l -> l.getShipmentCode() == null || l.getShipmentCode().trim().isEmpty())
                 .map(OrderLinkPending::new)
                 .toList();
@@ -2046,4 +2073,7 @@ public void updateOrderStatusIfCompleted(Long orderId) {
         };
     }
 
+    public List<OrderLinkRefund> getCancelledLinksForRefund(Long orderId) {
+        return ordersRepository.findRefundableCancelledLinksByOrderId(orderId);
+    }
 }
