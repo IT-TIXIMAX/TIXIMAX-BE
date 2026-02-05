@@ -1304,11 +1304,11 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
                 staff.getAccountId(), pageable);
 
         return ordersPage.map(order -> {
-            List<OrderLinkPending> pendingLinks = order.getOrderLinks().stream()
-                    .filter(link -> link.getShipmentCode() == null || link.getShipmentCode().trim().isEmpty())
-                    .map(OrderLinkPending::new)
-                    .toList();
-
+            List<OrderLinkPending> pendingLinks =
+        order.getOrderLinks().stream()
+                .filter(l -> l.getShipmentCode() == null || l.getShipmentCode().trim().isEmpty())
+                .map(OrderLinkPending::new)
+                .toList();
             return new OrdersPendingShipment(order, pendingLinks);
         });
     }
@@ -1344,7 +1344,8 @@ public List<WareHouseOrderLink> getLinksInWarehouseByCustomer(String customerCod
         ));
 
         OrderWithLinks dto = new OrderWithLinks(order);
-        List<OrderLinkPending> pendingLinks = order.getOrderLinks().stream()
+        List<OrderLinkPending> pendingLinks =
+        order.getOrderLinks().stream()
                 .filter(l -> l.getShipmentCode() == null || l.getShipmentCode().trim().isEmpty())
                 .map(OrderLinkPending::new)
                 .toList();
