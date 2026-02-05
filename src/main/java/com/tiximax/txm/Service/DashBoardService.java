@@ -10,6 +10,7 @@ import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.*;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
+import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseSummary;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
@@ -1259,5 +1260,12 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         }
         return new LocalDateTime[]{start, end};
     }
+
+//    public Page<InactiveCustomerProjection> getInactiveCustomersByStaff(
+//            Pageable pageable
+//    ) {
+//        Staff staff = (Staff) accountUtils.getAccountCurrent();
+//        return ordersRepository.findInactiveCustomersByStaff(staff.getAccountId(), pageable);
+//    }
 
 }

@@ -11,7 +11,9 @@ import com.tiximax.txm.Enums.CustomerTopType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
+import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.PerformanceWHResponse;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.StaffWHPerformanceSummary;
@@ -345,4 +347,15 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
 
         return ResponseEntity.ok(dashBoardService.getStaffPerformancesInLocation(locationId, month, lastDays));
     }
+
+//    @GetMapping("/inactive-customers/{page}/{size}")
+//    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
+//            @PathVariable int page,
+//            @PathVariable int size
+//    ) {
+//        Pageable pageable = PageRequest.of(page, size);
+//        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
+//
+//        return ResponseEntity.ok(result);
+//    }
 }
