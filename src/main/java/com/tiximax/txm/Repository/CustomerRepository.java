@@ -1,6 +1,7 @@
 package com.tiximax.txm.Repository;
 
 import com.tiximax.txm.Entity.Customer;
+import com.tiximax.txm.Model.DTOResponse.Customer.CustomerResponseDTO;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,16 +28,31 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     Page<Customer> findByStaffId(Long staffId, Pageable pageable);
 
     @Query("""
-       SELECT c FROM Customer c
-       WHERE (:staffId is null or c.staffId = :staffId)
-       AND (
-            :keyword IS NULL
-            OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-            OR LOWER(c.phone) LIKE LOWER(CONCAT('%', :keyword, '%'))
-            OR LOWER(c.customerCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
-       )
-    """)
-    Page<Customer> searchByStaff(
+    SELECT new com.tiximax.txm.Model.DTOResponse.Customer.CustomerResponseDTO(
+        c.accountId,
+        c.customerCode,
+        c.name,
+        c.phone,
+        c.email,
+        c.source,
+        c.totalOrders,
+        c.totalWeight,
+        c.totalAmount,
+        c.balance,
+        a.createdAt,
+        s.name
+    )
+    FROM Customer c
+    LEFT JOIN Account a ON c.accountId = a.accountId
+    LEFT JOIN Staff s ON c.staffId = s.accountId
+    WHERE (:staffId IS NULL OR c.staffId = :staffId)
+    AND (:keyword IS NULL OR
+         LOWER(c.name)     LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+         LOWER(c.phone)    LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+         LOWER(c.customerCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+    )
+""")
+    Page<CustomerResponseDTO> searchByStaff(
             @Param("staffId") Long staffId,
             @Param("keyword") String keyword,
             Pageable pageable

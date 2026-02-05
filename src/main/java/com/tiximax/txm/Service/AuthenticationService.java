@@ -14,6 +14,7 @@ import com.tiximax.txm.Model.DTORequest.Auth.StaffPatchRequest;
 import com.tiximax.txm.Model.DTORequest.Customer.CustomerPatchRequest;
 import com.tiximax.txm.Model.DTOResponse.Auth.StaffReponse;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerReponse;
+import com.tiximax.txm.Model.DTOResponse.Customer.CustomerResponseDTO;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
@@ -382,10 +383,10 @@ public class AuthenticationService implements UserDetailsService {
         return customerRepository.findAll(pageable);
     }
 
-    public Page<Customer> getCustomersByStaff(String keyword, Pageable pageable) {
+    public Page<CustomerResponseDTO> getCustomersByStaff(String keyword, Pageable pageable) {
     Long staffId = null;
     Account account = accountUtils.getAccountCurrent();
-    if (!account.getRole().equals(AccountRoles.MANAGER)){
+    if (!account.getRole().equals(AccountRoles.MANAGER) && !account.getRole().equals(AccountRoles.ADMIN)){
         staffId = account.getAccountId();
     }
     if (keyword == null || keyword.trim().isEmpty()) {

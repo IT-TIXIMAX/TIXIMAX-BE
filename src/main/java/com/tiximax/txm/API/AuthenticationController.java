@@ -215,14 +215,14 @@ public class AuthenticationController {
         return ResponseEntity.ok(staffPage);
     }
 
-    @GetMapping("/customers/{page}/{size}")
-    public ResponseEntity<Page<CustomerResponseDTO>> getAllCustomers(@PathVariable int page, @PathVariable int size) {
-        Sort sort = Sort.by("createdAt").descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Customer> customersPage = authenticationService.getAllCustomers(pageable);
-        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
-        return ResponseEntity.ok(dtoPage);
-    }
+//    @GetMapping("/customers/{page}/{size}")
+//    public ResponseEntity<Page<CustomerResponseDTO>> getAllCustomers(@PathVariable int page, @PathVariable int size) {
+//        Sort sort = Sort.by("createdAt").descending();
+//        Pageable pageable = PageRequest.of(page, size, sort);
+//        Page<Customer> customersPage = authenticationService.getAllCustomers(pageable);
+//        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
+//        return ResponseEntity.ok(dtoPage);
+//    }
 
     @GetMapping("/my-customers/{page}/{size}")
     public ResponseEntity<Page<CustomerResponseDTO>> getCustomersByStaff(
@@ -232,9 +232,9 @@ public class AuthenticationController {
     ) {
         Sort sort = Sort.by("createdAt").descending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Customer> customersPage = authenticationService.getCustomersByStaff(search, pageable);
-        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
-        return ResponseEntity.ok(dtoPage);
+        Page<CustomerResponseDTO> customersPage = authenticationService.getCustomersByStaff(search, pageable);
+//        Page<CustomerResponseDTO> dtoPage = customersPage.map(CustomerResponseDTO::fromEntity);
+        return ResponseEntity.ok(customersPage);
     }
 
     @GetMapping("/sale-lead-staff/{page}/{size}")

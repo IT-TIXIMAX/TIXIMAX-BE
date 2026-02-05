@@ -5,6 +5,7 @@ import com.tiximax.txm.Entity.Orders;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.OrderType;
+import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
@@ -365,51 +366,139 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("isAdminOrManager") boolean isAdminOrManager,
             Pageable pageable
     );
+//    @Query("""
+//        SELECT o FROM Orders o
+//        LEFT JOIN o.customer c
+//        LEFT JOIN o.orderLinks ol
+//        WHERE
+//            (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
+//            AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
+//            AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
+//    """)
+//    Page<Orders> findAllWithFilters(
+//            @Param("shipmentCode") String shipmentCode,
+//            @Param("customerCode") String customerCode,
+//            @Param("orderCode") String orderCode,
+//            Pageable pageable
+//    );
+
     @Query("""
-        SELECT o FROM Orders o
+        SELECT DISTINCT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderCode,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
         LEFT JOIN o.customer c
-        LEFT JOIN o.orderLinks ol
-        WHERE 
+        LEFT JOIN o.staff s
+        LEFT JOIN o.orderLinks ol WITH (:shipmentCode IS NOT NULL)
+        WHERE
             (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
             AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
             AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
-    """)
-    Page<Orders> findAllWithFilters(
-            @Param("shipmentCode") String shipmentCode,
-            @Param("customerCode") String customerCode,
-            @Param("orderCode") String orderCode,
-            Pageable pageable
-    );
+        """)
+    Page<OrderInfo> findAllWithFilters(@Param("shipmentCode") String shipmentCode,
+                                       @Param("customerCode") String customerCode,
+                                       @Param("orderCode") String orderCode,
+                                       Pageable pageable);
+
+//    @Query("""
+//        SELECT o FROM Orders o
+//        LEFT JOIN o.customer c
+//        LEFT JOIN o.orderLinks ol
+//        WHERE
+//            o.staff.accountId = :accountId
+//            AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
+//            AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
+//            AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
+//    """)
+//    Page<Orders> findByStaffAccountIdWithFilters(
+//            @Param("accountId") Long accountId,
+//            @Param("shipmentCode") String shipmentCode,
+//            @Param("customerCode") String customerCode,
+//            @Param("orderCode") String orderCode,
+//            Pageable pageable
+//    );
 
     @Query("""
-        SELECT o FROM Orders o
-        LEFT JOIN o.customer c
-        LEFT JOIN o.orderLinks ol
-        WHERE 
+        SELECT DISTINCT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderCode,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
+        JOIN o.customer c
+        JOIN o.staff s
+        LEFT JOIN o.orderLinks ol WITH (:shipmentCode IS NOT NULL)
+        WHERE
             o.staff.accountId = :accountId
             AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
             AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
             AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
-    """)
-    Page<Orders> findByStaffAccountIdWithFilters(
-            @Param("accountId") Long accountId,
-            @Param("shipmentCode") String shipmentCode,
-            @Param("customerCode") String customerCode,
-            @Param("orderCode") String orderCode,
-            Pageable pageable
-    );
+        """)
+    Page<OrderInfo> findByStaffAccountIdWithFilters(
+                                       @Param("accountId") Long accountId,
+                                       @Param("shipmentCode") String shipmentCode,
+                                       @Param("customerCode") String customerCode,
+                                       @Param("orderCode") String orderCode,
+                                       Pageable pageable);
+
+//    @Query("""
+//        SELECT o FROM Orders o
+//        LEFT JOIN o.customer c
+//        LEFT JOIN o.orderLinks ol
+//        WHERE
+//            o.route.routeId IN :routeIds
+//            AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
+//            AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
+//            AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
+//    """)
+//    Page<Orders> findByRouteRouteIdInWithFilters(
+//            @Param("routeIds") Set<Long> routeIds,
+//            @Param("shipmentCode") String shipmentCode,
+//            @Param("customerCode") String customerCode,
+//            @Param("orderCode") String orderCode,
+//            Pageable pageable
+//    );
 
     @Query("""
-        SELECT o FROM Orders o
+        SELECT DISTINCT new com.tiximax.txm.Model.DTOResponse.Order.OrderInfo(
+            o.orderId,
+            o.orderCode,
+            o.orderType,
+            o.status,
+            c.customerCode,
+            c.name,
+            s.name,
+            o.exchangeRate,
+            o.finalPriceOrder,
+            o.createdAt
+        )
+        FROM Orders o
         LEFT JOIN o.customer c
-        LEFT JOIN o.orderLinks ol
+        LEFT JOIN o.staff s
+        LEFT JOIN o.orderLinks ol WITH (:shipmentCode IS NOT NULL)
         WHERE
             o.route.routeId IN :routeIds
             AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE %:shipmentCode%)
             AND (:customerCode IS NULL OR c.customerCode LIKE %:customerCode%)
             AND (:orderCode IS NULL OR o.orderCode LIKE %:orderCode%)
-    """)
-    Page<Orders> findByRouteRouteIdInWithFilters(
+        """)
+    Page<OrderInfo> findByRouteRouteIdInWithFilters(
             @Param("routeIds") Set<Long> routeIds,
             @Param("shipmentCode") String shipmentCode,
             @Param("customerCode") String customerCode,
@@ -875,8 +964,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             o.createdAt
         )
         FROM Orders o
-        JOIN o.customer c
-        JOIN o.staff s
+        LEFT JOIN o.customer c
+        LEFT JOIN o.staff s
         WHERE o.status = :status
         """)
     Page<OrderInfo> findOrderInfoByStatus(@Param("status") OrderStatus status, Pageable pageable);
@@ -895,8 +984,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             o.createdAt
         )
         FROM Orders o
-        JOIN o.customer c
-        JOIN o.staff s
+        LEFT JOIN o.customer c
+        LEFT JOIN o.staff s
         WHERE o.staff.accountId = :staffId
           AND o.status = :status
         """)
@@ -918,7 +1007,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             o.createdAt
         )
         FROM Orders o
-        JOIN o.customer c
+        LEFT JOIN o.customer c
         WHERE o.route.routeId IN :routeId
           AND o.status = :status
         """)
@@ -952,4 +1041,29 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     List<OrderLinkRefund> findRefundableCancelledLinksByOrderId(
             @Param("orderId") Long orderId
     );
+
+//    @Query("""
+//    SELECT NEW com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection(
+//        o.customer.accountId,
+//        o.customer.name,
+//        o.staff.accountId,
+//        o.staff.name,
+//        MAX(o.createdAt),
+//        COUNT(o.orderId)
+//    )
+//    FROM Orders o
+//    WHERE (:staffId IS NULL OR o.staff.accountId = :staffId)
+//    GROUP BY
+//        o.customer.accountId,
+//        o.customer.name,
+//        o.staff.accountId,
+//        o.staff.name
+//    HAVING
+//        COUNT(o.orderId) >= 2
+//        AND MAX(o.createdAt) < CURRENT_DATE - INTERVAL '1 month'
+//""")
+//    Page<InactiveCustomerProjection> findInactiveCustomersByStaff(
+//            @Param("staffId") Long staffId,
+//            Pageable pageable
+//    );
 }
