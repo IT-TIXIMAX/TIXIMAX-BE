@@ -42,7 +42,7 @@ public class Purchases {
     @JsonIgnore
     Staff staff;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name="order_id", nullable = false)
     @JsonIgnore
     Orders orders;
