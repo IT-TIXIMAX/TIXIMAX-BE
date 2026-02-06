@@ -70,7 +70,6 @@ public class PurchasePendingShipment {
         this.orderId = order.getOrderId();
         this.orderCode = order.getOrderCode();
     }
-
     this.note = purchase.getNote();
     this.pendingLinks = pendingLinks;
 }

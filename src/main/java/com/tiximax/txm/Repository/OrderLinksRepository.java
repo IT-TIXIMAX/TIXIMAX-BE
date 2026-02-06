@@ -274,17 +274,18 @@ List<OrderLinkPending> findPendingLinksNoShipmentCode(
         ol.orders.staff.name,
         ol.purchase.purchaseId
     )
-    FROM OrderLinks ol
+      FROM OrderLinks ol
     WHERE ol.purchase.purchaseId IN :purchaseIds
       AND (:status IS NULL OR ol.status = :status)
-      AND ol.shipmentCode LIKE CONCAT('%', :shipmentCode, '%')
+      AND (
+            :shipmentCode IS NULL
+            OR ol.shipmentCode LIKE CONCAT('%', :shipmentCode, '%')
+      )
 """)
 List<OrderLinkPending> findPendingLinksWithShipmentCode(
         @Param("purchaseIds") List<Long> purchaseIds,
         @Param("status") OrderLinkStatus status,
         @Param("shipmentCode") String shipmentCode
 );
-
-
 }
 

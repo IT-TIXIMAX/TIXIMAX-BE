@@ -552,7 +552,7 @@ private String normalize(String value) {
         // 2️⃣ Normalize input
         String normalizedOrderCode = normalize(orderCode);
         String normalizedCustomerCode = normalize(customerCode);
-        String normalizedShipmentCode = normalize(shipmentCode);
+        String normalizedShipmentCode = normalize(shipmentCode).toUpperCase();
         String statusValue = status == null ? null : status.name();
 
         // 3️⃣ Query purchase IDs (NHẸ – PAGING CHUẨN)
