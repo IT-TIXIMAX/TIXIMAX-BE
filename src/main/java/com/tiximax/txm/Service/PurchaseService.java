@@ -549,13 +549,14 @@ private String normalize(String value) {
             return Page.empty(pageable);
         }
 
-        // 2️⃣ Normalize input
         String normalizedOrderCode = normalize(orderCode);
         String normalizedCustomerCode = normalize(customerCode);
-        String normalizedShipmentCode = normalize(shipmentCode).toUpperCase();
+        String normalizedShipmentCode =
+        Optional.ofNullable(normalize(shipmentCode))
+                .map(s -> s.toUpperCase(Locale.ROOT))
+                .orElse(null);
         String statusValue = status == null ? null : status.name();
 
-        // 3️⃣ Query purchase IDs (NHẸ – PAGING CHUẨN)
         Page<Long> purchaseIdPage =
                 purchasesRepository.findPurchaseIdsFiltered(
                         routeIds,
