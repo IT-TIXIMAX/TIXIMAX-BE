@@ -20,12 +20,13 @@ import com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment;
 import com.tiximax.txm.Model.EnumFilter.PurchaseFilter;
 import com.tiximax.txm.Repository.*;
 import com.tiximax.txm.Utils.AccountUtils;
+import java.sql.Timestamp;
 
 import jakarta.transaction.Transactional;
 
-import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
@@ -405,32 +406,33 @@ public class PurchaseService {
         return purchase;
     }
 
-    public Page<PurchasePendingShipment> getPendingShipmentPurchases(Pageable pageable) {
-        Account currentAccount = accountUtils.getAccountCurrent();
+    // public Page<PurchasePendingShipment> getPendingShipmentPurchases(Pageable pageable) {
+    //     Account currentAccount = accountUtils.getAccountCurrent();
 
-        Set<Long> routeIds = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId())
-                .stream()
-                .map(AccountRoute::getRoute)
-                .map(Route::getRouteId)
-                .collect(Collectors.toSet());
+    //     Set<Long> routeIds = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId())
+    //             .stream()
+    //             .map(AccountRoute::getRoute)
+    //             .map(Route::getRouteId)
+    //             .collect(Collectors.toSet());
 
-        if (routeIds.isEmpty()) {
-            return Page.empty(pageable);
-        }
+    //     if (routeIds.isEmpty()) {
+    //         return Page.empty(pageable);
+    //     }
 
-        Page<Purchases> purchasesPage = purchasesRepository.findPurchasesWithPendingShipmentByRoutes(routeIds, pageable);
+    //     Page<Purchases> purchasesPage = purchasesRepository.findPurchasesWithPendingShipmentByRoutes(routeIds, pageable);
 
-        return purchasesPage.map(purchase -> {
-            List<OrderLinkPending> pendingLinks = purchase.getOrderLinks().stream()
-                    .filter(link -> link.getShipmentCode() == null || link.getShipmentCode().trim().isEmpty())
-                    .map(OrderLinkPending::new)
-                    .collect(Collectors.toList());
+    //     return purchasesPage.map(purchase -> {
+    //         List<OrderLinkPending> pendingLinks = purchase.getOrderLinks().stream()
+    //                 .filter(link -> link.getShipmentCode() == null || link.getShipmentCode().trim().isEmpty())
+    //                 .map(OrderLinkPending::new)
+    //                 .collect(Collectors.toList());
 
-            return new PurchasePendingShipment(purchase, pendingLinks);
-        });
-    }
+    //         return new PurchasePendingShipment(purchase, pendingLinks);
+    //     });
+    // }
 
-    public Page<PurchasePendingShipment> getFullPurchases(
+
+public Page<PurchasePendingShipment> getFullPurchases(
         PurchaseFilter status,
         String orderCode,
         String customerCode,
@@ -438,24 +440,25 @@ public class PurchaseService {
 ) {
     Account currentAccount = accountUtils.getAccountCurrent();
 
-    Set<Long> routeIds = accountRouteRepository
-            .findByAccountAccountId(currentAccount.getAccountId())
-            .stream()
-            .map(AccountRoute::getRoute)
-            .map(Route::getRouteId)
-            .collect(Collectors.toSet());
+    Set<Long> routeIds =
+            accountRouteRepository
+                    .findByAccountAccountId(currentAccount.getAccountId())
+                    .stream()
+                    .map(ar -> ar.getRoute().getRouteId())
+                    .collect(Collectors.toSet());
 
     if (routeIds.isEmpty()) {
         return Page.empty(pageable);
     }
 
+    // normalize filter
     String statusValue = (status == null ? null : status.name());
-
     orderCode = normalize(orderCode);
     customerCode = normalize(customerCode);
 
-    Page<Purchases> purchasesPage =
-            purchasesRepository.findPurchasesSortedByPendingShipment(
+    // 1️⃣ PAGE ID (ĐÃ FILTER)
+    Page<Long> pageIds =
+            purchasesRepository.findPurchaseIdsPendingShipment(
                     routeIds,
                     statusValue,
                     orderCode,
@@ -463,15 +466,59 @@ public class PurchaseService {
                     pageable
             );
 
-    return purchasesPage.map(purchase -> {
-        List<OrderLinkPending> pendingLinks = purchase.getOrderLinks()
-                .stream()
-                .map(OrderLinkPending::new)
-                .toList();
+    if (pageIds.isEmpty()) {
+        return Page.empty(pageable);
+    }
 
-        return new PurchasePendingShipment(purchase, pendingLinks);
+    Set<Long> purchaseIds = new HashSet<>(pageIds.getContent());
+
+    // 2️⃣ HEADER
+    Map<Long, PurchasePendingShipment> dtoMap = new HashMap<>();
+    List<Object[]> rows =
+            purchasesRepository.findPurchaseHeadersRaw(purchaseIds);
+
+    for (Object[] r : rows) {
+        PurchasePendingShipment dto =
+                new PurchasePendingShipment(
+                        ((Number) r[0]).longValue(),                 // purchaseId
+                        (String) r[1],                                // purchaseCode
+                        ((Timestamp) r[2]).toLocalDateTime(),         // purchaseTime
+                        (String) r[3],                                // purchaseImage
+                        (BigDecimal) r[4],                            // finalPriceOrder
+                        ((Number) r[5]).longValue(),                  // orderId
+                        (String) r[6],                                // orderCode
+                        (String) r[7],                                // staffName
+                        (String) r[8]                                 // note
+                );
+        dtoMap.put(dto.getPurchaseId(), dto);
+    }
+
+    // 3️⃣ ORDER LINKS (DTO)
+    List<OrderLinkPending> links =
+            orderLinksRepository.findPendingLinksDTO(purchaseIds);
+
+    links.forEach(link -> {
+        PurchasePendingShipment dto = dtoMap.get(link.getPurchaseId());
+        if (dto != null) {
+            dto.getPendingLinks().add(link);
+        }
     });
+
+    // 4️⃣ GIỮ ĐÚNG THỨ TỰ PAGE
+    List<PurchasePendingShipment> content =
+            pageIds.getContent()
+                   .stream()
+                   .map(dtoMap::get)
+                   .filter(Objects::nonNull)
+                   .toList();
+
+    return new PageImpl<>(
+            content,
+            pageable,
+            pageIds.getTotalElements()
+    );
 }
+
 
 private String normalize(String value) {
     if (value == null) return null;
@@ -479,66 +526,116 @@ private String normalize(String value) {
     return value.isEmpty() ? null : value;
 }
 
-public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
-        PurchaseFilter status,
-        String orderCode,
-        String customerCode,
-        String shipmentCode,
-        Pageable pageable
-) {
-    Account currentAccount = accountUtils.getAccountCurrent();
+ public Page<PurchasePendingShipment> getPurchasesWithFilteredOrderLinks(
+            PurchaseFilter status,
+            String orderCode,
+            String customerCode,
+            String shipmentCode,
+            Pageable pageable
+    ) {
 
+        Account currentAccount = accountUtils.getAccountCurrent();
 
-    Set<Long> routeIds = accountRouteRepository
-            .findByAccountAccountId(currentAccount.getAccountId())
-            .stream()
-            .map(AccountRoute::getRoute)
-            .map(Route::getRouteId)
-            .collect(Collectors.toSet());
+        // 1️⃣ Lấy routeIds
+        Set<Long> routeIds =
+                accountRouteRepository
+                        .findByAccountAccountId(currentAccount.getAccountId())
+                        .stream()
+                        .map(AccountRoute::getRoute)
+                        .map(Route::getRouteId)
+                        .collect(Collectors.toSet());
 
-    if (routeIds.isEmpty()) {
-        return Page.empty(pageable);
-    }
+        if (routeIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
 
-    // 🔹 Normalize input (KHÔNG gán lại biến gốc)
-    final String normalizedOrderCode = normalize(orderCode);
-    final String normalizedCustomerCode = normalize(customerCode);
-    final String normalizedShipmentCode = normalize(shipmentCode);
-    final String statusValue = status == null ? null : status.name();
+        // 2️⃣ Normalize input
+        String normalizedOrderCode = normalize(orderCode);
+        String normalizedCustomerCode = normalize(customerCode);
+        String normalizedShipmentCode = normalize(shipmentCode).toUpperCase();
+        String statusValue = status == null ? null : status.name();
 
-    // 🔹 Query DB
-    Page<Purchases> purchasesPage =
-            purchasesRepository.findPurchasesWithFilteredOrderLinks(
-                    routeIds,
-                    statusValue,
-                    normalizedOrderCode,
-                    normalizedCustomerCode,
-                    normalizedShipmentCode,
-                    pageable
-            );
+        // 3️⃣ Query purchase IDs (NHẸ – PAGING CHUẨN)
+        Page<Long> purchaseIdPage =
+                purchasesRepository.findPurchaseIdsFiltered(
+                        routeIds,
+                        statusValue,
+                        normalizedOrderCode,
+                        normalizedCustomerCode,
+                        normalizedShipmentCode,
+                        pageable
+                );
 
-    // 🔹 Map sang DTO
-    return purchasesPage.map(purchase -> {
+        if (purchaseIdPage.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
 
-        List<OrderLinkPending> pendingLinks = purchase.getOrderLinks()
-                .stream()
-                .filter(ol ->
-                        // filter status
-                        (statusValue == null || ol.getStatus().name().equals(statusValue))
-                        // filter shipmentCode
-                        && (normalizedShipmentCode == null
-                            || (ol.getShipmentCode() != null
-                                && ol.getShipmentCode()
-                                     .toLowerCase()
-                                     .contains(normalizedShipmentCode)))
-                )
-                .map(OrderLinkPending::new)
-                .toList();
+        List<Long> purchaseIds = purchaseIdPage.getContent();
 
-        return new PurchasePendingShipment(purchase, pendingLinks);
-    });
+            if (purchaseIds.isEmpty()) {
+                return new PageImpl<>(
+                        List.of(),
+                        pageable,
+                        purchaseIdPage.getTotalElements()
+                );
+            };
+
+        // 4️⃣ Load purchases (KHÔNG join orderLinks)
+        List<Purchases> purchases =
+                purchasesRepository.findByIds(purchaseIds);
+
+        // giữ đúng thứ tự paging
+        Map<Long, Purchases> purchaseMap =
+                purchases.stream()
+                        .collect(Collectors.toMap(
+                                Purchases::getPurchaseId,
+                                p -> p
+                        ));
+            OrderLinkStatus linkStatus = null;
+
+            if (status != null) {
+                linkStatus = OrderLinkStatus.valueOf(status.name());
 }
+        // 5️⃣ Load OrderLinks (DTO – chỉ field cần)
+       List<OrderLinkPending> links;
 
+        if (normalizedShipmentCode != null) {
+            links = orderLinksRepository.findPendingLinksWithShipmentCode(
+                    purchaseIds,
+                    linkStatus,
+                    normalizedShipmentCode
+            );
+        } else {
+            links = orderLinksRepository.findPendingLinksNoShipmentCode(
+                    purchaseIds,
+                    linkStatus
+            );
+        }
+        // 6️⃣ Group links theo purchaseId
+        Map<Long, List<OrderLinkPending>> linkMap =
+                links.stream()
+                        .collect(Collectors.groupingBy(
+                                OrderLinkPending::getPurchaseId
+                        ));
+
+        // 7️⃣ Merge thành DTO cuối
+        List<PurchasePendingShipment> content =
+                purchaseIds.stream()
+                        .map(id -> {
+                            Purchases p = purchaseMap.get(id);
+                            List<OrderLinkPending> pendingLinks =
+                                    linkMap.getOrDefault(id, List.of());
+                            return new PurchasePendingShipment(p, pendingLinks);
+                        })
+                        .toList();
+
+        return new PageImpl<>(
+                content,
+                pageable,
+                purchaseIdPage.getTotalElements()
+        );
+    }
+  
   @Transactional
     public Purchases updatePurchase(Long purchaseId, UpdatePurchaseRequest request) {
 
