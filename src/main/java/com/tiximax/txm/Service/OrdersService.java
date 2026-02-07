@@ -513,7 +513,7 @@ public Orders addConsignment(
         return detail;
     }
 
-    public Page<OrderWithLinks> getOrdersWithLinksForPurchaser(
+  public Page<OrderWithLinks> getOrdersWithLinksForPurchaser(
         Pageable pageable,
         OrderType orderType,
         String orderCode,
@@ -525,24 +525,22 @@ public Orders addConsignment(
         throw new AccessDeniedException("Chỉ nhân viên mua hàng mới có quyền truy cập!");
     }
 
-    List<AccountRoute> accountRoutes =
-            accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
-
-    Set<Long> routeIds = accountRoutes.stream()
-            .map(AccountRoute::getRoute)
-            .map(Route::getRouteId)
-            .collect(Collectors.toSet());
+    // 1️⃣ Lấy routeIds
+    Set<Long> routeIds =
+            accountRouteRepository
+                    .findByAccountAccountId(currentAccount.getAccountId())
+                    .stream()
+                    .map(AccountRoute::getRoute)
+                    .map(Route::getRouteId)
+                    .collect(Collectors.toSet());
 
     if (routeIds.isEmpty()) {
         return Page.empty(pageable);
     }
 
-    if (orderCode != null && orderCode.trim().isEmpty()) {
-        orderCode = null;
-    }
-    if (customerCode != null && customerCode.trim().isEmpty()) {
-        customerCode = null;
-    }
+    // normalize search
+    orderCode = (orderCode != null && orderCode.trim().isEmpty()) ? null : orderCode;
+    customerCode = (customerCode != null && customerCode.trim().isEmpty()) ? null : customerCode;
 
     Sort sort = Sort.by(Sort.Order.desc("pinnedAt").nullsLast())
             .and(Sort.by(Sort.Order.desc("createdAt")));
@@ -550,8 +548,9 @@ public Orders addConsignment(
     Pageable customPageable =
             PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
 
-    Page<Orders> ordersPage =
-            ordersRepository.findByRouteAndStatusAndTypeWithSearch(
+    // 2️⃣ Query Orders bằng DTO
+    Page<OrderSummaryDTO> ordersPage =
+            ordersRepository.findOrderSummaryForPurchaser(
                     routeIds,
                     OrderStatus.CHO_MUA,
                     orderType,
@@ -560,26 +559,53 @@ public Orders addConsignment(
                     customPageable
             );
 
-    return ordersPage.map(orders -> {
-        OrderWithLinks dto = new OrderWithLinks(orders);
+    if (ordersPage.isEmpty()) {
+        return Page.empty(customPageable);
+    }
 
-        List<OrderLinks> sortedLinks = new ArrayList<>(orders.getOrderLinks());
-        sortedLinks.sort(
-                Comparator.comparing((OrderLinks link) -> {
-                    if (link.getStatus() == OrderLinkStatus.CHO_MUA) return 0;
-                    if (link.getStatus() == OrderLinkStatus.DA_MUA) return 1;
-                    return 2;
-                }).thenComparing(
-                        OrderLinks::getGroupTag,
-                        Comparator.nullsLast(Comparator.naturalOrder())
-                )
-        );
+    // 3️⃣ Lấy orderIds
+    List<Long> orderIds =
+            ordersPage.getContent()
+                    .stream()
+                    .map(OrderSummaryDTO::getOrderId)
+                    .toList();
 
-        dto.setOrderLinks(sortedLinks);
-        dto.setPinnedAt(orders.getPinnedAt());
+    // 4️⃣ Query OrderLinks DTO
+    List<OrderLinkSummaryDTO> links =
+            orderLinksRepository.findOrderLinkSummaryByOrderIds(orderIds);
+
+    // 5️⃣ Group links theo orderId
+    Map<Long, List<OrderLinkSummaryDTO>> linkMap =
+            links.stream()
+                    .collect(Collectors.groupingBy(OrderLinkSummaryDTO::getOrderId));
+
+    // 6️⃣ Map sang OrderWithLinks
+    return ordersPage.map(order -> {
+        OrderWithLinks dto = new OrderWithLinks(order);
+
+        List<OrderLinkSummaryDTO> sortedLinks =
+                linkMap.getOrDefault(order.getOrderId(), List.of())
+                        .stream()
+                        .sorted(
+                                Comparator
+                                        .comparing((OrderLinkSummaryDTO l) -> {
+                                            if (l.getStatus() == OrderLinkStatus.CHO_MUA) return 0;
+                                            if (l.getStatus() == OrderLinkStatus.DA_MUA) return 1;
+                                            return 2;
+                                        })
+                                        .thenComparing(
+                                                OrderLinkSummaryDTO::getGroupTag,
+                                                Comparator.nullsLast(Comparator.naturalOrder())
+                                        )
+                        )
+                        .toList();
+
+        dto.setOrderLinkSummaries(sortedLinks);
+        dto.setPinnedAt(order.getPinnedAt());
         return dto;
     });
 }
+
 
     public OrderLinkWithStaff getOrderLinkById(Long orderLinkId) {
 //        OrderLinks orderLink = orderLinksRepository.findById(orderLinkId)

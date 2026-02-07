@@ -4,6 +4,7 @@ import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.OrderLinkStatus;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderLinkSummaryDTO;
 import com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -256,7 +257,38 @@ List<OrderLinkPending> findPendingLinksNoShipmentCode(
         @Param("purchaseIds") List<Long> purchaseIds,
         @Param("status") OrderLinkStatus status
 );
-@Query("""
+ @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending(
+            ol.linkId,
+            ol.productName,
+            ol.quantity,
+            ol.shipmentCode,
+            ol.shipWeb,
+            ol.website,
+            ol.classify,
+            ol.purchaseImage,
+            ol.trackingCode,
+            ol.status,
+            c.customerCode,
+            c.name,
+            s.staffCode,
+            s.name,
+            ol.purchase.purchaseId
+        )
+        FROM OrderLinks ol
+        JOIN ol.orders o
+        JOIN o.customer c
+        JOIN o.staff s
+        WHERE ol.purchase.purchaseId IN :purchaseIds
+          AND (:status IS NULL OR ol.status = :status)
+          AND (:shipmentCode IS NULL OR ol.shipmentCode LIKE CONCAT('%', :shipmentCode, '%'))
+    """)
+    List<OrderLinkPending> findOrderLinkPendingDTO(
+            @Param("purchaseIds") List<Long> purchaseIds,
+            @Param("status") OrderLinkStatus status,
+            @Param("shipmentCode") String shipmentCode
+    );
+    @Query("""
     SELECT new com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending(
         ol.linkId,
         ol.productName,
@@ -268,24 +300,46 @@ List<OrderLinkPending> findPendingLinksNoShipmentCode(
         ol.purchaseImage,
         ol.trackingCode,
         ol.status,
-        ol.orders.customer.customerCode,
-        ol.orders.customer.name,
-        ol.orders.staff.staffCode,
-        ol.orders.staff.name,
+        c.customerCode,
+        c.name,
+        s.staffCode,
+        s.name,
         ol.purchase.purchaseId
     )
-      FROM OrderLinks ol
+    FROM OrderLinks ol
+    JOIN ol.orders o
+    JOIN o.customer c
+    JOIN o.staff s
     WHERE ol.purchase.purchaseId IN :purchaseIds
       AND (:status IS NULL OR ol.status = :status)
-      AND (
-            :shipmentCode IS NULL
-            OR ol.shipmentCode LIKE CONCAT('%', :shipmentCode, '%')
-      )
 """)
-List<OrderLinkPending> findPendingLinksWithShipmentCode(
+List<OrderLinkPending> findOrderLinkPendingWithoutShipmentCode(
         @Param("purchaseIds") List<Long> purchaseIds,
-        @Param("status") OrderLinkStatus status,
-        @Param("shipmentCode") String shipmentCode
+        @Param("status") OrderLinkStatus status
 );
+
+
+        @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderLinkSummaryDTO(
+                ol.linkId,
+                ol.productName,
+                ol.quantity,
+                ol.shipmentCode,
+                ol.shipWeb,
+                ol.website,
+                ol.classify,
+                ol.purchaseImage,
+                ol.trackingCode,
+                ol.status,
+                ol.groupTag,
+                ol.orders.orderId
+        )
+        FROM OrderLinks ol
+        WHERE ol.orders.orderId IN :orderIds
+        """)
+        List<OrderLinkSummaryDTO> findOrderLinkSummaryByOrderIds(
+                @Param("orderIds") List<Long> orderIds
+        );
+
 }
 

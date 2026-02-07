@@ -1017,12 +1017,9 @@ private DraftDomesticResponse mapToResponseWithRoundedWeight(DraftDomestic draft
 public void syncDraftDomesticStatus(String shipCode) {
 
     DraftDomestic draft = draftDomesticRepository
-            .findByShipCode(shipCode)
-            .orElseThrow(() ->
-                    new NotFoundException("Không tìm thấy DraftDomestic!")
-            );
+        .findByShipCode(shipCode)
+        .orElse(null);
 
-    // 1️⃣ Lấy shipmentCode từ DB
     List<String> shipmentCodes =
             draftDomesticShipmentRepository
                     .findShipmentCodesByShipCode(shipCode);
