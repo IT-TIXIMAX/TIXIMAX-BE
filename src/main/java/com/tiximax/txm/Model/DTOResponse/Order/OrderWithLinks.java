@@ -10,11 +10,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
 @Getter
 @Setter
-
 public class OrderWithLinks {
+
     private Long orderId;
     private String orderCode;
     private OrderType orderType;
@@ -23,8 +22,12 @@ public class OrderWithLinks {
     private BigDecimal exchangeRate;
     private BigDecimal finalPriceOrder;
     private Boolean checkRequired;
-    private List<OrderLinks> orderLinks;
     private LocalDateTime pinnedAt;
+
+    private List<OrderLinks> orderLinks;
+
+    public OrderWithLinks() {
+    }
 
     public OrderWithLinks(Orders order) {
         this.orderId = order.getOrderId();
@@ -35,11 +38,47 @@ public class OrderWithLinks {
         this.exchangeRate = order.getExchangeRate();
         this.finalPriceOrder = order.getFinalPriceOrder();
         this.checkRequired = order.getCheckRequired();
+        this.pinnedAt = order.getPinnedAt();
         this.orderLinks = new ArrayList<>(order.getOrderLinks());
+    }
+
+       public OrderWithLinks(OrderSummaryDTO order) {
+        this.orderId = order.getOrderId();
+        this.orderCode = order.getOrderCode();
+        this.orderType = order.getOrderType();
+        this.status = order.getStatus();
+        this.createdAt = order.getCreatedAt();
+        this.exchangeRate = order.getExchangeRate();
+        this.finalPriceOrder = order.getFinalPriceOrder();
+        this.checkRequired = order.getCheckRequired();
         this.pinnedAt = order.getPinnedAt();
     }
 
-    public void setOrderLinks(List<OrderLinks> orderLinks) {
-        this.orderLinks = orderLinks != null ? new ArrayList<>(orderLinks) : null;
+    // ✅ MỚI: setter cho DTO
+    public void setOrderLinkSummaries(List<OrderLinkSummaryDTO> links) {
+        if (links == null) {
+            this.orderLinks = null;
+            return;
+        }
+
+        // map DTO -> Entity-lite (KHÔNG attach Hibernate)
+        this.orderLinks =
+                links.stream()
+                        .map(dto -> {
+                            OrderLinks ol = new OrderLinks();
+                            ol.setLinkId(dto.getLinkId());
+                            ol.setProductName(dto.getProductName());
+                            ol.setQuantity(dto.getQuantity());
+                            ol.setShipmentCode(dto.getShipmentCode());
+                            ol.setShipWeb(dto.getShipWeb());
+                            ol.setWebsite(dto.getWebsite());
+                            ol.setClassify(dto.getClassify());
+                            ol.setPurchaseImage(dto.getPurchaseImage());
+                            ol.setTrackingCode(dto.getTrackingCode());
+                            ol.setStatus(dto.getStatus());
+                            ol.setGroupTag(dto.getGroupTag());
+                            return ol;
+                        })
+                        .toList();
     }
 }

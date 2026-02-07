@@ -2,6 +2,7 @@ package com.tiximax.txm.Repository;
 
 import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Purchases;
+import com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 import com.tiximax.txm.Model.EnumFilter.PurchaseFilter;
 
@@ -444,56 +445,64 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
     );
 
     @Query(
-    value = """
-        SELECT DISTINCT p.purchase_id
-        FROM purchases p
-        JOIN orders o ON o.order_id = p.order_id
-        JOIN customer c ON c.account_id = o.customer_id
-        JOIN order_links ol
-            ON ol.purchase_id = p.purchase_id
-           AND (
-                (:status IS NULL AND ol.status IN ('DA_NHAP_KHO_NN', 'DA_MUA', 'DAU_GIA_THANH_CONG'))
-                OR (:status IS NOT NULL AND ol.status = :status)
-           )
-        WHERE o.route_id IN :routeIds
-          AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
-          AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
-          AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
-        ORDER BY p.purchase_id DESC
+        value = """
+            SELECT DISTINCT p.purchase_id
+            FROM purchases p
+            JOIN orders o ON o.order_id = p.order_id
+            JOIN customer c ON c.account_id = o.customer_id
+            JOIN order_links ol
+                ON ol.purchase_id = p.purchase_id
+            WHERE o.route_id IN :routeIds
+              AND o.status NOT IN ('DA_GIAO','DA_HUY','DANG_XU_LY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
+              AND (:status IS NULL OR ol.status = :status)
+              AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
+              AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
+              AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
+            ORDER BY p.purchase_id DESC
         """,
-    countQuery = """
-    SELECT COUNT(DISTINCT p.purchase_id)
-    FROM purchases p
-    JOIN orders o ON o.order_id = p.order_id
-    JOIN customer c ON c.account_id = o.customer_id
-    JOIN order_links ol
-        ON ol.purchase_id = p.purchase_id
-       AND (
-            (:status IS NULL AND ol.status IN ('DA_NHAP_KHO_NN', 'DA_MUA', 'DAU_GIA_THANH_CONG'))
-            OR (:status IS NOT NULL AND ol.status = :status)
-       )
-    WHERE o.route_id IN :routeIds
-      AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
-      AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
-      AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
-""",
-    nativeQuery = true
-)
-Page<Long> findPurchaseIdsFiltered(
-        Set<Long> routeIds,
-        String status,
-        String orderCode,
-        String customerCode,
-        String shipmentCode,
-        Pageable pageable
-);
+        countQuery = """
+            SELECT COUNT(DISTINCT p.purchase_id)
+            FROM purchases p
+            JOIN orders o ON o.order_id = p.order_id
+            JOIN customer c ON c.account_id = o.customer_id
+            JOIN order_links ol
+                ON ol.purchase_id = p.purchase_id
+            WHERE o.route_id IN :routeIds
+              AND o.status NOT IN ('DA_GIAO','DA_HUY','DANG_XU_LY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
+              AND (:status IS NULL OR ol.status = :status)
+              AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
+              AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
+              AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
+        """,
+        nativeQuery = true
+    )
+    Page<Long> findPurchaseIdsFiltered(
+            @Param("routeIds") Set<Long> routeIds,
+            @Param("status") String status,
+            @Param("orderCode") String orderCode,
+            @Param("customerCode") String customerCode,
+            @Param("shipmentCode") String shipmentCode,
+            Pageable pageable
+    );
 
-@Query("""
-    SELECT p
-    FROM Purchases p
-    WHERE p.purchaseId IN :ids
-    ORDER BY p.purchaseId DESC
-""")
-List<Purchases> findByIds(@Param("ids") List<Long> ids);
-
+ @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment(
+            p.purchaseId,
+            p.purchaseCode,
+            p.purchaseTime,
+            p.purchaseImage,
+            p.finalPriceOrder,
+            o.orderId,
+            o.orderCode,
+            s.name,
+            p.note
+        )
+        FROM Purchases p
+        JOIN p.orders o
+        JOIN o.staff s
+        WHERE p.purchaseId IN :purchaseIds
+    """)
+    List<PurchasePendingShipment> findPurchasePendingDTO(
+            @Param("purchaseIds") List<Long> purchaseIds
+    );
 }

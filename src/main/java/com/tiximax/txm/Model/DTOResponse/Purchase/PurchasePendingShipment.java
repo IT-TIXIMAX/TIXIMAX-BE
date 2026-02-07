@@ -21,7 +21,7 @@ import java.util.List;
 
 public class PurchasePendingShipment {
 
-    private Long purchaseId;
+     private Long purchaseId;
     private String purchaseCode;
     private LocalDateTime purchaseTime;
     private String purchaseImage;
@@ -32,7 +32,7 @@ public class PurchasePendingShipment {
     private String staffName;
     private String note;
 
-    private List<OrderLinkPending> pendingLinks = new ArrayList<>();
+    private List<OrderLinkPending> pendingLinks;
 
     public PurchasePendingShipment(
             Long purchaseId,
@@ -44,6 +44,7 @@ public class PurchasePendingShipment {
             String orderCode,
             String staffName,
             String note
+            
     ) {
         this.purchaseId = purchaseId;
         this.purchaseCode = purchaseCode;
@@ -54,6 +55,7 @@ public class PurchasePendingShipment {
         this.orderCode = orderCode;
         this.staffName = staffName;
         this.note = note;
+        this.pendingLinks = new ArrayList<>();
     }
     public PurchasePendingShipment(
         Purchases purchase,
