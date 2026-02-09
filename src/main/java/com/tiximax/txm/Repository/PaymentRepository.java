@@ -7,6 +7,7 @@ import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.RoutePaymentSummary;
 
+import com.tiximax.txm.Model.DTOResponse.Payment.DailyPaymentRevenue;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -203,4 +204,41 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 
+    @Query(value = """
+    WITH ds AS (
+        SELECT
+            DATE(p.action_at) AS payment_date,
+            SUM(COALESCE(p.collected_amount, 0)) AS revenue
+        FROM payment p
+        WHERE p.status = 'DA_THANH_TOAN'
+          AND p.action_at BETWEEN :startDate AND :endDate
+        GROUP BY DATE(p.action_at)
+    )
+    SELECT payment_date, revenue
+    FROM ds
+    ORDER BY payment_date ASC
+    """, nativeQuery = true)
+    List<Object[]> getDailyPaymentRevenueNative(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query(value = """
+    WITH ds AS (
+        SELECT
+            DATE(p.action_at) AS payment_date,
+            SUM(COALESCE(p.collected_amount, 0)) AS revenue
+        FROM payment p
+        WHERE p.status = 'DA_THANH_TOAN_SHIP'
+          AND p.action_at BETWEEN :startDate AND :endDate
+        GROUP BY DATE(p.action_at)
+    )
+    SELECT payment_date, revenue
+    FROM ds
+    ORDER BY payment_date ASC
+    """, nativeQuery = true)
+    List<Object[]> getDailyPaymentShippingNative(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 }
