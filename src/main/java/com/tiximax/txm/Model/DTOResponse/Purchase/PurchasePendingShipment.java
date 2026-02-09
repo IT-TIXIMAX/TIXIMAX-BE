@@ -21,7 +21,7 @@ import java.util.List;
 
 public class PurchasePendingShipment {
 
-     private Long purchaseId;
+    private Long purchaseId;
     private String purchaseCode;
     private LocalDateTime purchaseTime;
     private String purchaseImage;

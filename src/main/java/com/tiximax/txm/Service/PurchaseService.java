@@ -683,4 +683,57 @@ if (normalizedShipmentCode != null) {
         return v.setScale(1, RoundingMode.HALF_UP);
     }
 
+    public Page<PurchasePendingShipment> getPurchasesPendingInvoice(
+            Pageable pageable,
+            String orderCode,
+            String customerCode,
+            String shipmentCode) {
+
+        Long currentAccountId = accountUtils.getAccountCurrent().getAccountId();
+
+        Page<Long> idsPage = purchasesRepository.findPurchaseIdsPendingInvoice(
+                currentAccountId,
+                orderCode,
+                customerCode,
+                shipmentCode,
+                pageable
+        );
+
+        if (idsPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        List<Long> purchaseIds = idsPage.getContent();
+
+        List<Object[]> rawResults = purchasesRepository.findPurchasePendingInvoiceRaw(purchaseIds);
+
+        List<PurchasePendingShipment> dtos = rawResults.stream()
+                .map(row -> new PurchasePendingShipment(
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        ((Timestamp) row[2]).toLocalDateTime(),
+                        (String) row[3],
+                        (BigDecimal) row[4],
+                        ((Number) row[5]).longValue(),
+                        (String) row[6],
+                        (String) row[7],
+                        (String) row[8]
+                ))
+                .collect(Collectors.toList());
+
+        List<OrderLinkPending> allLinks = orderLinksRepository.findOrderLinkPendingWithoutShipmentCode(
+                purchaseIds,
+                null
+        );
+
+        Map<Long, List<OrderLinkPending>> linksByPurchase = allLinks.stream()
+                .collect(Collectors.groupingBy(OrderLinkPending::getPurchaseId));
+
+        for (PurchasePendingShipment dto : dtos) {
+            List<OrderLinkPending> links = linksByPurchase.getOrDefault(dto.getPurchaseId(), Collections.emptyList());
+            dto.setPendingLinks(links);
+        }
+
+        return new PageImpl<>(dtos, pageable, idsPage.getTotalElements());
+    }
 }

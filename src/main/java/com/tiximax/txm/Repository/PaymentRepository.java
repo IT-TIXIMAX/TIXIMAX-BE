@@ -7,6 +7,7 @@ import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.RoutePaymentSummary;
 
+import com.tiximax.txm.Model.DTOResponse.Payment.DailyPaymentRevenue;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -167,40 +168,63 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         );
 
     @Query(value = """
-    SELECT 
-        r.name AS route_name,
-        COALESCE(SUM(combined.revenue), 0) AS total_revenue
-    FROM route r
-    LEFT JOIN (
-        SELECT 
-            o.route_id, 
-            p.collected_amount AS revenue
-        FROM payment p
-        INNER JOIN orders o ON p.order_id = o.order_id
-        WHERE p.status = :status 
-          AND p.action_at BETWEEN :start AND :end
-        UNION ALL
-        SELECT 
-            o.route_id, 
-            p.collected_amount / cnt.num_orders AS revenue
-        FROM payment p
-        INNER JOIN payment_orders po ON p.payment_id = po.payment_id
-        INNER JOIN orders o ON po.order_id = o.order_id
-        INNER JOIN (
-            SELECT payment_id, COUNT(*) AS num_orders
-            FROM payment_orders
-            GROUP BY payment_id
-        ) cnt ON p.payment_id = cnt.payment_id
-        WHERE p.order_id IS NULL
-          AND p.status = :status 
-          AND p.action_at BETWEEN :start AND :end
-    ) combined ON combined.route_id = r.route_id
-    GROUP BY r.route_id, r.name
-    ORDER BY total_revenue DESC
+            WITH raw AS
+            (SELECT DISTINCT p.payment_id,
+                r.name AS route_name,
+                p.collected_amount AS revenue
+            FROM payment p
+            LEFT JOIN partial_shipment ps ON ps.payment_id = p.payment_id
+            LEFT JOIN order_links ol ON ol.partial_shipment_id = ps.id
+            LEFT JOIN orders o ON o.order_id  = ol.order_id
+            LEFT JOIN route r ON r.route_id = o.route_id
+            WHERE p.action_at BETWEEN :start AND :end
+            AND p.status = :status
+            )
+            SELECT route_name,
+                sum(coalesce(revenue)) as total_revenue
+            FROM raw
+            GROUP by 1
     """, nativeQuery = true)
     List<Object[]> sumCollectedAmountByRouteNativeRaw(
             @Param("status") String status,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 
+    @Query(value = """
+    WITH ds AS (
+        SELECT
+            DATE(p.action_at) AS payment_date,
+            SUM(COALESCE(p.collected_amount, 0)) AS revenue
+        FROM payment p
+        WHERE p.status = 'DA_THANH_TOAN'
+          AND p.action_at BETWEEN :startDate AND :endDate
+        GROUP BY DATE(p.action_at)
+    )
+    SELECT payment_date, revenue
+    FROM ds
+    ORDER BY payment_date ASC
+    """, nativeQuery = true)
+    List<Object[]> getDailyPaymentRevenueNative(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query(value = """
+    WITH ds AS (
+        SELECT
+            DATE(p.action_at) AS payment_date,
+            SUM(COALESCE(p.collected_amount, 0)) AS revenue
+        FROM payment p
+        WHERE p.status = 'DA_THANH_TOAN_SHIP'
+          AND p.action_at BETWEEN :startDate AND :endDate
+        GROUP BY DATE(p.action_at)
+    )
+    SELECT payment_date, revenue
+    FROM ds
+    ORDER BY payment_date ASC
+    """, nativeQuery = true)
+    List<Object[]> getDailyPaymentShippingNative(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 }

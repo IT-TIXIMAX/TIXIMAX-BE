@@ -153,4 +153,19 @@ public ResponseEntity<Page<PurchasePendingShipment>> getPendingShipmentFullPurch
         Purchases updated = purchaseService.updatePurchase(purchaseId, request);
         return ResponseEntity.ok(updated);
     }
+
+    @PreAuthorize("hasAnyRole('STAFF_PURCHASER')")
+    @GetMapping("/pending-invoice/{page}/{size}")
+    public ResponseEntity<Page<PurchasePendingShipment>> getPurchasesPendingInvoice(
+            @PathVariable int page,
+            @PathVariable int size,
+            @RequestParam(required = false) String orderCode,
+            @RequestParam(required = false) String customerCode,
+            @RequestParam(required = false) String shipmentCode) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<PurchasePendingShipment> result = purchaseService.getPurchasesPendingInvoice(pageable, orderCode, customerCode, shipmentCode);
+        return ResponseEntity.ok(result);
+    }
 }

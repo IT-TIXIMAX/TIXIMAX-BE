@@ -505,4 +505,67 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
     List<PurchasePendingShipment> findPurchasePendingDTO(
             @Param("purchaseIds") List<Long> purchaseIds
     );
+
+    @Query(
+            value = """
+        SELECT p.purchase_id
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN customer c ON c.account_id = o.customer_id
+        JOIN account_route ar ON ar.route_id = o.route_id
+        LEFT JOIN order_links ol ON ol.purchase_id = p.purchase_id
+        WHERE p.invoice IS NULL
+          AND p.is_purchased = true
+          AND ar.account_id = :accountId
+          AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
+          AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
+          AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
+        ORDER BY p.purchase_time DESC
+        """,
+            countQuery = """
+        SELECT COUNT(p.purchase_id)
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN customer c ON c.account_id = o.customer_id
+        JOIN account_route ar ON ar.route_id = o.route_id
+        LEFT JOIN order_links ol ON ol.purchase_id = p.purchase_id
+        WHERE p.invoice IS NULL
+          AND p.is_purchased = true
+          AND ar.account_id = :accountId
+          AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
+          AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
+          AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
+        """,
+            nativeQuery = true
+    )
+    Page<Long> findPurchaseIdsPendingInvoice(
+            @Param("accountId") Long accountId,
+            @Param("orderCode") String orderCode,
+            @Param("customerCode") String customerCode,
+            @Param("shipmentCode") String shipmentCode,
+            Pageable pageable
+    );
+
+    @Query(
+            value = """
+        SELECT
+            p.purchase_id,
+            p.purchase_code,
+            p.purchase_time,
+            p.purchase_image,
+            p.final_price_order,
+            o.order_id,
+            o.order_code,
+            acc.name AS staff_name,
+            p.note
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN staff st ON st.account_id = p.staff_id
+        JOIN account acc ON acc.account_id = st.account_id
+        WHERE p.purchase_id IN :purchaseIds
+        ORDER BY p.purchase_time DESC
+        """,
+            nativeQuery = true
+    )
+    List<Object[]> findPurchasePendingInvoiceRaw(@Param("purchaseIds") List<Long> purchaseIds);
 }
