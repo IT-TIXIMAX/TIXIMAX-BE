@@ -28,6 +28,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -1298,8 +1299,13 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         LocalDateTime[] range = getMonthStartEnd(month);
         LocalDateTime startOfMonth = range[0];
         LocalDateTime endOfMonth   = range[1];
-        List<Object[]> rows =
-                ordersRepository.findTopByWeightAndOrderType(startOfMonth, endOfMonth, orderType.name(), limit);
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+        List<Object[]> rows;
+        if (staff.getRole().equals(AccountRoles.MANAGER) || staff.getRole().equals(AccountRoles.ADMIN)){
+            rows = ordersRepository.findTopByWeightAndOrderType(startOfMonth, endOfMonth, null, null, limit);
+        } else {
+            rows = ordersRepository.findTopByWeightAndOrderType(startOfMonth, endOfMonth, orderType.name(), staff.getAccountId(), limit);
+        }
 
         List<TopByWeightAndOrderType> all = rows.stream()
                 .map(r -> TopByWeightAndOrderType.builder()
