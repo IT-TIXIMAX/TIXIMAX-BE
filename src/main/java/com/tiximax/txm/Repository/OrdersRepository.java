@@ -1197,6 +1197,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         LEFT JOIN account staff_acc ON o.staff_id = staff_acc.account_id
         WHERE w.created_at > :startDate
           AND w.created_at < :endDate
+          AND (:staffId IS NULL OR o.staff_id = :staffId)
+          AND (:orderType IS NULL OR o.order_type = :orderType)
         GROUP BY
             o.customer_id,
             o.order_type,
@@ -1220,13 +1222,13 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         rank_         AS rank
     FROM ranked
     WHERE rank_ <= :limit
-      AND order_type = :orderType
-    ORDER BY order_type, rank_
+    ORDER BY rank_
     """, nativeQuery = true)
     List<Object[]> findTopByWeightAndOrderType(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("orderType") String orderType,
+            @Param("staffId") Long staffId,
             @Param("limit") int limit
     );
 
