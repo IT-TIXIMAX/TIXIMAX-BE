@@ -2,12 +2,14 @@ package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.*;
 import com.tiximax.txm.Enums.AccountRoles;
+import com.tiximax.txm.Enums.DraftDomesticStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PaymentPurpose;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Enums.PaymentType;
 import com.tiximax.txm.Enums.ProcessLogAction;
 import com.tiximax.txm.Enums.VoucherType;
+import com.tiximax.txm.Enums.WarehouseStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.OrderLink.ShipmentCodesRequest;
@@ -389,7 +391,6 @@ public class PartialShipmentService {
                 ));
 
     Map<String, BigDecimal> result = new HashMap<>();
-
     for (var shipEntry : grouped.entrySet()) {
 
         String shipCode = shipEntry.getKey();
@@ -517,16 +518,19 @@ public class PartialShipmentService {
         DraftDomestic draftDomestic =
                 draftDomesticService.getDraftDomesticByShipCode(shipCode);
 
+        if(draftDomestic.getStatus() != DraftDomesticStatus.DRAFT) {
+                throw new BadRequestException("Chỉ được tạo thanh toán khi tất cả đơn hàng đã nhập kho VN");
+        }
+
     List<String> allTrackingCodes =
             draftDomesticShipmentRepository
-                    .findShipmentCodesByShipCode(shipCode);
+                .findShipmentCodesByShipCode(shipCode);
     List<PartialShipment> createdPartials = new ArrayList<>();
 
      if (allTrackingCodes == null || allTrackingCodes.isEmpty()) {
             throw new NotFoundException("Không có mã vận đơn nào được chọn!");
         }
         
-        // === Lấy OrderLinks ===
         List<OrderLinks> allLinks =
                 orderLinksRepository.findByShipmentCodeIn(allTrackingCodes);
 
@@ -535,6 +539,26 @@ public class PartialShipmentService {
                     "Không tìm thấy link nào cho các mã vận đơn đã chọn!"
             );
         }
+
+           List<WarehouseStatus> statuses =
+            warehouseRepository.findDistinctStatusesByTrackingCodes(allTrackingCodes);
+
+    if (statuses.isEmpty()) {
+        throw new BadRequestException("Không tìm thấy warehouse cho các mã vận đơn");
+    }
+
+    // nếu có nhiều hơn 1 status → reject
+    if (statuses.size() != 1) {
+        throw new BadRequestException(
+                "Các mã vận đơn không cùng trạng thái warehouse: " + statuses
+        );
+    }
+
+    if (statuses.get(0) != WarehouseStatus.DA_NHAP_KHO_VN) {
+        throw new BadRequestException(
+                "Tất cả mã vận đơn phải ở trạng thái ĐÃ NHẬP KHO VN mới được tạo đơn thanh toán vận chuyển "
+        );
+    }
 
         Map<Orders, List<OrderLinks>> orderToLinksMap =
                 allLinks.stream()

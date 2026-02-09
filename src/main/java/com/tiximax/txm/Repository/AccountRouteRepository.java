@@ -25,6 +25,17 @@ public interface AccountRouteRepository extends JpaRepository<AccountRoute, Long
 
     List<AccountRoute> findByAccount_AccountId(Long accountId);
 
+            @Query("""
+            SELECT ar.route.routeId
+            FROM AccountRoute ar
+            WHERE ar.account.accountId = :accountId
+        """)
+        List<Long> findRouteIdsByAccountId(Long accountId);
+
+
     List<AccountRoute> findByRoute_RouteIdIn(Set<Long> routeIds);
+
+    
+
 }
 
