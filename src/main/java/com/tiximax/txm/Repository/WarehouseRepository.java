@@ -57,6 +57,16 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     List<Warehouse> findAllByStatus(WarehouseStatus warehouseStatus);
 
+    @Query("""
+    SELECT w.status
+    FROM Warehouse w
+    WHERE w.trackingCode IN :trackingCodes
+    GROUP BY w.status
+    """)
+    List<WarehouseStatus> findDistinctStatusesByTrackingCodes(
+            @Param("trackingCodes") List<String> trackingCodes
+    );
+
     @Query("SELECT w FROM Warehouse w WHERE w.trackingCode IN :trackingCodes")
     List<Warehouse> findByTrackingCodeIn(@Param("trackingCodes") List<String> trackingCodes);
 

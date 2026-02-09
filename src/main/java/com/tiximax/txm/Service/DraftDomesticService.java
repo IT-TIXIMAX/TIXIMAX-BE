@@ -936,10 +936,22 @@ public void syncAndLockDraftDomestic() {
         invalidCodes.removeAll(validCodes);
 
         throw new BadRequestException(
-                "Các mã vận đơn không hợp lệ hoặc không ở trạng thái CHO_GIAO: "
+                "Các mã vận đơn không hợp lệ: "
                         + invalidCodes
         );
     }
+
+        List<WarehouseStatus> statuses =
+            warehouseRepository.findDistinctStatusesByTrackingCodes(
+                    new ArrayList<>(inputCodes)
+            );
+
+    if (statuses.size() != 1) {
+        throw new BadRequestException(
+                "Các mã vận đơn không cùng trạng thái. Trạng thái tìm thấy: " + statuses
+        );
+    }
+
     List<String> existedInDraft =
             draftDomesticRepository.findExistingTrackingCodesInDraft(
                     new ArrayList<>(inputCodes)
