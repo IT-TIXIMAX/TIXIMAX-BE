@@ -157,6 +157,84 @@ Page<OrderSummaryDTO> findOrderSummaryForPurchaser(
         Pageable pageable
 );
 
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.checkRequired,
+        o.pinnedAt
+    )
+    FROM Orders o
+    WHERE o.route.routeId IN :routeIds
+      AND o.status = :status
+      AND o.orderType = :orderType
+""")
+Page<OrderSummaryDTO> findOrderSummaryNoSearch(
+        @Param("routeIds") Set<Long> routeIds,
+        @Param("status") OrderStatus status,
+        @Param("orderType") OrderType orderType,
+        Pageable pageable
+);
+
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.checkRequired,
+        o.pinnedAt
+    )
+    FROM Orders o
+    WHERE o.route.routeId IN :routeIds
+      AND o.status = :status
+      AND o.orderType = :orderType
+      AND LOWER(o.orderCode) LIKE LOWER(CONCAT('%', :orderCode, '%'))
+""")
+Page<OrderSummaryDTO> findOrderSummaryByOrderCode(
+        Set<Long> routeIds,
+        OrderStatus status,
+        OrderType orderType,
+        String orderCode,
+        Pageable pageable
+);
+
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.checkRequired,
+        o.pinnedAt
+    )
+    FROM Orders o
+    JOIN o.customer c
+    WHERE o.route.routeId IN :routeIds
+      AND o.status = :status
+      AND o.orderType = :orderType
+      AND LOWER(c.customerCode) LIKE LOWER(CONCAT('%', :customerCode, '%'))
+""")
+Page<OrderSummaryDTO> findOrderSummaryByCustomerCode(
+        Set<Long> routeIds,
+        OrderStatus status,
+        OrderType orderType,
+        String customerCode,
+        Pageable pageable
+);
+
+
 
 
     List<Orders> findByStaff_AccountIdAndRoute_RouteIdInAndCreatedAtBetween(Long accountId, Set<Long> routeIds, LocalDateTime startDate, LocalDateTime endDate);

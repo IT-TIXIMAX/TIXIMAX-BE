@@ -265,6 +265,20 @@ public class DashBoardController {
         return ResponseEntity.ok(result);
     }
 
+     @GetMapping("/purchase-summary")
+    public ResponseEntity<PurchaseDashboard> getPurchaseDashboard() {
+
+        PurchaseDashboard result = dashBoardService.getPurchaseDashboard();
+
+        return ResponseEntity.ok(result);
+    }
+    @GetMapping("/purchase-detail/{page}/{size}")
+    public ResponseEntity<Page<PurchaseDetailDashboard>> getPurchaseDetail(@PathVariable int page, @PathVariable int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<PurchaseDetailDashboard> result = dashBoardService.getPurchaseDetailDashboard(pageable);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/customers/top/{page}/{size}")
     public ResponseEntity<Page<CustomerTop>> getTopCustomers(
             @RequestParam(required = false, defaultValue = "TOTAL_ORDERS")CustomerTopType customerTopType,

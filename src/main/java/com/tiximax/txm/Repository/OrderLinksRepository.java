@@ -4,9 +4,14 @@ import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Warehouse;
 import com.tiximax.txm.Enums.OrderLinkStatus;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.ExchangeMoneySummary;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.PurchaseDetailDashboard;
+import com.tiximax.txm.Model.DTOResponse.DashBoard.PurchaseSummary;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderLinkSummaryDTO;
 import com.tiximax.txm.Model.DTOResponse.OrderLink.OrderLinkPending;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -317,7 +322,90 @@ List<OrderLinkPending> findOrderLinkPendingWithoutShipmentCode(
         @Param("purchaseIds") List<Long> purchaseIds,
         @Param("status") OrderLinkStatus status
 );
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.PurchaseSummary(
 
+        COUNT(ol),
+
+        SUM(CASE
+                WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.CHO_MUA
+                THEN 1 ELSE 0
+            END),
+
+        SUM(CASE
+                WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+                THEN 1 ELSE 0
+            END),
+
+        SUM(CASE
+                WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+                 AND ol.shipmentCode IS NOT NULL
+                 AND ol.shipmentCode <> ''
+                 AND ol.purchase IS NOT NULL
+                THEN 1 ELSE 0
+            END),
+
+        SUM(CASE
+                WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+                 AND (ol.shipmentCode IS NULL OR ol.shipmentCode = '')
+                THEN 1 ELSE 0
+            END)
+    )
+    FROM OrderLinks ol
+    JOIN ol.orders o
+    WHERE o.orderType = com.tiximax.txm.Enums.OrderType.MUA_HO
+    AND o.status IN (
+    com.tiximax.txm.Enums.OrderStatus.CHO_MUA,
+    com.tiximax.txm.Enums.OrderStatus.CHO_NHAP_KHO_NN
+        )
+      AND (
+            :routeIds IS NULL
+            OR o.route.routeId IN :routeIds
+          )
+      AND ol.status IN (
+            com.tiximax.txm.Enums.OrderLinkStatus.CHO_MUA,
+            com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA,
+            com.tiximax.txm.Enums.OrderLinkStatus.MUA_SAU
+      )
+""")
+PurchaseSummary getPurchaseSummary(
+        @Param("routeIds") List<Long> routeIds
+);
+
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.ExchangeMoneySummary(
+
+        COUNT(ol),
+
+        SUM(CASE
+                WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.CHO_MUA
+                THEN 1 ELSE 0
+            END),
+
+        SUM(CASE
+                WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+                THEN 1 ELSE 0
+            END)
+    )
+    FROM OrderLinks ol
+    JOIN ol.orders o
+    WHERE o.orderType = com.tiximax.txm.Enums.OrderType.CHUYEN_TIEN
+    AND o.status IN (
+    com.tiximax.txm.Enums.OrderStatus.CHO_MUA,
+    com.tiximax.txm.Enums.OrderStatus.CHO_NHAP_KHO_NN
+        )
+      AND (
+            :routeIds IS NULL
+            OR o.route.routeId IN :routeIds
+          )
+      AND ol.status IN (
+            com.tiximax.txm.Enums.OrderLinkStatus.CHO_MUA,
+            com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+      )
+""")
+ExchangeMoneySummary getExchangeSummary(
+        @Param("routeIds") List<Long> routeIds
+);
 
         @Query("""
         SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderLinkSummaryDTO(
@@ -340,6 +428,92 @@ List<OrderLinkPending> findOrderLinkPendingWithoutShipmentCode(
         List<OrderLinkSummaryDTO> findOrderLinkSummaryByOrderIds(
                 @Param("orderIds") List<Long> orderIds
         );
+
+@Query(
+    value = """
+        SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.PurchaseDetailDashboard(
+
+            o.customer.customerCode,
+            o.customer.name,
+            o.staff.staffCode,
+            o.staff.name,
+
+            COUNT(ol),
+
+            SUM(CASE
+                    WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.CHO_MUA
+                    THEN 1 ELSE 0
+                END),
+
+            SUM(CASE
+                    WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+                    THEN 1 ELSE 0
+                END),
+
+            SUM(CASE
+                    WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+                     AND ol.shipmentCode IS NOT NULL
+                     AND ol.shipmentCode <> ''
+                     AND ol.purchase IS NOT NULL
+                    THEN 1 ELSE 0
+                END),
+
+            SUM(CASE
+                    WHEN ol.status = com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA
+                     AND (ol.shipmentCode IS NULL OR ol.shipmentCode = '')
+                    THEN 1 ELSE 0
+                END)
+        )
+        FROM OrderLinks ol
+        JOIN ol.orders o
+        WHERE o.orderType = com.tiximax.txm.Enums.OrderType.MUA_HO
+          AND o.status IN (
+                com.tiximax.txm.Enums.OrderStatus.CHO_MUA,
+                com.tiximax.txm.Enums.OrderStatus.CHO_NHAP_KHO_NN
+          )
+          AND (
+                :routeIds IS NULL
+                OR o.route.routeId IN :routeIds
+          )
+          AND ol.status IN (
+                com.tiximax.txm.Enums.OrderLinkStatus.CHO_MUA,
+                com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA,
+                com.tiximax.txm.Enums.OrderLinkStatus.MUA_SAU
+          )
+        GROUP BY
+            o.customer.customerCode,
+            o.customer.name,
+            o.staff.staffCode,
+            o.staff.name
+    """,
+    countQuery = """
+        SELECT COUNT(DISTINCT
+            o.customer.customerCode,
+            o.staff.staffCode
+        )
+        FROM OrderLinks ol
+        JOIN ol.orders o
+        WHERE o.orderType = com.tiximax.txm.Enums.OrderType.MUA_HO
+          AND o.status IN (
+                com.tiximax.txm.Enums.OrderStatus.CHO_MUA,
+                com.tiximax.txm.Enums.OrderStatus.CHO_NHAP_KHO_NN
+          )
+          AND (
+                :routeIds IS NULL
+                OR o.route.routeId IN :routeIds
+          )
+          AND ol.status IN (
+                com.tiximax.txm.Enums.OrderLinkStatus.CHO_MUA,
+                com.tiximax.txm.Enums.OrderLinkStatus.DA_MUA,
+                com.tiximax.txm.Enums.OrderLinkStatus.MUA_SAU
+          )
+    """
+)
+Page<PurchaseDetailDashboard> getPurchaseDetailDashboard(
+        @Param("routeIds") List<Long> routeIds,
+        Pageable pageable
+);
+
 
 }
 

@@ -42,7 +42,9 @@ public class DashBoardService {
 
     @Autowired
     private OrdersRepository ordersRepository;
-
+    
+    @Autowired
+    private AccountRouteRepository accountRouteRepository;
     @Autowired
     private CustomerRepository customerRepository;
 
@@ -1135,6 +1137,23 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         return new InventoryDaily(pending, stock, packed, awaitFlight, pendingByLoc, stockByLoc, packedByLoc, awaitFlightByLoc);
     }
 
+    public PurchaseDashboard getPurchaseDashboard() {
+        List<Long> routeIds = new ArrayList<>();
+        Staff purchaseStaff = (Staff) accountUtils.getAccountCurrent();
+        if(purchaseStaff.getRole() != AccountRoles.STAFF_PURCHASER) {
+            routeIds = null;
+        }
+        routeIds = accountRouteRepository.findRouteIdsByAccountId(purchaseStaff.getAccountId());
+
+        PurchaseSummary summary = orderLinksRepository.getPurchaseSummary(routeIds);
+        ExchangeMoneySummary exchangeMoneySummary = orderLinksRepository.getExchangeSummary(routeIds);
+        PurchaseDashboard dashboard = new PurchaseDashboard();
+        dashboard.purchaseSummary = summary;
+        dashboard.exchangeMoneySummary = exchangeMoneySummary; 
+
+        return dashboard; 
+    }
+
     private PendingSummary getPendingByLocation(Long locId) {
         return ordersRepository.getPendingSummaryByLocationId(locId);
     }
@@ -1264,6 +1283,20 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         }
         return new LocalDateTime[]{start, end};
     }
+      public Page<PurchaseDetailDashboard> getPurchaseDetailDashboard(Pageable page) {
+
+       List<Long> routeIds = new ArrayList<>();
+        Staff purchaseStaff = (Staff) accountUtils.getAccountCurrent();
+        if(purchaseStaff.getRole() != AccountRoles.STAFF_PURCHASER) {
+            routeIds = null;
+        }
+        routeIds = accountRouteRepository.findRouteIdsByAccountId(purchaseStaff.getAccountId());
+
+    return orderLinksRepository.getPurchaseDetailDashboard(routeIds,page);
+}
+
+
+
 
     public Page<InactiveCustomerProjection> getInactiveCustomersByStaff(
             Pageable pageable
