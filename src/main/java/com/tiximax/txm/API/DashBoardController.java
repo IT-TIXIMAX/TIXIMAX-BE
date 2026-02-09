@@ -364,14 +364,12 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
 
     @GetMapping("/top-by-type")
     public ResponseEntity<Map<String, List<TopByWeightAndOrderType>>> getTopByWeightAndOrderType(
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType,
+            @RequestParam(required = false) Integer month,
             @RequestParam(required = false, defaultValue = "MUA_HO") OrderType orderType,
             @RequestParam(defaultValue = "30") int limit) {
 
         Map<String, List<TopByWeightAndOrderType>> result =
-                dashBoardService.getTopByWeightAndOrderType(startDate, endDate, filterType, orderType, limit);
+                dashBoardService.getTopByWeightAndOrderType(month, orderType, limit);
 
         return ResponseEntity.ok(result);
     }

@@ -36,6 +36,7 @@ public class Purchases {
     @Column(name = "is_purchased")
     private Boolean purchased;
 
+    private String invoice;
 
     @ManyToOne
     @JoinColumn(name="staff_id", nullable = false)

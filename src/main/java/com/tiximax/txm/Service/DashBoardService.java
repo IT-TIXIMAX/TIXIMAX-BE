@@ -1274,7 +1274,6 @@ private ExportedQuantity emptyDaily(LocalDate date) {
             return ordersRepository.findInactiveCustomersByStaff(null, inactiveDate, pageable);
         } else if (staff.getRole().equals(AccountRoles.STAFF_SALE)) {
             return ordersRepository.findInactiveCustomersByStaff(staff.getAccountId(), inactiveDate, pageable);
-
 //        } else if (currentAccount.getRole().equals(AccountRoles.LEAD_SALE)) {
 //            List<AccountRoute> accountRoutes = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
 //            Set<Long> routeIds = accountRoutes.stream()
@@ -1292,21 +1291,15 @@ private ExportedQuantity emptyDaily(LocalDate date) {
     }
 
     public Map<String, List<TopByWeightAndOrderType>> getTopByWeightAndOrderType(
-            LocalDate start,
-            LocalDate end,
-            DashboardFilterType filterType,
+            Integer month,
             OrderType orderType,
             int limit
     ) {
-        StartEndDate dateRange = getDateStartEnd(filterType);
-        LocalDate finalStart = start != null ? start : dateRange.getStartDate();
-        LocalDate finalEnd = end != null ? end : dateRange.getEndDate();
-
-        LocalDateTime startDt = finalStart.atStartOfDay();
-        LocalDateTime endDt = finalEnd.plusDays(1).atStartOfDay();
-
+        LocalDateTime[] range = getMonthStartEnd(month);
+        LocalDateTime startOfMonth = range[0];
+        LocalDateTime endOfMonth   = range[1];
         List<Object[]> rows =
-                ordersRepository.findTopByWeightAndOrderType(startDt, endDt, orderType.name(), limit);
+                ordersRepository.findTopByWeightAndOrderType(startOfMonth, endOfMonth, orderType.name(), limit);
 
         List<TopByWeightAndOrderType> all = rows.stream()
                 .map(r -> TopByWeightAndOrderType.builder()
@@ -1329,32 +1322,12 @@ private ExportedQuantity emptyDaily(LocalDate date) {
 
     }
 
-
     public List<DailyPaymentRevenue> getDailyPaymentRevenue(Integer month) {
-        YearMonth now = YearMonth.now();
+        LocalDateTime[] range = getMonthStartEnd(month);
+        LocalDateTime startOfMonth = range[0];
+        LocalDateTime endOfMonth   = range[1];
 
-        if (month == null) {
-            month = now.getMonthValue();
-        }
-
-        if (month < 1 || month > 12) {
-            throw new BadRequestException("month phải từ 1 đến 12");
-        }
-
-        int year = now.getYear();
-        if (month > now.getMonthValue()) {
-            year = year - 1;
-        }
-
-        YearMonth ym = YearMonth.of(year, month);
-
-        LocalDate start = ym.atDay(1);
-        LocalDate end   = ym.atEndOfMonth();
-
-        LocalDateTime startDate = start.atStartOfDay();
-        LocalDateTime endDate   = end.atTime(23, 59, 59);
-
-        List<Object[]> rows = paymentRepository.getDailyPaymentRevenueNative(startDate, endDate);
+        List<Object[]> rows = paymentRepository.getDailyPaymentRevenueNative(startOfMonth, endOfMonth);
 
         return rows.stream()
                 .map(r -> new DailyPaymentRevenue(
@@ -1365,30 +1338,11 @@ private ExportedQuantity emptyDaily(LocalDate date) {
     }
 
     public List<DailyPaymentRevenue> getDailyPaymentShipping(Integer month) {
-        YearMonth now = YearMonth.now();
+        LocalDateTime[] range = getMonthStartEnd(month);
+        LocalDateTime startOfMonth = range[0];
+        LocalDateTime endOfMonth   = range[1];
 
-        if (month == null) {
-            month = now.getMonthValue();
-        }
-
-        if (month < 1 || month > 12) {
-            throw new BadRequestException("month phải từ 1 đến 12");
-        }
-
-        int year = now.getYear();
-        if (month > now.getMonthValue()) {
-            year = year - 1;
-        }
-
-        YearMonth ym = YearMonth.of(year, month);
-
-        LocalDate start = ym.atDay(1);
-        LocalDate end   = ym.atEndOfMonth();
-
-        LocalDateTime startDate = start.atStartOfDay();
-        LocalDateTime endDate   = end.atTime(23, 59, 59);
-
-        List<Object[]> rows = paymentRepository.getDailyPaymentShippingNative(startDate, endDate);
+        List<Object[]> rows = paymentRepository.getDailyPaymentShippingNative(startOfMonth, endOfMonth);
 
         return rows.stream()
                 .map(r -> new DailyPaymentRevenue(
@@ -1397,4 +1351,24 @@ private ExportedQuantity emptyDaily(LocalDate date) {
                 ))
                 .toList();
     }
+
+    private LocalDateTime[] getMonthStartEnd(Integer month) {
+        YearMonth ym = YearMonth.now();
+
+        if (month != null) {
+            if (month < 1 || month > 12) {
+                throw new BadRequestException("Tháng phải từ 1 đến 12");
+            }
+            ym = YearMonth.of(ym.getYear(), month);
+            if (month > YearMonth.now().getMonthValue()) {
+                ym = ym.minusYears(1);
+            }
+        }
+
+        LocalDateTime start = ym.atDay(1).atStartOfDay();
+        LocalDateTime end   = ym.atEndOfMonth().atTime(23, 59, 59);
+
+        return new LocalDateTime[]{start, end};
+    }
+
 }
