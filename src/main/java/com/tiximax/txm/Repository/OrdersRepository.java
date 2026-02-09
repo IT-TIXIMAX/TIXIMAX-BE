@@ -14,6 +14,7 @@ import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderLinkRefund;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO;
 import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
+import com.tiximax.txm.Model.DTOResponse.Order.TopByWeightAndOrderType;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 
 import org.springframework.data.domain.Page;
@@ -24,6 +25,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -1077,28 +1079,77 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("orderId") Long orderId
     );
 
-//    @Query("""
-//    SELECT NEW com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection(
-//        o.customer.accountId,
-//        o.customer.name,
-//        o.staff.accountId,
-//        o.staff.name,
-//        MAX(o.createdAt),
-//        COUNT(o.orderId)
-//    )
-//    FROM Orders o
-//    WHERE (:staffId IS NULL OR o.staff.accountId = :staffId)
-//    GROUP BY
-//        o.customer.accountId,
-//        o.customer.name,
-//        o.staff.accountId,
-//        o.staff.name
-//    HAVING
-//        COUNT(o.orderId) >= 2
-//        AND MAX(o.createdAt) < CURRENT_DATE - INTERVAL '1 month'
-//""")
-//    Page<InactiveCustomerProjection> findInactiveCustomersByStaff(
-//            @Param("staffId") Long staffId,
-//            Pageable pageable
-//    );
+    @Query("""
+    SELECT NEW com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection(
+        c.accountId,
+        c.name,
+        MAX(s.accountId),
+        MAX(s.name),
+        MAX(o.createdAt),
+        COUNT(o.id)
+    )
+    FROM Orders o
+    JOIN Customer c ON o.customer.accountId = c.accountId
+    JOIN Staff s ON o.staff.accountId = s.accountId
+    WHERE (:staffId IS NULL OR s.accountId = :staffId)
+    GROUP BY c.accountId, c.name
+    HAVING COUNT(o.id) >= 2
+       AND MAX(o.createdAt) <= :inactiveDate
+    ORDER BY MAX(o.createdAt) DESC
+""")
+    Page<InactiveCustomerProjection> findInactiveCustomersByStaff(
+            @Param("staffId") Long staffId,
+            @Param("inactiveDate") LocalDateTime inactiveDate,
+            Pageable pageable
+    );
+
+    @Query(value = """
+    WITH ds AS (
+        SELECT
+            o.customer_id,
+            o.order_type,
+            o.staff_id,
+            cust_acc.name AS customer_name,
+            staff_acc.name AS staff_name,
+            SUM(COALESCE(w.net_weight, 0)) AS total_weight
+        FROM orders o
+        LEFT JOIN order_links ol ON o.order_id = ol.order_id
+        LEFT JOIN warehouse w ON w.warehouse_id = ol.warehouse_id
+        LEFT JOIN account cust_acc ON o.customer_id = cust_acc.account_id
+        LEFT JOIN account staff_acc ON o.staff_id = staff_acc.account_id
+        WHERE w.created_at > :startDate
+          AND w.created_at < :endDate
+        GROUP BY
+            o.customer_id,
+            o.order_type,
+            o.staff_id,
+            cust_acc.name,
+            staff_acc.name
+        HAVING SUM(COALESCE(w.net_weight, 0)) > 0
+    ),
+    ranked AS (
+        SELECT *,
+               DENSE_RANK() OVER (PARTITION BY order_type ORDER BY total_weight DESC) AS rank_
+        FROM ds
+    )
+    SELECT
+        customer_id   AS customerId,
+        customer_name AS customerName,
+        staff_id      AS staffId,
+        staff_name    AS staffName,
+        order_type    AS orderType,
+        total_weight  AS totalWeight,
+        rank_         AS rank
+    FROM ranked
+    WHERE rank_ <= :limit
+      AND order_type = :orderType
+    ORDER BY order_type, rank_
+    """, nativeQuery = true)
+    List<Object[]> findTopByWeightAndOrderType(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("orderType") String orderType,
+            @Param("limit") int limit
+    );
+
 }

@@ -13,6 +13,8 @@ import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseSummary;
+import com.tiximax.txm.Model.DTOResponse.Order.TopByWeightAndOrderType;
+import com.tiximax.txm.Model.DTOResponse.Payment.DailyPaymentRevenue;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 import com.tiximax.txm.Model.Projections.CustomerInventoryProjection;
 import com.tiximax.txm.Model.Projections.ExportedQuantityProjection;
@@ -27,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -1261,11 +1264,137 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         return new LocalDateTime[]{start, end};
     }
 
-//    public Page<InactiveCustomerProjection> getInactiveCustomersByStaff(
-//            Pageable pageable
-//    ) {
-//        Staff staff = (Staff) accountUtils.getAccountCurrent();
-//        return ordersRepository.findInactiveCustomersByStaff(staff.getAccountId(), pageable);
-//    }
+    public Page<InactiveCustomerProjection> getInactiveCustomersByStaff(
+            Pageable pageable
+    ) {
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+        LocalDateTime inactiveDate = LocalDateTime.now().minusMonths(1);
+        if (staff.getRole().equals(AccountRoles.ADMIN)
+                || staff.getRole().equals(AccountRoles.MANAGER)) {
+            return ordersRepository.findInactiveCustomersByStaff(null, inactiveDate, pageable);
+        } else if (staff.getRole().equals(AccountRoles.STAFF_SALE)) {
+            return ordersRepository.findInactiveCustomersByStaff(staff.getAccountId(), inactiveDate, pageable);
 
+//        } else if (currentAccount.getRole().equals(AccountRoles.LEAD_SALE)) {
+//            List<AccountRoute> accountRoutes = accountRouteRepository.findByAccountAccountId(currentAccount.getAccountId());
+//            Set<Long> routeIds = accountRoutes.stream()
+//                    .map(AccountRoute::getRoute)
+//                    .map(Route::getRouteId)
+//                    .collect(Collectors.toSet());
+//
+//            if (routeIds.isEmpty()) {
+//                return Page.empty(pageable);
+//            }
+//            return ordersRepository.findByRouteRouteIdInWithFilters(routeIds, shipmentCode, customerCode, orderCode, pageable);
+        } else {
+            throw new AccessDeniedException("Vai trò không hợp lệ!");
+        }
+    }
+
+    public Map<String, List<TopByWeightAndOrderType>> getTopByWeightAndOrderType(
+            LocalDate start,
+            LocalDate end,
+            DashboardFilterType filterType,
+            OrderType orderType,
+            int limit
+    ) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = start != null ? start : dateRange.getStartDate();
+        LocalDate finalEnd = end != null ? end : dateRange.getEndDate();
+
+        LocalDateTime startDt = finalStart.atStartOfDay();
+        LocalDateTime endDt = finalEnd.plusDays(1).atStartOfDay();
+
+        List<Object[]> rows =
+                ordersRepository.findTopByWeightAndOrderType(startDt, endDt, orderType.name(), limit);
+
+        List<TopByWeightAndOrderType> all = rows.stream()
+                .map(r -> TopByWeightAndOrderType.builder()
+                        .customerId(((Number) r[0]).longValue())
+                        .customerName((String) r[1])
+                        .staffId(r[2] != null ? ((Number) r[2]).longValue() : null)
+                        .staffName((String) r[3])
+                        .orderType((String) r[4])
+                        .totalWeight(
+                                r[5] != null
+                                        ? BigDecimal.valueOf(((Number) r[5]).doubleValue())
+                                        : BigDecimal.ZERO
+                        )
+                        .rank(((Number) r[6]).intValue())
+                        .build())
+                .toList();
+
+        return all.stream()
+                .collect(Collectors.groupingBy(TopByWeightAndOrderType::getOrderType));
+
+    }
+
+
+    public List<DailyPaymentRevenue> getDailyPaymentRevenue(Integer month) {
+        YearMonth now = YearMonth.now();
+
+        if (month == null) {
+            month = now.getMonthValue();
+        }
+
+        if (month < 1 || month > 12) {
+            throw new BadRequestException("month phải từ 1 đến 12");
+        }
+
+        int year = now.getYear();
+        if (month > now.getMonthValue()) {
+            year = year - 1;
+        }
+
+        YearMonth ym = YearMonth.of(year, month);
+
+        LocalDate start = ym.atDay(1);
+        LocalDate end   = ym.atEndOfMonth();
+
+        LocalDateTime startDate = start.atStartOfDay();
+        LocalDateTime endDate   = end.atTime(23, 59, 59);
+
+        List<Object[]> rows = paymentRepository.getDailyPaymentRevenueNative(startDate, endDate);
+
+        return rows.stream()
+                .map(r -> new DailyPaymentRevenue(
+                        ((java.sql.Date) r[0]).toLocalDate(),
+                        r[1] != null ? (BigDecimal) r[1] : BigDecimal.ZERO
+                ))
+                .toList();
+    }
+
+    public List<DailyPaymentRevenue> getDailyPaymentShipping(Integer month) {
+        YearMonth now = YearMonth.now();
+
+        if (month == null) {
+            month = now.getMonthValue();
+        }
+
+        if (month < 1 || month > 12) {
+            throw new BadRequestException("month phải từ 1 đến 12");
+        }
+
+        int year = now.getYear();
+        if (month > now.getMonthValue()) {
+            year = year - 1;
+        }
+
+        YearMonth ym = YearMonth.of(year, month);
+
+        LocalDate start = ym.atDay(1);
+        LocalDate end   = ym.atEndOfMonth();
+
+        LocalDateTime startDate = start.atStartOfDay();
+        LocalDateTime endDate   = end.atTime(23, 59, 59);
+
+        List<Object[]> rows = paymentRepository.getDailyPaymentShippingNative(startDate, endDate);
+
+        return rows.stream()
+                .map(r -> new DailyPaymentRevenue(
+                        ((java.sql.Date) r[0]).toLocalDate(),
+                        r[1] != null ? (BigDecimal) r[1] : BigDecimal.ZERO
+                ))
+                .toList();
+    }
 }
