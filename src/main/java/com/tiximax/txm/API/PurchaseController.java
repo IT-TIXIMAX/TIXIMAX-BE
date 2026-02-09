@@ -134,7 +134,6 @@ public ResponseEntity<Page<PurchasePendingShipment>> getPendingShipmentFullPurch
                     customerCode,
                     pageable
             );
-
     return ResponseEntity.ok(result);
 }
     @PreAuthorize("hasAnyRole('STAFF_PURCHASER')")

@@ -12,6 +12,7 @@ import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderLinkRefund;
+import com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO;
 import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
 import com.tiximax.txm.Model.DTOResponse.Order.TopByWeightAndOrderType;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
@@ -114,6 +115,40 @@ List<Orders> findByCustomerCustomerCodeAndStatusIn(String customerCode, List<Ord
       )
 """)
 Page<Orders> findByRouteAndStatusAndTypeWithSearch(
+        @Param("routeIds") Set<Long> routeIds,
+        @Param("status") OrderStatus status,
+        @Param("orderType") OrderType orderType,
+        @Param("orderCode") String orderCode,
+        @Param("customerCode") String customerCode,
+        Pageable pageable
+);
+
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.checkRequired,
+        o.pinnedAt
+    )
+    FROM Orders o
+    WHERE o.route.routeId IN :routeIds
+      AND o.status = :status
+      AND o.orderType = :orderType
+      AND (
+           :orderCode IS NULL
+           OR LOWER(o.orderCode) LIKE LOWER(CONCAT('%', :orderCode, '%'))
+      )
+      AND (
+           :customerCode IS NULL
+           OR LOWER(o.customer.customerCode) LIKE LOWER(CONCAT('%', :customerCode, '%'))
+      )
+""")
+Page<OrderSummaryDTO> findOrderSummaryForPurchaser(
         @Param("routeIds") Set<Long> routeIds,
         @Param("status") OrderStatus status,
         @Param("orderType") OrderType orderType,

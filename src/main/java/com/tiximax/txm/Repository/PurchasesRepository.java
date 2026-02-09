@@ -2,6 +2,7 @@ package com.tiximax.txm.Repository;
 
 import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Purchases;
+import com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 import com.tiximax.txm.Model.EnumFilter.PurchaseFilter;
 
@@ -46,82 +47,245 @@ public interface PurchasesRepository extends JpaRepository<Purchases, Long> {
 
 @Query(
     value = """
-        SELECT * FROM (
-            SELECT DISTINCT
-                p.*,
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM order_links ol2
-                        WHERE ol2.purchase_id = p.purchase_id
-                          AND (ol2.shipment_code IS NULL OR TRIM(ol2.shipment_code) = '')
-                          AND ol2.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG')
-                    ) THEN 0
-                    ELSE 1
-                END AS sort_value
-            FROM purchases p
-            JOIN orders o ON o.order_id = p.order_id
-            JOIN customer c ON c.account_id = o.customer_id
-            JOIN order_links ol ON ol.purchase_id = p.purchase_id
-            WHERE o.route_id IN :routeIds
-              AND (
-                    (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
-                    OR (:status IS NOT NULL AND ol.status = :status)
-                  )
-              AND (
-                    ol.status <> 'DAU_GIA_THANH_CONG'
-                    OR o.status = 'CHO_NHAP_KHO_NN'
-                  )
-              AND p.is_purchased = true
-              AND NOT EXISTS (
-                    SELECT 1
-                    FROM order_links olx
-                    WHERE olx.purchase_id = p.purchase_id
-                      AND olx.shipment_code IS NOT NULL
-                      AND TRIM(olx.shipment_code) <> ''
-              )
-              AND (
-                    :orderCode IS NULL
-                    OR o.order_code ILIKE CONCAT('%', CAST(:orderCode AS TEXT), '%')
-              )
-              AND (
-                    :customerCode IS NULL
-                    OR c.customer_code ILIKE CONCAT('%', CAST(:customerCode AS TEXT), '%')
-              )
-        ) t
-        ORDER BY t.sort_value ASC, t.purchase_id DESC
-        """,
-    countQuery = """
-        SELECT COUNT(DISTINCT p.purchase_id)
+        SELECT p.purchase_id
         FROM purchases p
         JOIN orders o ON o.order_id = p.order_id
         JOIN customer c ON c.account_id = o.customer_id
-        JOIN order_links ol ON ol.purchase_id = p.purchase_id
-        WHERE o.route_id IN :routeIds
-          AND (
-                (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
-                OR (:status IS NOT NULL AND ol.status = :status)
-              )
-         
-          AND (
-                ol.status <> 'DAU_GIA_THANH_CONG'
-                OR o.status = 'CHO_NHAP_KHO_NN'
-              )
-          AND p.is_purchased = true
-          AND NOT EXISTS (
-                SELECT 1
-                FROM order_links olx
-                WHERE olx.purchase_id = p.purchase_id
-                  AND olx.shipment_code IS NOT NULL
-                  AND TRIM(olx.shipment_code) <> ''
+        WHERE p.is_purchased = true
+          AND o.route_id IN :routeIds
+
+          AND EXISTS (
+              SELECT 1
+              FROM order_links ol
+              WHERE ol.purchase_id = p.purchase_id
+                AND (
+                      (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
+                      OR (:status IS NOT NULL AND ol.status = :status)
+                    )
           )
+
+          AND (
+                NOT EXISTS (
+                    SELECT 1
+                    FROM order_links ol3
+                    WHERE ol3.purchase_id = p.purchase_id
+                      AND ol3.status = 'DAU_GIA_THANH_CONG'
+                )
+                OR o.status = 'CHO_NHAP_KHO_NN'
+          )
+
+          AND NOT EXISTS (
+              SELECT 1
+              FROM order_links olx
+              WHERE olx.purchase_id = p.purchase_id
+                AND olx.shipment_code IS NOT NULL
+                AND olx.shipment_code <> ''
+          )
+
           AND (
                 :orderCode IS NULL
-                OR o.order_code ILIKE CONCAT('%', CAST(:orderCode AS TEXT), '%')
+                OR o.order_code ILIKE CONCAT('%', :orderCode, '%')
           )
+
           AND (
                 :customerCode IS NULL
-                OR c.customer_code ILIKE CONCAT('%', CAST(:customerCode AS TEXT), '%')
+                OR c.customer_code ILIKE CONCAT('%', :customerCode, '%')
+          )
+
+        ORDER BY p.purchase_id DESC
+        """,
+    countQuery = """
+        SELECT COUNT(*)
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN customer c ON c.account_id = o.customer_id
+        WHERE p.is_purchased = true
+          AND o.route_id IN :routeIds
+
+          AND EXISTS (
+              SELECT 1
+              FROM order_links ol
+              WHERE ol.purchase_id = p.purchase_id
+                AND (
+                      (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
+                      OR (:status IS NOT NULL AND ol.status = :status)
+                    )
+          )
+
+          AND (
+                NOT EXISTS (
+                    SELECT 1
+                    FROM order_links ol3
+                    WHERE ol3.purchase_id = p.purchase_id
+                      AND ol3.status = 'DAU_GIA_THANH_CONG'
+                )
+                OR o.status = 'CHO_NHAP_KHO_NN'
+          )
+
+          AND NOT EXISTS (
+              SELECT 1
+              FROM order_links olx
+              WHERE olx.purchase_id = p.purchase_id
+                AND olx.shipment_code IS NOT NULL
+                AND olx.shipment_code <> ''
+          )
+
+          AND (
+                :orderCode IS NULL
+                OR o.order_code ILIKE CONCAT('%', :orderCode, '%')
+          )
+
+          AND (
+                :customerCode IS NULL
+                OR c.customer_code ILIKE CONCAT('%', :customerCode, '%')
+          )
+        """,
+    nativeQuery = true
+)
+Page<Long> findPurchaseIdsPendingShipment(
+        @Param("routeIds") Set<Long> routeIds,
+        @Param("status") String status,
+        @Param("orderCode") String orderCode,
+        @Param("customerCode") String customerCode,
+        Pageable pageable
+);
+
+
+
+@Query(
+    value = """
+        SELECT
+            p.purchase_id,
+            p.purchase_code,
+            p.purchase_time,
+            p.purchase_image,
+            p.final_price_order,
+            o.order_id,
+            o.order_code,
+            acc.name,
+            p.note
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN staff st ON st.account_id = p.staff_id
+        JOIN account acc ON acc.account_id = st.account_id
+        WHERE p.purchase_id IN (:purchaseIds)
+        """,
+    nativeQuery = true
+)
+List<Object[]> findPurchaseHeadersRaw(
+        @Param("purchaseIds") Set<Long> purchaseIds
+);
+
+
+
+@Query(
+    value = """
+        SELECT
+            p.*,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM order_links ol2
+                    WHERE ol2.purchase_id = p.purchase_id
+                      AND ol2.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG')
+                      AND (ol2.shipment_code IS NULL OR ol2.shipment_code = '')
+                ) THEN 0
+                ELSE 1
+            END AS sort_value
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN customer c ON c.account_id = o.customer_id
+        WHERE p.is_purchased = true
+          AND o.route_id IN :routeIds
+
+          -- filter theo status
+          AND EXISTS (
+              SELECT 1
+              FROM order_links ol
+              WHERE ol.purchase_id = p.purchase_id
+                AND (
+                      (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
+                      OR (:status IS NOT NULL AND ol.status = :status)
+                    )
+          )
+
+          AND (
+                NOT EXISTS (
+                    SELECT 1
+                    FROM order_links ol3
+                    WHERE ol3.purchase_id = p.purchase_id
+                      AND ol3.status = 'DAU_GIA_THANH_CONG'
+                )
+                OR o.status = 'CHO_NHAP_KHO_NN'
+          )
+
+          -- CHỈ LẤY purchase CHƯA CÓ shipment_code
+          AND NOT EXISTS (
+              SELECT 1
+              FROM order_links olx
+              WHERE olx.purchase_id = p.purchase_id
+                AND olx.shipment_code IS NOT NULL
+                AND olx.shipment_code <> ''
+          )
+
+          -- filter orderCode
+          AND (
+                :orderCode IS NULL
+                OR o.order_code ILIKE CONCAT('%', :orderCode, '%')
+          )
+
+          -- filter customerCode
+          AND (
+                :customerCode IS NULL
+                OR c.customer_code ILIKE CONCAT('%', :customerCode, '%')
+          )
+
+        ORDER BY sort_value ASC, p.purchase_id DESC
+        """,
+    countQuery = """
+        SELECT COUNT(*)
+        FROM purchases p
+        JOIN orders o ON o.order_id = p.order_id
+        JOIN customer c ON c.account_id = o.customer_id
+        WHERE p.is_purchased = true
+          AND o.route_id IN :routeIds
+
+          AND EXISTS (
+              SELECT 1
+              FROM order_links ol
+              WHERE ol.purchase_id = p.purchase_id
+                AND (
+                      (:status IS NULL AND ol.status IN ('DA_MUA', 'DAU_GIA_THANH_CONG'))
+                      OR (:status IS NOT NULL AND ol.status = :status)
+                    )
+          )
+
+          AND (
+                NOT EXISTS (
+                    SELECT 1
+                    FROM order_links ol3
+                    WHERE ol3.purchase_id = p.purchase_id
+                      AND ol3.status = 'DAU_GIA_THANH_CONG'
+                )
+                OR o.status = 'CHO_NHAP_KHO_NN'
+          )
+
+          AND NOT EXISTS (
+              SELECT 1
+              FROM order_links olx
+              WHERE olx.purchase_id = p.purchase_id
+                AND olx.shipment_code IS NOT NULL
+                AND olx.shipment_code <> ''
+          )
+
+          AND (
+                :orderCode IS NULL
+                OR o.order_code ILIKE CONCAT('%', :orderCode, '%')
+          )
+
+          AND (
+                :customerCode IS NULL
+                OR c.customer_code ILIKE CONCAT('%', :customerCode, '%')
           )
         """,
     nativeQuery = true
@@ -280,4 +444,65 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
             @Param("routeId") Long routeId
     );
 
+    @Query(
+        value = """
+            SELECT DISTINCT p.purchase_id
+            FROM purchases p
+            JOIN orders o ON o.order_id = p.order_id
+            JOIN customer c ON c.account_id = o.customer_id
+            JOIN order_links ol
+                ON ol.purchase_id = p.purchase_id
+            WHERE o.route_id IN :routeIds
+              AND o.status NOT IN ('DA_GIAO','DA_HUY','DANG_XU_LY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
+              AND (:status IS NULL OR ol.status = :status)
+              AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
+              AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
+              AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
+            ORDER BY p.purchase_id DESC
+        """,
+        countQuery = """
+            SELECT COUNT(DISTINCT p.purchase_id)
+            FROM purchases p
+            JOIN orders o ON o.order_id = p.order_id
+            JOIN customer c ON c.account_id = o.customer_id
+            JOIN order_links ol
+                ON ol.purchase_id = p.purchase_id
+            WHERE o.route_id IN :routeIds
+              AND o.status NOT IN ('DA_GIAO','DA_HUY','DANG_XU_LY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
+              AND (:status IS NULL OR ol.status = :status)
+              AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
+              AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
+              AND (:shipmentCode IS NULL OR ol.shipment_code ILIKE CONCAT('%', :shipmentCode, '%'))
+        """,
+        nativeQuery = true
+    )
+    Page<Long> findPurchaseIdsFiltered(
+            @Param("routeIds") Set<Long> routeIds,
+            @Param("status") String status,
+            @Param("orderCode") String orderCode,
+            @Param("customerCode") String customerCode,
+            @Param("shipmentCode") String shipmentCode,
+            Pageable pageable
+    );
+
+ @Query("""
+        SELECT new com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment(
+            p.purchaseId,
+            p.purchaseCode,
+            p.purchaseTime,
+            p.purchaseImage,
+            p.finalPriceOrder,
+            o.orderId,
+            o.orderCode,
+            s.name,
+            p.note
+        )
+        FROM Purchases p
+        JOIN p.orders o
+        JOIN o.staff s
+        WHERE p.purchaseId IN :purchaseIds
+    """)
+    List<PurchasePendingShipment> findPurchasePendingDTO(
+            @Param("purchaseIds") List<Long> purchaseIds
+    );
 }

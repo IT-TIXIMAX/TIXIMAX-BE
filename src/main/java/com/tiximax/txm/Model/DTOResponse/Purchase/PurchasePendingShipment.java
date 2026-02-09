@@ -12,6 +12,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -19,33 +20,59 @@ import java.util.List;
 @Setter
 
 public class PurchasePendingShipment {
-    private Long purchaseId;
+
+     private Long purchaseId;
     private String purchaseCode;
     private LocalDateTime purchaseTime;
     private String purchaseImage;
     private BigDecimal finalPriceOrder;
-    private String orderCode;
+
     private Long orderId;
+    private String orderCode;
     private String staffName;
-    private List<OrderLinkPending> pendingLinks;
-    private Orders orders;
-    private Customer customer;
-    private Staff staff;
     private String note;
 
-    public PurchasePendingShipment(Purchases purchase, List<OrderLinkPending> links) {
-        this.purchaseId = purchase.getPurchaseId();
-        this.purchaseCode = purchase.getPurchaseCode();
-        this.purchaseImage = purchase.getPurchaseImage();
-        this.purchaseTime = purchase.getPurchaseTime();
-        this.finalPriceOrder = purchase.getFinalPriceOrder();
-        this.orderCode = purchase.getOrders().getOrderCode();
-        this.orderId = purchase.getOrders().getOrderId();
-        this.staffName = purchase.getStaff().getName();
-        this.pendingLinks = links;
-        this.orders = purchase.getOrders();
-        this.customer = purchase.getOrders().getCustomer();
-        this.staff = purchase.getOrders().getStaff();
-        this.note = purchase.getNote();
+    private List<OrderLinkPending> pendingLinks;
+
+    public PurchasePendingShipment(
+            Long purchaseId,
+            String purchaseCode,
+            LocalDateTime purchaseTime,
+            String purchaseImage,
+            BigDecimal finalPriceOrder,
+            Long orderId,
+            String orderCode,
+            String staffName,
+            String note
+            
+    ) {
+        this.purchaseId = purchaseId;
+        this.purchaseCode = purchaseCode;
+        this.purchaseTime = purchaseTime;
+        this.purchaseImage = purchaseImage;
+        this.finalPriceOrder = finalPriceOrder;
+        this.orderId = orderId;
+        this.orderCode = orderCode;
+        this.staffName = staffName;
+        this.note = note;
+        this.pendingLinks = new ArrayList<>();
     }
+    public PurchasePendingShipment(
+        Purchases purchase,
+        List<OrderLinkPending> pendingLinks
+) {
+    this.purchaseId = purchase.getPurchaseId();
+    this.purchaseCode = purchase.getPurchaseCode();
+    this.purchaseTime = purchase.getPurchaseTime();
+    this.purchaseImage = purchase.getPurchaseImage();
+    this.finalPriceOrder = purchase.getFinalPriceOrder();
+    this.staffName = purchase.getStaff().getName();
+    Orders order = purchase.getOrders();
+    if (order != null) {
+        this.orderId = order.getOrderId();
+        this.orderCode = order.getOrderCode();
+    }
+    this.note = purchase.getNote();
+    this.pendingLinks = pendingLinks;
+}
 }
