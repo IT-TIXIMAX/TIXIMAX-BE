@@ -8,15 +8,12 @@ import java.util.List;
 import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Enums.CustomerTopType;
-import com.tiximax.txm.Enums.OrderType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
-import com.tiximax.txm.Model.DTOResponse.Order.TopByWeightAndOrderType;
-import com.tiximax.txm.Model.DTOResponse.Payment.DailyPaymentRevenue;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.PerformanceWHResponse;
 import com.tiximax.txm.Model.DTOResponse.Warehouse.StaffWHPerformanceSummary;
@@ -365,40 +362,14 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         return ResponseEntity.ok(dashBoardService.getStaffPerformancesInLocation(locationId, month, lastDays));
     }
 
-    @GetMapping("/inactive-customers/{page}/{size}")
-    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
-            @PathVariable int page,
-            @PathVariable int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
-
-        return ResponseEntity.ok(result);
-    }
-
-    @GetMapping("/top-by-type")
-    public ResponseEntity<Map<String, List<TopByWeightAndOrderType>>> getTopByWeightAndOrderType(
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false, defaultValue = "MUA_HO") OrderType orderType,
-            @RequestParam(defaultValue = "30") int limit) {
-
-        Map<String, List<TopByWeightAndOrderType>> result =
-                dashBoardService.getTopByWeightAndOrderType(month, orderType, limit);
-
-        return ResponseEntity.ok(result);
-    }
-
-    @GetMapping("/daily-payment-revenue")
-    public ResponseEntity<List<DailyPaymentRevenue>> getDailyPaymentRevenue(
-            @RequestParam(required = false) Integer month) {
-        List<DailyPaymentRevenue> result = dashBoardService.getDailyPaymentRevenue(month);
-        return ResponseEntity.ok(result);
-    }
-
-    @GetMapping("/daily-payment-shipping")
-    public ResponseEntity<List<DailyPaymentRevenue>> getDailyPaymentRShipping(
-            @RequestParam(required = false) Integer month) {
-        List<DailyPaymentRevenue> result = dashBoardService.getDailyPaymentShipping(month);
-        return ResponseEntity.ok(result);
-    }
+//    @GetMapping("/inactive-customers/{page}/{size}")
+//    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
+//            @PathVariable int page,
+//            @PathVariable int size
+//    ) {
+//        Pageable pageable = PageRequest.of(page, size);
+//        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
+//
+//        return ResponseEntity.ok(result);
+//    }
 }
