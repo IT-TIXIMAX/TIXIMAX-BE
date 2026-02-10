@@ -401,7 +401,6 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
     }
 
 
-
 //    @GetMapping("/inactive-customers/{page}/{size}")
 //    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
 //            @PathVariable int page,
