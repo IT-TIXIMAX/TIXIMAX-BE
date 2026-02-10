@@ -69,7 +69,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     
     @Query("""
-        SELECT w.trackingCode, SUM(w.collectWeight)
+        SELECT w.trackingCode, SUM(w.netWeight)
         FROM Warehouse w
         WHERE w.trackingCode IN :trackingCodes
         GROUP BY w.trackingCode
