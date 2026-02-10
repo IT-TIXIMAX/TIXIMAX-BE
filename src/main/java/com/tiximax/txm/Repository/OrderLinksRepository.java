@@ -427,7 +427,6 @@ ExchangeMoneySummary getExchangeSummary(
                 ol.trackingCode,
                 ol.status,
                 ol.groupTag,
-           
                 ol.orders.orderId
         )
         FROM OrderLinks ol

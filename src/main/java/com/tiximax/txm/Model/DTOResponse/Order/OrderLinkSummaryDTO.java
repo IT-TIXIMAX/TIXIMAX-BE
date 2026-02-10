@@ -29,7 +29,7 @@ public class OrderLinkSummaryDTO {
     private String trackingCode;
     private OrderLinkStatus status;
     private String groupTag;
- //   private LocalDateTime pinnedAt;
+
     private Long orderId;
 }
 
