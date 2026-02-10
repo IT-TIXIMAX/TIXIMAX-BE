@@ -69,7 +69,14 @@ public class OrderWithLinks {
                             ol.setLinkId(dto.getLinkId());
                             ol.setProductName(dto.getProductName());
                             ol.setQuantity(dto.getQuantity());
+                            ol.setPriceWeb(dto.getPriceWeb());
+                            ol.setTotalWeb(dto.getTotalWeb());
+                            ol.setPurchaseFee(dto.getPurchaseFee());
+                            ol.setExtraCharge(dto.getExtraCharge());
+                            ol.setFinalPriceVnd(dto.getFinalPriceVnd());
                             ol.setShipmentCode(dto.getShipmentCode());
+                            ol.setProductLink(dto.getProductLink());
+                            ol.setNote(dto.getNote());
                             ol.setShipWeb(dto.getShipWeb());
                             ol.setWebsite(dto.getWebsite());
                             ol.setClassify(dto.getClassify());

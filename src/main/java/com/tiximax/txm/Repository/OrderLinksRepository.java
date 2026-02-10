@@ -412,14 +412,22 @@ ExchangeMoneySummary getExchangeSummary(
                 ol.linkId,
                 ol.productName,
                 ol.quantity,
+                ol.productLink,
+                ol.note, 
                 ol.shipmentCode,
+                ol.priceWeb,
                 ol.shipWeb,
+                ol.totalWeb,
+                ol.purchaseFee,
+                ol.extraCharge,
+                ol.finalPriceVnd,
                 ol.website,
                 ol.classify,
                 ol.purchaseImage,
                 ol.trackingCode,
                 ol.status,
                 ol.groupTag,
+           
                 ol.orders.orderId
         )
         FROM OrderLinks ol
