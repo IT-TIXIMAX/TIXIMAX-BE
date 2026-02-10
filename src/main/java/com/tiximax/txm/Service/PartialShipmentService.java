@@ -518,9 +518,9 @@ public class PartialShipmentService {
         DraftDomestic draftDomestic =
                 draftDomesticService.getDraftDomesticByShipCode(shipCode);
 
-        if(draftDomestic.getStatus() != DraftDomesticStatus.DRAFT) {
-                throw new BadRequestException("Chỉ được tạo thanh toán khi tất cả đơn hàng đã nhập kho VN");
-        }
+        // if(draftDomestic.getStatus() != DraftDomesticStatus.DRAFT) {
+        //         throw new BadRequestException("Chỉ được tạo thanh toán khi tất cả đơn hàng đã nhập kho VN");
+        // }
 
     List<String> allTrackingCodes =
             draftDomesticShipmentRepository
