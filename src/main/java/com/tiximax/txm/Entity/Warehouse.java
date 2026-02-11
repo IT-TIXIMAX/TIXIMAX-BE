@@ -46,8 +46,8 @@ public class Warehouse {
     private WarehouseStatus status;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt;
-
+    private LocalDateTime createdAt;   
+ 
     @ManyToOne
     @JoinColumn(name="staff_id", nullable = false)
     @JsonIgnore
