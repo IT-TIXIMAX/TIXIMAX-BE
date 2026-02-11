@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import com.tiximax.txm.Entity.Customer;
 import com.tiximax.txm.Enums.CustomerTopType;
-import com.tiximax.txm.Enums.OrderType;
 import com.tiximax.txm.Enums.PaymentStatus;
 import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
@@ -30,6 +29,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.tiximax.txm.Enums.DashboardFilterType;
+import com.tiximax.txm.Enums.OrderType;
 import com.tiximax.txm.Service.DashBoardService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
@@ -265,6 +265,20 @@ public class DashBoardController {
         return ResponseEntity.ok(result);
     }
 
+     @GetMapping("/purchase-summary")
+    public ResponseEntity<PurchaseDashboard> getPurchaseDashboard() {
+
+        PurchaseDashboard result = dashBoardService.getPurchaseDashboard();
+
+        return ResponseEntity.ok(result);
+    }
+    @GetMapping("/purchase-detail/{page}/{size}")
+    public ResponseEntity<Page<PurchaseDetailDashboard>> getPurchaseDetail(@PathVariable int page, @PathVariable int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<PurchaseDetailDashboard> result = dashBoardService.getPurchaseDetailDashboard(pageable);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/customers/top/{page}/{size}")
     public ResponseEntity<Page<CustomerTop>> getTopCustomers(
             @RequestParam(required = false, defaultValue = "TOTAL_ORDERS")CustomerTopType customerTopType,
@@ -351,18 +365,7 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         return ResponseEntity.ok(dashBoardService.getStaffPerformancesInLocation(locationId, month, lastDays));
     }
 
-    @GetMapping("/inactive-customers/{page}/{size}")
-    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
-            @PathVariable int page,
-            @PathVariable int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
-
-        return ResponseEntity.ok(result);
-    }
-
-    @GetMapping("/top-by-type")
+      @GetMapping("/top-by-type")
     public ResponseEntity<Map<String, List<TopByWeightAndOrderType>>> getTopByWeightAndOrderType(
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false, defaultValue = "MUA_HO") OrderType orderType,
@@ -373,8 +376,17 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
 
         return ResponseEntity.ok(result);
     }
+      @GetMapping("/inactive-customers/{page}/{size}")
+    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
+            @PathVariable int page,
+            @PathVariable int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
 
-    @GetMapping("/daily-payment-revenue")
+        return ResponseEntity.ok(result);
+    }
+        @GetMapping("/daily-payment-revenue")
     public ResponseEntity<List<DailyPaymentRevenue>> getDailyPaymentRevenue(
             @RequestParam(required = false) Integer month) {
         List<DailyPaymentRevenue> result = dashBoardService.getDailyPaymentRevenue(month);
@@ -387,4 +399,16 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         List<DailyPaymentRevenue> result = dashBoardService.getDailyPaymentShipping(month);
         return ResponseEntity.ok(result);
     }
+
+
+//    @GetMapping("/inactive-customers/{page}/{size}")
+//    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
+//            @PathVariable int page,
+//            @PathVariable int size
+//    ) {
+//        Pageable pageable = PageRequest.of(page, size);
+//        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
+//
+//        return ResponseEntity.ok(result);
+//    }
 }

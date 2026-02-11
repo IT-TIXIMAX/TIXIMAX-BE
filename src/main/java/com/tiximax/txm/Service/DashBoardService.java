@@ -28,6 +28,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,9 @@ public class DashBoardService {
 
     @Autowired
     private OrdersRepository ordersRepository;
-
+    
+    @Autowired
+    private AccountRouteRepository accountRouteRepository;
     @Autowired
     private CustomerRepository customerRepository;
 
@@ -1134,6 +1137,23 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         return new InventoryDaily(pending, stock, packed, awaitFlight, pendingByLoc, stockByLoc, packedByLoc, awaitFlightByLoc);
     }
 
+    public PurchaseDashboard getPurchaseDashboard() {
+        List<Long> routeIds = new ArrayList<>();
+        Staff purchaseStaff = (Staff) accountUtils.getAccountCurrent();
+        if(purchaseStaff.getRole() != AccountRoles.STAFF_PURCHASER) {
+            routeIds = null;
+        }
+        routeIds = accountRouteRepository.findRouteIdsByAccountId(purchaseStaff.getAccountId());
+
+        PurchaseSummary summary = orderLinksRepository.getPurchaseSummary(routeIds);
+        ExchangeMoneySummary exchangeMoneySummary = orderLinksRepository.getExchangeSummary(routeIds);
+        PurchaseDashboard dashboard = new PurchaseDashboard();
+        dashboard.purchaseSummary = summary;
+        dashboard.exchangeMoneySummary = exchangeMoneySummary; 
+
+        return dashboard; 
+    }
+
     private PendingSummary getPendingByLocation(Long locId) {
         return ordersRepository.getPendingSummaryByLocationId(locId);
     }
@@ -1263,6 +1283,20 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         }
         return new LocalDateTime[]{start, end};
     }
+      public Page<PurchaseDetailDashboard> getPurchaseDetailDashboard(Pageable page) {
+
+       List<Long> routeIds = new ArrayList<>();
+        Staff purchaseStaff = (Staff) accountUtils.getAccountCurrent();
+        if(purchaseStaff.getRole() != AccountRoles.STAFF_PURCHASER) {
+            routeIds = null;
+        }
+        routeIds = accountRouteRepository.findRouteIdsByAccountId(purchaseStaff.getAccountId());
+
+    return orderLinksRepository.getPurchaseDetailDashboard(routeIds,page);
+}
+
+
+
 
     public Page<InactiveCustomerProjection> getInactiveCustomersByStaff(
             Pageable pageable
@@ -1298,8 +1332,13 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         LocalDateTime[] range = getMonthStartEnd(month);
         LocalDateTime startOfMonth = range[0];
         LocalDateTime endOfMonth   = range[1];
-        List<Object[]> rows =
-                ordersRepository.findTopByWeightAndOrderType(startOfMonth, endOfMonth, orderType.name(), limit);
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+        List<Object[]> rows;
+        if (staff.getRole().equals(AccountRoles.MANAGER) || staff.getRole().equals(AccountRoles.ADMIN)){
+            rows = ordersRepository.findTopByWeightAndOrderType(startOfMonth, endOfMonth, null, null, limit);
+        } else {
+            rows = ordersRepository.findTopByWeightAndOrderType(startOfMonth, endOfMonth, orderType.name(), staff.getAccountId(), limit);
+        }
 
         List<TopByWeightAndOrderType> all = rows.stream()
                 .map(r -> TopByWeightAndOrderType.builder()

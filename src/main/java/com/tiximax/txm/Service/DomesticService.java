@@ -352,7 +352,7 @@ public List<DomesticResponse> transferByCustomerCode(
             .collect(Collectors.toList());
 }
   
-   @Transactional
+ @Transactional
 public boolean scanImportToDomestic(String shipmentCode) {
 
     Warehouse warehouse = warehouseRepository
@@ -368,27 +368,48 @@ public boolean scanImportToDomestic(String shipmentCode) {
         throw new NotFoundException("Không tìm thấy đơn hàng trong kiện!");
     }
 
-    boolean hasInvalidStatus = orderLinks.stream()
-            .anyMatch(ol -> ol.getStatus() != OrderLinkStatus.CHO_NHAP_KHO_VN);
+    // 1️⃣ Validate OrderLink status
+    boolean hasInvalidOrderLinkStatus = orderLinks.stream()
+            .anyMatch(ol ->
+                    ol.getStatus() != OrderLinkStatus.CHO_NHAP_KHO_VN
+                 && ol.getStatus() != OrderLinkStatus.CHO_GIAO
+            );
 
-    if (hasInvalidStatus) {
-        throw new BadRequestException("Có đơn hàng đã được nhập kho Việt Nam!");
+    if (hasInvalidOrderLinkStatus) {
+        throw new BadRequestException(
+                "Có đơn hàng không hợp lệ để scan!"
+        );
     }
 
-    warehouse.setStatus(WarehouseStatus.DA_NHAP_KHO_VN);
+    if (warehouse.getStatus() == WarehouseStatus.CHO_GIAO) {
+        return true;
+    }
 
-    orderLinks.forEach(ol ->
-            ol.setStatus(OrderLinkStatus.DA_NHAP_KHO_VN)
+  
+    if (warehouse.getStatus() == WarehouseStatus.DA_NHAP_KHO_NN) {
+        warehouse.setStatus(WarehouseStatus.DA_NHAP_KHO_VN);
+
+        orderLinks.forEach(ol -> {
+            if (ol.getStatus() == OrderLinkStatus.CHO_NHAP_KHO_VN) {
+                ol.setStatus(OrderLinkStatus.DA_NHAP_KHO_VN);
+            }
+        });
+
+        orderLinksRepository.saveAll(orderLinks);
+
+        updateOrderStatusIfAllLinksReady(orderLinks);
+
+        draftDomesticService.syncDraftDomesticStatus(shipmentCode);
+
+        return true;
+    }
+
+    // 4️⃣ Các trạng thái warehouse khác → không cho scan
+    throw new BadRequestException(
+            "Trạng thái kiện hàng không hợp lệ để scan!"
     );
-
-    orderLinksRepository.saveAll(orderLinks);
-
-    updateOrderStatusIfAllLinksReady(orderLinks);
-
-    draftDomesticService.syncDraftDomesticStatus(shipmentCode);
-
-    return true;
 }
+
 
 
     public CheckInDomestic getCheckInDomestic(String shipmentCode) {

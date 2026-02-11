@@ -157,6 +157,84 @@ Page<OrderSummaryDTO> findOrderSummaryForPurchaser(
         Pageable pageable
 );
 
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.checkRequired,
+        o.pinnedAt
+    )
+    FROM Orders o
+    WHERE o.route.routeId IN :routeIds
+      AND o.status = :status
+      AND o.orderType = :orderType
+""")
+Page<OrderSummaryDTO> findOrderSummaryNoSearch(
+        @Param("routeIds") Set<Long> routeIds,
+        @Param("status") OrderStatus status,
+        @Param("orderType") OrderType orderType,
+        Pageable pageable
+);
+
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.checkRequired,
+        o.pinnedAt
+    )
+    FROM Orders o
+    WHERE o.route.routeId IN :routeIds
+      AND o.status = :status
+      AND o.orderType = :orderType
+      AND LOWER(o.orderCode) LIKE LOWER(CONCAT('%', :orderCode, '%'))
+""")
+Page<OrderSummaryDTO> findOrderSummaryByOrderCode(
+        Set<Long> routeIds,
+        OrderStatus status,
+        OrderType orderType,
+        String orderCode,
+        Pageable pageable
+);
+
+@Query("""
+    SELECT new com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO(
+        o.orderId,
+        o.orderCode,
+        o.orderType,
+        o.status,
+        o.createdAt,
+        o.exchangeRate,
+        o.finalPriceOrder,
+        o.checkRequired,
+        o.pinnedAt
+    )
+    FROM Orders o
+    JOIN o.customer c
+    WHERE o.route.routeId IN :routeIds
+      AND o.status = :status
+      AND o.orderType = :orderType
+      AND LOWER(c.customerCode) LIKE LOWER(CONCAT('%', :customerCode, '%'))
+""")
+Page<OrderSummaryDTO> findOrderSummaryByCustomerCode(
+        Set<Long> routeIds,
+        OrderStatus status,
+        OrderType orderType,
+        String customerCode,
+        Pageable pageable
+);
+
+
 
 
     List<Orders> findByStaff_AccountIdAndRoute_RouteIdInAndCreatedAtBetween(Long accountId, Set<Long> routeIds, LocalDateTime startDate, LocalDateTime endDate);
@@ -1119,6 +1197,8 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         LEFT JOIN account staff_acc ON o.staff_id = staff_acc.account_id
         WHERE w.created_at > :startDate
           AND w.created_at < :endDate
+          AND (:staffId IS NULL OR o.staff_id = :staffId)
+          AND (:orderType IS NULL OR o.order_type = :orderType)
         GROUP BY
             o.customer_id,
             o.order_type,
@@ -1142,13 +1222,13 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         rank_         AS rank
     FROM ranked
     WHERE rank_ <= :limit
-      AND order_type = :orderType
-    ORDER BY order_type, rank_
+    ORDER BY rank_
     """, nativeQuery = true)
     List<Object[]> findTopByWeightAndOrderType(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("orderType") String orderType,
+            @Param("staffId") Long staffId,
             @Param("limit") int limit
     );
 

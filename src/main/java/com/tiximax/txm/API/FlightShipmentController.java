@@ -33,17 +33,24 @@ public class FlightShipmentController {
     @GetMapping
     public ResponseEntity<List<FlightShipmentResponse>> getAll() {
         return ResponseEntity.ok(flightShipmentService.getAllFlightShipment());
-    }
+    }                                                             
 
     @PatchMapping("/{id}")
     public ResponseEntity<FlightShipmentResponse> updateFlightShipment(@PathVariable Long id,
                                                             @RequestBody FlightShipmentRequest request) {
         return ResponseEntity.ok(flightShipmentService.updateFlightShipment(id, request));
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFlightShipment(@PathVariable Long id) {
         flightShipmentService.deleteFlightShipment(id);
         return ResponseEntity.noContent().build();
+    }
+     @GetMapping("/available-flight-codes/by-route")
+    public ResponseEntity<List<String>> getAvailableFlightCodesByRoute(
+            @RequestParam(required = false) Long routeId
+    ) {
+        return ResponseEntity.ok(
+                flightShipmentService.getAvailableFlightCodesByRoute(routeId)
+        );
     }
 }

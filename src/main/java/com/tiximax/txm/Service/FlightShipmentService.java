@@ -3,9 +3,7 @@ package com.tiximax.txm.Service;
 import com.tiximax.txm.Entity.FlightShipment;
 import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.Staff;
-import com.tiximax.txm.Enums.AccountRoles;
 import com.tiximax.txm.Exception.BadRequestException;
-import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.FlightShipmentRequest;
 import com.tiximax.txm.Model.FlightShipmentResponse;
 import com.tiximax.txm.Repository.FlightShipmentRepository;
@@ -13,9 +11,7 @@ import com.tiximax.txm.Repository.PackingRepository;
 import com.tiximax.txm.Repository.StaffRepository;
 
 import com.tiximax.txm.Utils.AccountUtils;
-import org.aspectj.weaver.ast.Not;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -190,4 +186,13 @@ public class FlightShipmentService {
             entity.setOriginCostPerKg(BigDecimal.ZERO);
         }
     }
+       public List<String> getAvailableFlightCodesByRoute(Long routeId) {
+
+        LocalDateTime fromDate = LocalDateTime.now().minusMonths(3);
+
+        return packingRepository.findAvailableFlightCodesByRouteLast3Months(
+                routeId,
+                fromDate
+        );
+}
 }
