@@ -45,9 +45,9 @@ public class FlightShipmentController {
         flightShipmentService.deleteFlightShipment(id);
         return ResponseEntity.noContent().build();
     }
-     @GetMapping("/available-flight-codes/by-route/{routeId}")
+     @GetMapping("/available-flight-codes/by-route")
     public ResponseEntity<List<String>> getAvailableFlightCodesByRoute(
-            @PathVariable Long routeId
+            @RequestParam(required = false) Long routeId
     ) {
         return ResponseEntity.ok(
                 flightShipmentService.getAvailableFlightCodesByRoute(routeId)

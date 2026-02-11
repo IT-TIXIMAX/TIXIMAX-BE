@@ -202,22 +202,22 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
 
     List<Packing> findByFlightCode(String flightCode);
 
-     @Query("""
-        SELECT DISTINCT p.flightCode
-        FROM Packing p
-        JOIN p.warehouses w
-        JOIN w.orders o
-        WHERE p.flightCode IS NOT NULL
-          AND p.packedDate >= :fromDate
-          AND o.route.routeId = :routeId
-          AND NOT EXISTS (
-              SELECT 1
-              FROM FlightShipment fs
-              WHERE fs.flightCode = p.flightCode
-          )
-    """)
-    List<String> findAvailableFlightCodesByRouteLast3Months(
-            @Param("routeId") Long routeId,
-            @Param("fromDate") LocalDateTime fromDate
-    );
+@Query("""
+    SELECT DISTINCT p.flightCode
+    FROM Packing p
+    JOIN p.warehouses w
+    JOIN w.orders o
+    WHERE p.flightCode IS NOT NULL
+      AND p.packedDate >= :fromDate
+      AND ( :routeId IS NULL OR o.route.routeId = :routeId )
+      AND NOT EXISTS (
+          SELECT 1
+          FROM FlightShipment fs
+          WHERE fs.flightCode = p.flightCode
+      )
+""")
+List<String> findAvailableFlightCodesByRouteLast3Months(
+        @Param("routeId") Long routeId,
+        @Param("fromDate") LocalDateTime fromDate
+);
 }
