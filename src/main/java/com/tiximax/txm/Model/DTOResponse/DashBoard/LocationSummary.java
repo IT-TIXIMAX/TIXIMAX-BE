@@ -7,11 +7,11 @@ public class LocationSummary {
 
     private Long locationId;
     private String locationName;
-    private long warehouses;
-    private long orders;
-    private long countPackages;
-    private long orderLinks;
-    private long totalQuantity;
+    private Long warehouses;
+    private Long orders;
+    private Long countPackages;
+    private Long orderLinks;
+    private Long totalQuantity;
     private Double weight;
     private Double netWeight;
 
@@ -20,10 +20,10 @@ public class LocationSummary {
         this.locationId = locationId;
         this.locationName = locationName;
         this.warehouses = warehouses != null ? warehouses : 0L;
-        this.orders = 0;
-        this.countPackages = 0;
-        this.orderLinks = 0;
-        this.totalQuantity = 0;
+        this.orders = 0L;
+        this.countPackages = 0L;
+        this.orderLinks = 0L;
+        this.totalQuantity = 0L;
         this.weight = weight != null ? weight : 0.0;
         this.netWeight = netWeight != null ? netWeight : 0.0;
     }
@@ -35,21 +35,21 @@ public class LocationSummary {
         this.warehouses = warehouses;
         this.orders = orders;
         this.countPackages = 0L;
-        this.orderLinks = 0;
-        this.totalQuantity = 0;
+        this.orderLinks = 0L;
+        this.totalQuantity = 0L;
         this.weight = weight != null ? weight : 0.0;
         this.netWeight = netWeight != null ? netWeight : 0.0;
     }
 
     public LocationSummary(Long locationId, String locationName, Long warehouses,
-                           Long orders, Long countPackages, Double weight, Double netWeight) {
+                           Long orders, Long countPackages, Long orderLinks, Double weight, Double netWeight) {
         this.locationId = locationId;
         this.locationName = locationName;
         this.warehouses = warehouses;
-        this.orders = orders;
+        this.orders = orders != null ? orders : 0L;
         this.countPackages = countPackages != null ? countPackages : 0L;
-        this.orderLinks = 0;
-        this.totalQuantity = 0;
+        this.orderLinks = orderLinks != null ? orderLinks : 0L;
+        this.totalQuantity = 0L;
         this.weight = weight != null ? weight : 0.0;
         this.netWeight = netWeight != null ? netWeight : 0.0;
     }
