@@ -335,7 +335,7 @@ public class PackingService {
     }
 
     @Transactional
-public void assignFlightCode(List<Long> packingIds, String flightCode) {
+    public void assignFlightCode(List<Long> packingIds, String flightCode) {
 
     List<Packing> packings = packingRepository.findAllById(packingIds)
             .stream()
@@ -367,6 +367,12 @@ public void assignFlightCode(List<Long> packingIds, String flightCode) {
                         .stream()
                         .collect(Collectors.groupingBy(OrderLinks::getShipmentCode));
 
+    if (!allShipmentCodes.isEmpty()) {
+    warehouseRepository.updateDispatchTimeByTrackingCodes(
+            LocalDateTime.now(),
+            new ArrayList<>(allShipmentCodes)
+    );
+}
     
     for (Packing packing : packings) {
 

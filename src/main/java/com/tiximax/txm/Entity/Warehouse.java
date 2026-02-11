@@ -46,8 +46,17 @@ public class Warehouse {
     private WarehouseStatus status;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt;    // thời gian nhập kho
 
+    @Column(nullable = true)
+    private LocalDateTime updatedAt;    // thời gian cập nhật thông tin cuối cùng
+
+    @Column(nullable = true)
+    private LocalDateTime dispatchTime;    // thời gian xuất kho NN
+
+    @Column(nullable = true)
+    private LocalDateTime arrivalTime;    // thời gian nhập kho nội địa 
+ 
     @ManyToOne
     @JoinColumn(name="staff_id", nullable = false)
     @JsonIgnore

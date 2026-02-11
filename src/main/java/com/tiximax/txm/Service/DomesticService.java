@@ -395,6 +395,8 @@ public boolean scanImportToDomestic(String shipmentCode) {
             }
         });
 
+        warehouse.setArrivalTime(LocalDateTime.now());
+
         orderLinksRepository.saveAll(orderLinks);
 
         updateOrderStatusIfAllLinksReady(orderLinks);

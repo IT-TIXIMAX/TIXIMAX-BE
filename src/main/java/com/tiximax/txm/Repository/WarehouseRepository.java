@@ -852,5 +852,16 @@ List<ExportedQuantityProjection> getExportedQuantityDaily(
         @Param("endDate") LocalDateTime endDate
 );
 
+@Modifying
+@Query("""
+    UPDATE Warehouse w
+    SET w.dispatchTime = :dispatchTime
+    WHERE w.trackingCode IN :trackingCodes
+""")
+void updateDispatchTimeByTrackingCodes(
+        @Param("dispatchTime") LocalDateTime dispatchTime,
+        @Param("trackingCodes") List<String> trackingCodes
+);
+
 
 }
