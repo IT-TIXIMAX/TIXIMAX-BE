@@ -547,7 +547,6 @@ public class PartialShipmentService {
         throw new BadRequestException("Không tìm thấy warehouse cho các mã vận đơn");
     }
 
-    // nếu có nhiều hơn 1 status → reject
     if (statuses.size() != 1) {
         throw new BadRequestException(
                 "Các mã vận đơn không cùng trạng thái warehouse: " + statuses
@@ -607,6 +606,23 @@ public class PartialShipmentService {
                             .filter(Objects::nonNull)
                             .reduce(BigDecimal.ZERO, BigDecimal::add)
             );
+
+            Map<String, BigDecimal> weightByTrackingCode =
+        warehouseRepository
+                .sumCollectWeightByTrackingCodes(allTrackingCodes)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> BigDecimal.valueOf((Double) row[1])
+                ));
+            BigDecimal collectWeight =
+        orderLinks.stream()
+                .map(OrderLinks::getTrackingCode)
+                .filter(Objects::nonNull)
+                .map(code -> weightByTrackingCode.getOrDefault(code, BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                partial.setCollectWeight(collectWeight);
+            
             partial.setShipmentDate(LocalDateTime.now());
             partial.setStatus(OrderStatus.CHO_THANH_TOAN_SHIP);
             partial.setStaff(currentStaff);
@@ -621,7 +637,6 @@ public class PartialShipmentService {
             orderLinksRepository.saveAll(orderLinks);
             createdPartials.add(savedPartial);
         }
-
 
         Map<String, List<String>> fakeShipCodeMap =
                 Map.of(shipCode, allTrackingCodes);

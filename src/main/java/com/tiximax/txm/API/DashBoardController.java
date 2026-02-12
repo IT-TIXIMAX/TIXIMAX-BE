@@ -410,11 +410,4 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         List<CustomerSegment> result = dashBoardService.getCustomerOrderSegments();
         return ResponseEntity.ok(result);
     }
-
-    @GetMapping("/staff-time-customers")
-    public ResponseEntity<List<StaffTimeCustomerCount>> getStaffFirstTimeCustomerCount() {
-        List<StaffTimeCustomerCount> result = dashBoardService.getStaffFirstTimeCustomerCount();
-        return ResponseEntity.ok(result);
-    }
-
 }

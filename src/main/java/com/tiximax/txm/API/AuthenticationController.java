@@ -102,7 +102,6 @@ public class AuthenticationController {
     public ResponseEntity<?> verifyToken(@RequestHeader("Authorization") String authorizationHeader) {
         try {
 
-       
         String token = authorizationHeader.replace("Bearer ", "").trim();
 
         HttpClient client = HttpClient.newHttpClient();
