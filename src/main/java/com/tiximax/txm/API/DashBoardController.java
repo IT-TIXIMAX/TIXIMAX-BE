@@ -417,4 +417,22 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/first-time-customers/{page}/{size}")
+    public ResponseEntity<Page<FirstTimeCustomer>> getFirstTimeCustomers(
+            @PathVariable int page,
+            @PathVariable int size) {
+        Sort sort = Sort.by(Sort.Direction.ASC, "first_purchase_date");
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<FirstTimeCustomer> result = dashBoardService.getFirstTimeCustomers(pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/cohort-analysis")
+    public ResponseEntity<List<CohortResponse>> getCohortAnalysis() {
+        List<CohortResponse> result = dashBoardService.getCohortAnalysis();
+        return ResponseEntity.ok(result);
+    }
+
 }

@@ -2,6 +2,7 @@ package com.tiximax.txm.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -29,6 +30,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -1441,6 +1443,62 @@ private ExportedQuantity emptyDaily(LocalDate date) {
             Long customerCount = row[1] != null ? ((Number) row[1]).longValue() : 0L;
 
             response.add(new StaffTimeCustomerCount(staffName, customerCount));
+        }
+
+        return response;
+    }
+
+    public Page<FirstTimeCustomer> getFirstTimeCustomers(Pageable pageable) {
+        Page<Object[]> rawResults = ordersRepository.findFirstTimeCustomers(pageable);
+
+        List<FirstTimeCustomer> response = new ArrayList<>();
+
+        for (Object[] row : rawResults.getContent()) {
+            Long customerId = row[0] != null ? ((Number) row[0]).longValue() : null;
+            LocalDateTime firstPurchaseDate = row[1] != null ? ((Timestamp) row[1]).toLocalDateTime() : null;
+            String customerName = (String) row[2];
+            Long orderCount = row[3] != null ? ((Number) row[3]).longValue() : null;
+            Long staffId = row[4] != null ? ((Number) row[4]).longValue() : null;
+            BigDecimal totalWeightPurchasedKg = row[5] != null
+                    ? new BigDecimal(row[5].toString())
+                    : BigDecimal.ZERO;
+            String serviceType = (String) row[6];
+            String staffName = (String) row[7];
+
+            FirstTimeCustomer dto = new FirstTimeCustomer(
+                    customerId,
+                    firstPurchaseDate,
+                    customerName,
+                    orderCount,
+                    staffId,
+                    totalWeightPurchasedKg,
+                    serviceType,
+                    staffName
+            );
+
+            response.add(dto);
+        }
+
+        return new PageImpl<>(response, pageable, rawResults.getTotalElements());
+    }
+
+    public List<CohortResponse> getCohortAnalysis() {
+        List<Object[]> rawResults = ordersRepository.getCohortAnalysisRaw();
+
+        List<CohortResponse> response = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            LocalDateTime firstMonth   = ((Timestamp) row[0]).toLocalDateTime();
+            LocalDateTime orderMonth   = ((Timestamp) row[1]).toLocalDateTime();
+            Integer monthIndex     = ((Number) row[2]).intValue();
+            Long activeCustomers   = ((Number) row[3]).longValue();
+
+            response.add(new CohortResponse(
+                    firstMonth,
+                    orderMonth,
+                    monthIndex,
+                    activeCustomers
+            ));
         }
 
         return response;

@@ -1312,4 +1312,78 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             GROUP BY staff_name;
     """, nativeQuery = true)
     List<Object[]> getStaffTimeCustomerCount();
+
+    @Query(value = """
+    SELECT 
+        o.customer_id,
+        MIN(o.created_at) AS first_purchase_date,
+        MAX(a.name) AS customer_name,
+        1 AS order_count,  -- vì đã lọc chỉ khách có <=1 đơn
+        o.staff_id,
+        SUM(COALESCE(w.net_weight, 0)) AS total_weight_purchased_kg,
+        MAX(o.order_type) AS service_type,
+        MAX(ac.name) AS staff_name
+    FROM orders o
+    LEFT JOIN account a ON a.account_id = o.customer_id
+    LEFT JOIN account ac ON ac.account_id = o.staff_id
+    LEFT JOIN warehouse w ON w.order_id = o.order_id
+    WHERE o.status = 'DA_GIAO'
+      AND o.customer_id IN (
+          SELECT customer_id
+          FROM orders
+          WHERE status = 'DA_GIAO'
+          GROUP BY customer_id
+          HAVING COUNT(DISTINCT order_id) <= 1
+      )
+    GROUP BY 
+        o.customer_id,
+        o.staff_id
+    """,
+            countQuery = """
+        SELECT COUNT(DISTINCT customer_id)
+        FROM orders
+        WHERE status = 'DA_GIAO'
+        GROUP BY customer_id
+        HAVING COUNT(DISTINCT order_id) <= 1
+        """,
+            nativeQuery = true)
+    Page<Object[]> findFirstTimeCustomers(Pageable pageable);
+
+    @Query(value = """
+    WITH raw AS (
+        SELECT 
+            customer_id,
+            DATE_TRUNC('month', MIN(created_at)) AS first_month
+        FROM orders
+        WHERE created_at >= CURRENT_DATE - INTERVAL '36 months'
+        GROUP BY customer_id
+    ),
+    order_with_first_month AS (
+        SELECT 
+            o.customer_id,
+            DATE_TRUNC('month', o.created_at) AS order_month,
+            r.first_month
+        FROM orders o
+        INNER JOIN raw r ON r.customer_id = o.customer_id
+        WHERE o.created_at >= CURRENT_DATE - INTERVAL '36 months'
+    ),
+    cohort AS (
+        SELECT
+            first_month,
+            order_month,
+            CAST(DATE_PART('month', AGE(order_month, first_month)) AS integer) AS month_index,
+            COUNT(DISTINCT customer_id) AS active_customers
+        FROM order_with_first_month
+        GROUP BY first_month, order_month
+    )
+    SELECT 
+        first_month,
+        order_month,
+        month_index,
+        active_customers
+    FROM cohort
+    WHERE month_index <= 5
+    ORDER BY first_month, month_index
+    """, nativeQuery = true)
+    List<Object[]> getCohortAnalysisRaw();
 }
