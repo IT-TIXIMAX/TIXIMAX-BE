@@ -13,7 +13,9 @@ import com.tiximax.txm.Exception.BadRequestException;
 import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
+import com.tiximax.txm.Model.DTOResponse.Order.CustomerSegment;
 import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
+import com.tiximax.txm.Model.DTOResponse.Order.StaffTimeCustomerCount;
 import com.tiximax.txm.Model.DTOResponse.Order.TopByWeightAndOrderType;
 import com.tiximax.txm.Model.DTOResponse.Payment.DailyPaymentRevenue;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
@@ -27,6 +29,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.tiximax.txm.Enums.DashboardFilterType;
 import com.tiximax.txm.Enums.OrderType;
@@ -315,6 +318,7 @@ public class DashBoardController {
         return ResponseEntity.ok(result);
     }
 
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','STAFF_WAREHOUSE_FOREIGN')")
     @GetMapping("/daily-inventory")
     public ResponseEntity<InventoryDaily> getDailyInventory(
             @RequestParam(required = false) LocalDate startDate,
@@ -376,7 +380,7 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
 
         return ResponseEntity.ok(result);
     }
-      @GetMapping("/inactive-customers/{page}/{size}")
+    @GetMapping("/inactive-customers/{page}/{size}")
     public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
             @PathVariable int page,
             @PathVariable int size
@@ -400,15 +404,10 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         return ResponseEntity.ok(result);
     }
 
-
-//    @GetMapping("/inactive-customers/{page}/{size}")
-//    public ResponseEntity<Page<InactiveCustomerProjection>> getInactiveCustomers(
-//            @PathVariable int page,
-//            @PathVariable int size
-//    ) {
-//        Pageable pageable = PageRequest.of(page, size);
-//        Page<InactiveCustomerProjection> result = dashBoardService.getInactiveCustomersByStaff(pageable);
-//
-//        return ResponseEntity.ok(result);
-//    }
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @GetMapping("/customer-order-segments")
+    public ResponseEntity<List<CustomerSegment>> getCustomerOrderSegments() {
+        List<CustomerSegment> result = dashBoardService.getCustomerOrderSegments();
+        return ResponseEntity.ok(result);
+    }
 }

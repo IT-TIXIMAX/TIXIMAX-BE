@@ -10,11 +10,7 @@ import com.tiximax.txm.Model.DTOResponse.DashBoard.InventoryDaily;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PackedSummary;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.PendingSummary;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderInfo;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderLinkRefund;
-import com.tiximax.txm.Model.DTOResponse.Order.OrderSummaryDTO;
-import com.tiximax.txm.Model.DTOResponse.Order.RefundResponse;
-import com.tiximax.txm.Model.DTOResponse.Order.TopByWeightAndOrderType;
+import com.tiximax.txm.Model.DTOResponse.Order.*;
 import com.tiximax.txm.Model.EnumFilter.ShipStatus;
 
 import org.springframework.data.domain.Page;
@@ -1039,7 +1035,10 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
         SELECT new com.tiximax.txm.Model.DTOResponse.DashBoard.LocationSummary(
             l.locationId,
             l.name,
-            COUNT(DISTINCT ol.purchase.id),
+            0L,
+            COUNT(DISTINCT o.id),
+            0L,
+            COUNT(DISTINCT ol.id),
             0.0,
             0.0
         )
@@ -1061,7 +1060,7 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
     FROM OrderLinks ol
     JOIN ol.warehouse w
     WHERE ol.status = 'DA_MUA'
-      AND w.location.locationId = :locationId
+      AND (:locationId IS NULL OR w.location.locationId = :locationId)
 """)
     PendingSummary getPendingSummaryByLocationId(@Param("locationId") Long locationId);
 
@@ -1232,4 +1231,85 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("limit") int limit
     );
 
+    @Query(value = """
+            WITH order_counts AS (
+                SELECT
+                    customer_id,
+                    COUNT(order_id) AS order_count
+                FROM orders
+                GROUP BY customer_id
+            ),
+            thresholds AS (
+                SELECT n
+                FROM (VALUES (1), (2), (3), (4), (5)) AS t(n)
+            ),
+            customer_buckets AS (
+                SELECT
+                    t.n,
+                    CASE
+                        WHEN t.n = 5 THEN '5+'
+                        ELSE CAST(t.n AS text)
+                    END AS segment,
+                    COUNT(DISTINCT oc.customer_id) AS customer_count
+                FROM thresholds t
+                INNER JOIN order_counts oc
+                    ON oc.order_count >= t.n
+                GROUP BY t.n
+            )
+            SELECT
+                segment AS "Segment",
+                customer_count AS "Customers",
+                ROUND(
+                    100.0 * customer_count /
+                    NULLIF(LAG(customer_count) OVER (ORDER BY n), 0),
+                    2
+                ) AS "Retention"
+            FROM customer_buckets
+            ORDER BY n;
+    """, nativeQuery = true)
+    List<Object[]> getCustomerOrderSegmentsRaw();
+
+    @Query(value = """
+            WITH customer_order_count AS (
+                SELECT
+                    customer_id,
+                    COUNT(DISTINCT order_id) AS order_count
+                FROM orders
+                GROUP BY customer_id
+            ),
+            customer_staff AS (
+                SELECT
+                    o.customer_id,
+                    MIN(o.created_at) AS first_purchase_date,
+                    cust.name AS customer_name,
+                    coc.order_count,
+                    o.staff_id,
+                    SUM(COALESCE(w.net_weight, 0)) AS total_weight,
+                    o.order_type,
+                    staff.name AS staff_name
+                FROM orders o
+                JOIN customer_order_count coc
+                    ON coc.customer_id = o.customer_id
+                LEFT JOIN account cust
+                    ON cust.account_id = o.customer_id
+                LEFT JOIN account staff
+                    ON staff.account_id = o.staff_id
+                LEFT JOIN warehouse w
+                    ON w.order_id = o.order_id
+                WHERE coc.order_count <= 1
+                GROUP BY
+                    o.customer_id,
+                    cust.name,
+                    coc.order_count,
+                    o.staff_id,
+                    o.order_type,
+                    staff.name
+            )
+            SELECT
+                staff_name,
+                COUNT(DISTINCT customer_id) AS customer_count
+            FROM customer_staff
+            GROUP BY staff_name;
+    """, nativeQuery = true)
+    List<Object[]> getStaffTimeCustomerCount();
 }

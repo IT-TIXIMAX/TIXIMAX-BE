@@ -144,7 +144,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 
-
     @Query("SELECT MONTH(p.actionAt), SUM(p.collectedAmount) FROM Payment p WHERE YEAR(p.actionAt) = :year AND p.status = 'DA_THANH_TOAN' GROUP BY MONTH(p.actionAt)")
     List<Object[]> sumRevenueByMonth(@Param("year") int year);
 
@@ -177,6 +176,31 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             LEFT JOIN order_links ol ON ol.partial_shipment_id = ps.id
             LEFT JOIN orders o ON o.order_id  = ol.order_id
             LEFT JOIN route r ON r.route_id = o.route_id
+            WHERE p.action_at BETWEEN :start AND :end
+            AND p.status = :status
+            )
+            SELECT route_name,
+                sum(coalesce(revenue)) as total_revenue
+            FROM raw
+            GROUP by 1
+    """, nativeQuery = true)
+    List<Object[]> sumCollectedAmountByRouteNativeRawShip(
+            @Param("status") String status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
+
+    @Query(value = """
+            WITH raw AS
+            (SELECT DISTINCT p.payment_id,
+                r.name AS route_name,
+                p.collected_amount AS revenue
+            FROM payment p
+            LEFT JOIN payment_orders po
+            ON po.payment_id = p.payment_id
+            LEFT JOIN orders o
+            ON o.order_id  = po.order_id
+            LEFT JOIN route r
+            ON r.route_id = o.route_id
             WHERE p.action_at BETWEEN :start AND :end
             AND p.status = :status
             )

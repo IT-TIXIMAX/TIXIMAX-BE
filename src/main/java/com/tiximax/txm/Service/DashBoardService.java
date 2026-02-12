@@ -13,6 +13,8 @@ import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTOResponse.Customer.InactiveCustomerProjection;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.*;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.WarehouseSummary;
+import com.tiximax.txm.Model.DTOResponse.Order.CustomerSegment;
+import com.tiximax.txm.Model.DTOResponse.Order.StaffTimeCustomerCount;
 import com.tiximax.txm.Model.DTOResponse.Order.TopByWeightAndOrderType;
 import com.tiximax.txm.Model.DTOResponse.Payment.DailyPaymentRevenue;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
@@ -508,8 +510,13 @@ public class DashBoardService {
         if (status == null) {
             throw new BadRequestException("Hãy chọn một loại thanh toán!");
         }
+        List<Object[]> rawResults = new ArrayList<>();
 
-        List<Object[]> rawResults = paymentRepository.sumCollectedAmountByRouteNativeRaw(status.name(), start, end);
+        if (status.equals(PaymentStatus.CHO_THANH_TOAN) || status.equals(PaymentStatus.DA_THANH_TOAN) || status.equals(PaymentStatus.DA_HOAN_TIEN)){
+            rawResults = paymentRepository.sumCollectedAmountByRouteNativeRaw(status.name(), start, end);
+        } else if (status.equals(PaymentStatus.CHO_THANH_TOAN_SHIP) || status.equals(PaymentStatus.DA_THANH_TOAN_SHIP)){
+            rawResults = paymentRepository.sumCollectedAmountByRouteNativeRawShip(status.name(), start, end);
+        }
 
         return rawResults.stream()
                 .map(row -> new RoutePaymentSummary(
@@ -1083,8 +1090,6 @@ private ExportedQuantity emptyDaily(LocalDate date) {
                 throw new BadRequestException("Nhân viên kho chưa được gán vị trí kho!");
             }
             routeId = null;
-        } else if (!staff.getRole().equals(AccountRoles.MANAGER)){
-            throw new BadRequestException("Vai trò không được phép xem dashboard này!");
         }
 
         StartEndDate dateRange = getDateStartEnd(filterType);
@@ -1410,4 +1415,34 @@ private ExportedQuantity emptyDaily(LocalDate date) {
         return new LocalDateTime[]{start, end};
     }
 
+    public List<CustomerSegment> getCustomerOrderSegments() {
+        List<Object[]> rawResults = ordersRepository.getCustomerOrderSegmentsRaw();
+
+        List<CustomerSegment> response = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            String segment = (String) row[0];
+            long customers = ((Number) row[1]).longValue();
+            Double retention = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+
+            response.add(new CustomerSegment(segment, customers, retention));
+        }
+
+        return response;
+    }
+
+    public List<StaffTimeCustomerCount> getStaffFirstTimeCustomerCount() {
+        List<Object[]> rawResults = ordersRepository.getStaffTimeCustomerCount();
+
+        List<StaffTimeCustomerCount> response = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            String staffName = (String) row[0];  // staff_name
+            Long customerCount = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+
+            response.add(new StaffTimeCustomerCount(staffName, customerCount));
+        }
+
+        return response;
+    }
 }

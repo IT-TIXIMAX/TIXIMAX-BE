@@ -96,6 +96,7 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
             COUNT(DISTINCT w.warehouseId),
             COUNT(DISTINCT w.orders.orderId),
             COUNT(DISTINCT p.packingId),
+            0L,
             COALESCE(SUM(w.weight), 0.0),
             COALESCE(SUM(w.netWeight), 0.0)
         )
@@ -184,6 +185,7 @@ public interface PackingRepository extends JpaRepository<Packing, Long> {
             COUNT(DISTINCT w.warehouseId),
             COUNT(DISTINCT w.orders.orderId),
             COUNT(DISTINCT p.packingId),
+            0L,
             COALESCE(SUM(w.weight), 0.0),
             COALESCE(SUM(w.netWeight), 0.0)
         )
