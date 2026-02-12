@@ -410,14 +410,15 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         List<CustomerSegment> result = dashBoardService.getCustomerOrderSegments();
         return ResponseEntity.ok(result);
     }
-<<<<<<< HEAD
 
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     @GetMapping("/staff-time-customers")
     public ResponseEntity<List<StaffTimeCustomerCount>> getStaffFirstTimeCustomerCount() {
         List<StaffTimeCustomerCount> result = dashBoardService.getStaffFirstTimeCustomerCount();
         return ResponseEntity.ok(result);
     }
 
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     @GetMapping("/first-time-customers/{page}/{size}")
     public ResponseEntity<Page<FirstTimeCustomer>> getFirstTimeCustomers(
             @PathVariable int page,
@@ -430,12 +431,10 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         return ResponseEntity.ok(result);
     }
 
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     @GetMapping("/cohort-analysis")
     public ResponseEntity<List<CohortResponse>> getCohortAnalysis() {
         List<CohortResponse> result = dashBoardService.getCohortAnalysis();
         return ResponseEntity.ok(result);
     }
-
-=======
->>>>>>> ea33cff711ddb2f5de80a356867d649b9a8dbc5f
 }
