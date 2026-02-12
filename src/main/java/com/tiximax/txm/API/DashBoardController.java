@@ -410,4 +410,32 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         List<CustomerSegment> result = dashBoardService.getCustomerOrderSegments();
         return ResponseEntity.ok(result);
     }
+<<<<<<< HEAD
+
+    @GetMapping("/staff-time-customers")
+    public ResponseEntity<List<StaffTimeCustomerCount>> getStaffFirstTimeCustomerCount() {
+        List<StaffTimeCustomerCount> result = dashBoardService.getStaffFirstTimeCustomerCount();
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/first-time-customers/{page}/{size}")
+    public ResponseEntity<Page<FirstTimeCustomer>> getFirstTimeCustomers(
+            @PathVariable int page,
+            @PathVariable int size) {
+        Sort sort = Sort.by(Sort.Direction.ASC, "first_purchase_date");
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<FirstTimeCustomer> result = dashBoardService.getFirstTimeCustomers(pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/cohort-analysis")
+    public ResponseEntity<List<CohortResponse>> getCohortAnalysis() {
+        List<CohortResponse> result = dashBoardService.getCohortAnalysis();
+        return ResponseEntity.ok(result);
+    }
+
+=======
+>>>>>>> ea33cff711ddb2f5de80a356867d649b9a8dbc5f
 }
