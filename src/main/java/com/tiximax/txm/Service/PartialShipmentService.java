@@ -615,7 +615,6 @@ public class PartialShipmentService {
                         row -> (String) row[0],
                         row -> BigDecimal.valueOf((Double) row[1])
                 ));
-
             BigDecimal collectWeight =
         orderLinks.stream()
                 .map(OrderLinks::getTrackingCode)
