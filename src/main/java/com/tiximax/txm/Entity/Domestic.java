@@ -84,8 +84,13 @@ public class Domestic {
 //    @JsonIgnore
 //    Orders orders;
 
-    @ManyToMany(mappedBy = "domestics")
+    @OneToMany(mappedBy = "domestic")
     @JsonIgnore
     private Set<Packing> packings;
+
+    public void addPacking(Packing packing) {
+    packings.add(packing);
+    packing.setDomestic(this);
+}
 
 }

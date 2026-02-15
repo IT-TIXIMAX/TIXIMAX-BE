@@ -47,6 +47,9 @@ public class Payment {
     private Integer depositPercent;
 
     private LocalDateTime actionAt;
+
+    private LocalDateTime paidTime;
+         
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private PaymentPurpose purpose;

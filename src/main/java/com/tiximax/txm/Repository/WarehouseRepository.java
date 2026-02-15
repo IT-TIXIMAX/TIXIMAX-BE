@@ -409,18 +409,20 @@ Double sumWeightByTrackingCodes(
             List<String> trackingCodes,
             WarehouseStatus status
     );
-@Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("""
-        update Warehouse w
-        set w.status = :newStatus
-        where w.trackingCode in :codes
-          and w.status = :oldStatus
-    """)
-    int updateStatusByTrackingCodes(
-            @Param("codes") List<String> codes,
-            @Param("oldStatus") WarehouseStatus oldStatus,
-            @Param("newStatus") WarehouseStatus newStatus
-    );
+@Query("""
+    update Warehouse w
+    set w.status = :newStatus,
+        w.deliveryTime = :deliveryTime
+    where w.trackingCode in :codes
+      and w.status = :oldStatus
+""")
+int updateStatusByTrackingCodes(
+        @Param("codes") List<String> codes,
+        @Param("oldStatus") WarehouseStatus oldStatus,
+        @Param("newStatus") WarehouseStatus newStatus,
+        @Param("deliveryTime") LocalDateTime deliveryTime
+);
+
     @Query("""
         SELECT DISTINCT ol.orders.orderId
         FROM OrderLinks ol

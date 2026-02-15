@@ -175,11 +175,14 @@ public class DomesticService {
             staff,
             note,
             new HashSet<>(packings),
-            packings.stream()
-                    .map(Packing::getPackingCode)
-                    .toList()
+            shipmentCodes
     );
+    for (Packing packing : packings) {
+    domestic.addPacking(packing);
+    }
+    packingRepository.saveAll(packings);
 
+    
     ordersService.addProcessLog(
             null,
             domestic.getDomesticId().toString(),
@@ -411,8 +414,6 @@ public boolean scanImportToDomestic(String shipmentCode) {
             "Trạng thái kiện hàng không hợp lệ để scan!"
     );
 }
-
-
 
     public CheckInDomestic getCheckInDomestic(String shipmentCode) {
 
@@ -683,7 +684,8 @@ public DomesticDelivery scanToShip(
             warehouseRepository.updateStatusByTrackingCodes(
                     trackingCodes,
                     WarehouseStatus.CHO_GIAO,
-                    WarehouseStatus.DA_GIAO
+                    WarehouseStatus.DA_GIAO,
+                     LocalDateTime.now()
             );
 
     if (updatedWarehouse != trackingCodes.size()) {

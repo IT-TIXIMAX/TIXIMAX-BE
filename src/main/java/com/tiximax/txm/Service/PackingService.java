@@ -376,6 +376,7 @@ public class PackingService {
     
     for (Packing packing : packings) {
 
+        packing.setFlyTime(LocalDateTime.now());
         packing.getPackingList().stream()
                 .filter(code -> code != null && !code.trim().isEmpty())
                 .flatMap(code ->
@@ -394,7 +395,7 @@ public class PackingService {
         );
     }
 
-    // 🔹 Save 1 lần
+    
     packingRepository.saveAll(packings);
     orderLinksRepository.saveAll(
             orderLinksByShipment.values()

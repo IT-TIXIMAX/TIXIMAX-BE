@@ -56,6 +56,9 @@ public class Warehouse {
 
     @Column(nullable = true)
     private LocalDateTime arrivalTime;    // thời gian nhập kho nội địa 
+
+    @Column(nullable = true)
+    private LocalDateTime deliveryTime;    // thời gian giao hàng
  
     @ManyToOne
     @JoinColumn(name="staff_id", nullable = false)
