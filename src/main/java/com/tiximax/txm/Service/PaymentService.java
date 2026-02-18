@@ -121,7 +121,7 @@ public class PaymentService {
         }
         payment.setStatus(PaymentStatus.DA_THANH_TOAN);
         payment.setCollectedAmount(payment.getAmount());
-        payment.setActionAt(LocalDateTime.now());
+        payment.setPaidTime(LocalDateTime.now());
       if (payment.getIsMergedPayment()) {
             Set<Orders> orders = payment.getRelatedOrders();
 
@@ -383,7 +383,6 @@ public Payment confirmedPaymentShipment(String paymentCode) {
         }
 
         ordersRepository.save(order);
-
         ordersService.addProcessLog(
                 order,
                 payment.getPaymentCode(),
@@ -404,6 +403,7 @@ public Payment confirmedPaymentShipment(String paymentCode) {
             .checkAndLockDraftDomesticByShipmentCodes(paidShipmentCodes);
 
     payment.setStatus(PaymentStatus.DA_THANH_TOAN_SHIP);
+    payment.setPaidTime(now);
     paymentRepository.save(payment);
 
     messagingTemplate.convertAndSend(
