@@ -335,7 +335,7 @@ public class PackingService {
     }
 
     @Transactional
-public void assignFlightCode(List<Long> packingIds, String flightCode) {
+    public void assignFlightCode(List<Long> packingIds, String flightCode) {
 
     List<Packing> packings = packingRepository.findAllById(packingIds)
             .stream()
@@ -367,9 +367,16 @@ public void assignFlightCode(List<Long> packingIds, String flightCode) {
                         .stream()
                         .collect(Collectors.groupingBy(OrderLinks::getShipmentCode));
 
+    if (!allShipmentCodes.isEmpty()) {
+    warehouseRepository.updateDispatchTimeByTrackingCodes(
+            LocalDateTime.now(),
+            new ArrayList<>(allShipmentCodes)
+    );
+}
     
     for (Packing packing : packings) {
 
+        packing.setFlyTime(LocalDateTime.now());
         packing.getPackingList().stream()
                 .filter(code -> code != null && !code.trim().isEmpty())
                 .flatMap(code ->
@@ -388,7 +395,7 @@ public void assignFlightCode(List<Long> packingIds, String flightCode) {
         );
     }
 
-    // 🔹 Save 1 lần
+    
     packingRepository.saveAll(packings);
     orderLinksRepository.saveAll(
             orderLinksByShipment.values()

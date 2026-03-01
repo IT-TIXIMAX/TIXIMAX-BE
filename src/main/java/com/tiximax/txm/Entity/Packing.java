@@ -36,6 +36,9 @@ public class Packing {
     @Column(nullable = false)
     private LocalDateTime packedDate;
 
+    @Column(nullable = true)
+    private LocalDateTime flyTime;
+    
     @Enumerated(EnumType.STRING)
     private PackingStatus status;
 
@@ -52,21 +55,12 @@ public class Packing {
     @JsonIgnore
     Set<Warehouse> warehouses;
 
-    @ManyToMany
-    @JoinTable(
-        name = "packing_domestic",
-        joinColumns = @JoinColumn(name = "packing_id"),
-        inverseJoinColumns = @JoinColumn(name = "domestic_id")
-    )
+    @ManyToOne
+    @JoinColumn(name="domestic_id", nullable = true)
     @JsonIgnore
-    Set<Domestic> domestics;
+    private Domestic domestic;
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "domestic_packing",
-            joinColumns = @JoinColumn(name = "packing_id"),
-            inverseJoinColumns = @JoinColumn(name = "domestic_id")
-    )
     @JsonIgnore
     private Set<Orders> relatedOrders;
 

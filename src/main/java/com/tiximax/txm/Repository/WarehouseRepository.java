@@ -410,17 +410,21 @@ Double sumWeightByTrackingCodes(
             WarehouseStatus status
     );
 @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("""
-        update Warehouse w
-        set w.status = :newStatus
-        where w.trackingCode in :codes
-          and w.status = :oldStatus
-    """)
-    int updateStatusByTrackingCodes(
-            @Param("codes") List<String> codes,
-            @Param("oldStatus") WarehouseStatus oldStatus,
-            @Param("newStatus") WarehouseStatus newStatus
-    );
+@Query("""
+    update Warehouse w
+    set w.status = :newStatus,
+        w.deliveryTime = :deliveryTime
+    where w.trackingCode in (:codes)
+      and w.status = :oldStatus
+""")
+int updateStatusByTrackingCodes(
+        @Param("codes") List<String> codes,
+        @Param("oldStatus") WarehouseStatus oldStatus,
+        @Param("newStatus") WarehouseStatus newStatus,
+        @Param("deliveryTime") LocalDateTime deliveryTime
+);
+
+
     @Query("""
         SELECT DISTINCT ol.orders.orderId
         FROM OrderLinks ol
@@ -850,6 +854,17 @@ List<ExportedQuantityProjection> getExportedQuantityDaily(
         @Param("routeId") Long routeId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
+);
+
+@Modifying
+@Query("""
+    UPDATE Warehouse w
+    SET w.dispatchTime = :dispatchTime
+    WHERE w.trackingCode IN :trackingCodes
+""")
+void updateDispatchTimeByTrackingCodes(
+        @Param("dispatchTime") LocalDateTime dispatchTime,
+        @Param("trackingCodes") List<String> trackingCodes
 );
 
 
