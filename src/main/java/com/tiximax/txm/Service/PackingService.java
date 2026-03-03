@@ -41,6 +41,9 @@ public class PackingService {
 
     @Autowired
     private WarehouseRepository warehouseRepository;
+    
+    @Autowired
+    private FlightShipmentRepository flightShipmentRepository;
 
     @Autowired
     private DestinationRepository destinationRepository;
@@ -334,15 +337,23 @@ public class PackingService {
         return packingRepository.findByFlightCodeIsNullAndWarehouses_Location_LocationId(staff.getWarehouseLocation().getLocationId(), pageable);
     }
 
-    @Transactional
-    public void assignFlightCode(List<Long> packingIds, String flightCode) {
+@Transactional
+public void assignFlightCode(List<Long> packingIds, String flightCode) {
 
+    // 1) Nếu chưa có flight shipment thì tạo luôn
+    if (flightShipmentRepository.existsByFlightCode(flightCode)) {
+        throw new BadRequestException("Mã chuyến bay đã tồn tại: " + flightCode);
+    }
+
+    // 2) Lấy packing chưa có flightCode và gán flightCode
     List<Packing> packings = packingRepository.findAllById(packingIds)
             .stream()
             .filter(p -> p.getFlightCode() == null)
             .peek(p -> {
                 p.setFlightCode(flightCode);
                 p.setStatus(PackingStatus.DA_BAY);
+                p.setStatusFlight(true);          // ✅ gắn luôn ở đây
+                p.setFlyTime(LocalDateTime.now()); // ✅ set luôn ở đây
             })
             .toList();
 
@@ -352,13 +363,18 @@ public class PackingService {
         );
     }
 
-    // 🔹 Collect ALL shipmentCodes (1 lần)
+    // 3) Tạo FlightShipment
+    FlightShipment entity = new FlightShipment();
+    entity.setFlightCode(flightCode);
+    entity.setCreatedAt(LocalDateTime.now());
+    flightShipmentRepository.save(entity);
+
+    // 4) Collect shipmentCodes
     Set<String> allShipmentCodes = packings.stream()
             .flatMap(p -> p.getPackingList().stream())
             .filter(code -> code != null && !code.trim().isEmpty())
             .collect(Collectors.toSet());
 
-    
     Map<String, List<OrderLinks>> orderLinksByShipment =
             allShipmentCodes.isEmpty()
                     ? Map.of()
@@ -367,16 +383,17 @@ public class PackingService {
                         .stream()
                         .collect(Collectors.groupingBy(OrderLinks::getShipmentCode));
 
+    // 5) Update dispatchTime cho warehouse
     if (!allShipmentCodes.isEmpty()) {
-    warehouseRepository.updateDispatchTimeByTrackingCodes(
-            LocalDateTime.now(),
-            new ArrayList<>(allShipmentCodes)
-    );
-}
-    
+        warehouseRepository.updateDispatchTimeByTrackingCodes(
+                LocalDateTime.now(),
+                new ArrayList<>(allShipmentCodes)
+        );
+    }
+
+    // 6) Update trạng thái OrderLinks
     for (Packing packing : packings) {
 
-        packing.setFlyTime(LocalDateTime.now());
         packing.getPackingList().stream()
                 .filter(code -> code != null && !code.trim().isEmpty())
                 .flatMap(code ->
@@ -384,9 +401,7 @@ public class PackingService {
                                 .getOrDefault(code, List.of())
                                 .stream()
                 )
-                .forEach(ol ->
-                        ol.setStatus(OrderLinkStatus.DANG_CHUYEN_VN)
-                );
+                .forEach(ol -> ol.setStatus(OrderLinkStatus.DANG_CHUYEN_VN));
 
         ordersService.addProcessLog(
                 null,
@@ -395,8 +410,9 @@ public class PackingService {
         );
     }
 
-    
+    // 7) Save
     packingRepository.saveAll(packings);
+
     orderLinksRepository.saveAll(
             orderLinksByShipment.values()
                     .stream()

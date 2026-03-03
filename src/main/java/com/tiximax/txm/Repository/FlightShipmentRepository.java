@@ -1,15 +1,17 @@
 package com.tiximax.txm.Repository;
 
-import com.tiximax.txm.Entity.ExpenseRequest;
 import com.tiximax.txm.Entity.FlightShipment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 public interface FlightShipmentRepository  extends JpaRepository<FlightShipment, Long> {
     boolean existsByFlightCode(String flightCode);
+
+    Optional<FlightShipment> findByFlightCode(String flightCode);
 
     @Query(value = """
     WITH customer_flight_weight AS (
@@ -47,5 +49,6 @@ public interface FlightShipmentRepository  extends JpaRepository<FlightShipment,
     FROM customer_cost
 """, nativeQuery = true)
     BigDecimal calculateProfitForFlight(@Param("flightCode") String flightCode);
+
 
 }

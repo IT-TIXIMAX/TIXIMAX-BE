@@ -453,7 +453,7 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
             JOIN order_links ol
                 ON ol.purchase_id = p.purchase_id
             WHERE o.route_id IN :routeIds
-              AND o.status NOT IN ('DA_GIAO','DA_HUY','DANG_XU_LY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
+              AND o.status NOT IN ('DA_GIAO','DA_HUY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
               AND (:status IS NULL OR ol.status = :status)
               AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
               AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
@@ -468,7 +468,7 @@ Page<Purchases> findPurchasesWithFilteredOrderLinks(
             JOIN order_links ol
                 ON ol.purchase_id = p.purchase_id
             WHERE o.route_id IN :routeIds
-              AND o.status NOT IN ('DA_GIAO','DA_HUY','DANG_XU_LY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
+              AND o.status NOT IN ('DA_GIAO','DA_HUY','DA_DU_HANG','CHO_THANH_TOAN_SHIP','CHO_GIAO' )
               AND (:status IS NULL OR ol.status = :status)
               AND (:orderCode IS NULL OR o.order_code ILIKE CONCAT('%', :orderCode, '%'))
               AND (:customerCode IS NULL OR c.customer_code ILIKE CONCAT('%', :customerCode, '%'))
