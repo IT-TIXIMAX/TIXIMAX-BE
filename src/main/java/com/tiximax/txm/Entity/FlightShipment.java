@@ -51,7 +51,7 @@ public class FlightShipment {
     private LocalDateTime arrivalDate;  // Ngày chuyến đến (để phân tuyến)
 
     @Enumerated(EnumType.STRING)
-    private FlightStatus status;  // Enum: ARRIVED, CLEARED, COMPLETED,...
+    private FlightStatus status; 
 
     // Trạng thái thanh toán công nợ
     private boolean airFreightPaid;  // Checkbox: Thanh toán cước bay
