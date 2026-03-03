@@ -626,7 +626,7 @@ public class DashBoardService {
         LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
 
         List<Object[]> aggregates = ordersRepository.aggregateStaffKPIByRoute(
-                startDateTime, endDateTime, routeId);
+                startDateTime, endDateTime);
 
         Map<String, Map<String, StaffPerformanceKPI>> tempMap = new HashMap<>();
 
@@ -640,7 +640,6 @@ public class DashBoardService {
 
             Double totalNetWeight = row[4] == null ? 0.0 : ((Number) row[4]).doubleValue();
 
-            Double totalPartial = row[5] == null ? 0.0 : ((Number) row[5]).doubleValue();
 
             StaffPerformanceKPI kpi = tempMap
                     .computeIfAbsent(routeName, k -> new HashMap<>())
@@ -654,7 +653,7 @@ public class DashBoardService {
                     });
 
             kpi.setTotalGoods(totalGoods != null ? totalGoods : BigDecimal.ZERO);
-            kpi.setTotalNetWeight(Math.round((totalNetWeight + totalPartial) * 100.0) / 100.0);
+            kpi.setTotalNetWeight(totalNetWeight != null ? totalNetWeight : 0.0);
         }
 
         Map<String, RouteStaffPerformance> result = new TreeMap<>();
@@ -737,19 +736,19 @@ public class DashBoardService {
             goodsMap.put(routeName, totalGoods);
         }
         List<Object[]> weightResults =
-                ordersRepository.getShippingWeight(staff.getAccountId(), startDateTime, endDateTime, routeId);
+                ordersRepository.getShippingWeight(staff.getAccountId(), startDateTime, endDateTime);
         Map<String, Double> weightMap = new HashMap<>();
         for (Object[] row : weightResults) {
             String routeName = (String) row[0];
             Double shippingWeight =
                     row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
-            Double partialWeight =
-                    row.length > 2 && row[2] != null
-                            ? ((Number) row[2]).doubleValue()
-                            : 0.0;
-            Double totalNetWeight =
-                    Math.round((shippingWeight + partialWeight) * 10.0) / 10.0;
-            weightMap.put(routeName, totalNetWeight);
+//            Double partialWeight =
+//                    row.length > 2 && row[2] != null
+//                            ? ((Number) row[2]).doubleValue()
+//                            : 0.0;
+//            Double totalNetWeight =
+//                    Math.round((shippingWeight + partialWeight) * 10.0) / 10.0;
+            weightMap.put(routeName, shippingWeight);
         }
         Map<String, GoodsAndWeight> resultMap = new LinkedHashMap<>();
         Set<String> allRoutes = new HashSet<>();
