@@ -54,11 +54,11 @@ public class FlightShipment {
     private FlightStatus status; 
 
     // Trạng thái thanh toán công nợ
-    private boolean airFreightPaid;  // Checkbox: Thanh toán cước bay
+    private Boolean airFreightPaid;  // Checkbox: Thanh toán cước bay
 
     private LocalDateTime airFreightPaidDate;
 
-    private boolean customsPaid;  // Checkbox: Thanh toán cước thông quan
+    private Boolean customsPaid;  // Checkbox: Thanh toán cước thông quan
 
     private LocalDateTime customsPaidDate;
 

@@ -71,9 +71,11 @@ public FlightShipmentResponse updateFlightShipment(Long id, UpdateFlightShipment
     applyIfPresent(request.getOtherCosts(), entity::setOtherCosts);
     applyIfPresent(request.getAirFreightPaid(), entity::setAirFreightPaid);
     applyIfPresent(request.getCustomsPaid(), entity::setCustomsPaid);
+    calculateCosts(entity);
     calculateCostsAndProfit(entity);
     calculateProfitIfNeeded(entity);
     return mapToResponse(entity);
+        
 }
 
     @Transactional
@@ -141,11 +143,11 @@ public FlightShipmentResponse updateFlightShipment(Long id, UpdateFlightShipment
 
     private void mapRequestToEntity(FlightShipmentRequest request, FlightShipment entity) {
         entity.setFlightCode(request.getFlightCode());
-        entity.setAwbFilePath(request.getAwbFilePath() != null ? request.getFlightCode() : "");
-        entity.setExportLicensePath(request.getExportLicensePath() != null ? request.getFlightCode() : "");
-        entity.setSingleInvoicePath(request.getSingleInvoicePath() != null ? request.getFlightCode() : "");
-        entity.setInvoiceFilePath(request.getInvoiceFilePath() != null ? request.getFlightCode() : "");
-        entity.setPackingListPath(request.getPackingListPath() != null ? request.getFlightCode() : "");
+        entity.setAwbFilePath(request.getAwbFilePath() != null ? request.getAwbFilePath() : ""); 
+        entity.setExportLicensePath(request.getExportLicensePath() != null ? request.getExportLicensePath() : "");
+        entity.setSingleInvoicePath(request.getSingleInvoicePath() != null ? request.getSingleInvoicePath() : "");
+        entity.setInvoiceFilePath(request.getInvoiceFilePath() != null ? request.getInvoiceFilePath() : "");
+        entity.setPackingListPath(request.getPackingListPath() != null ? request.getPackingListPath () : "");
         entity.setTotalVolumeWeight(request.getTotalVolumeWeight());
         entity.setAirFreightCost(request.getAirFreightCost());
         entity.setCustomsClearanceCost(request.getCustomsClearanceCost());
@@ -206,11 +208,10 @@ public FlightShipmentResponse updateFlightShipment(Long id, UpdateFlightShipment
     }
 
     private void calculateProfitIfNeeded(FlightShipment entity) {
-        BigDecimal totalRevenueFromCustomers = flightShipmentRepository.calculateProfitForFlight(entity.getFlightCode());
-        BigDecimal totalCost = entity.getTotalCost() != null ? entity.getTotalCost() : BigDecimal.ZERO;
-
-        BigDecimal grossProfit = totalRevenueFromCustomers.subtract(totalCost);
-        entity.setGrossProfit(grossProfit);
+        BigDecimal revenue = flightShipmentRepository.calculateProfitForFlight(entity.getFlightCode());
+            if (revenue == null) revenue = BigDecimal.ZERO;
+            BigDecimal totalCost = nz(entity.getTotalCost());
+        entity.setGrossProfit(revenue.subtract(totalCost));
     }
 
     private void calculateCosts(FlightShipment entity) {
@@ -235,4 +236,9 @@ public FlightShipmentResponse updateFlightShipment(Long id, UpdateFlightShipment
                 fromDate
         );
 }
+
+private BigDecimal nz(BigDecimal v) {
+    return v == null ? BigDecimal.ZERO : v;
+}
+
 }

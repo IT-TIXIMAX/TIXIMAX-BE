@@ -14,9 +14,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -111,7 +109,6 @@ public interface PurchasesRepository extends JpaRepository<Purchases, Long> {
                       OR (:status IS NOT NULL AND ol.status = :status)
                     )
           )
-
           AND (
                 NOT EXISTS (
                     SELECT 1

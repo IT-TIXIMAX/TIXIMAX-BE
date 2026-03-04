@@ -1,7 +1,6 @@
 package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.Purchases;
-import com.tiximax.txm.Model.*;
 import com.tiximax.txm.Model.DTORequest.Order.AuctionRequest;
 import com.tiximax.txm.Model.DTORequest.OrderLink.ShipmentCode;
 import com.tiximax.txm.Model.DTORequest.Purchase.ExchangeRequest;
