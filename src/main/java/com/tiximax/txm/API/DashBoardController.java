@@ -209,7 +209,6 @@ public class DashBoardController {
         return ResponseEntity.ok(summary);
     }
 
-
     @GetMapping("/summary-staff")
     public ResponseEntity<Map<String, StaffPerformanceSummary>> getPerformanceSummary(
             @RequestParam(required = false) LocalDate startDate,
@@ -437,4 +436,40 @@ public ResponseEntity<List<ExportedQuantity>> getExportedDashboard(
         List<CohortResponse> result = dashBoardService.getCohortAnalysis();
         return ResponseEntity.ok(result);
     }
+
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @GetMapping("/avg-delivery-hours")
+    public ResponseEntity<List<AvgDeliveryResponse>> getAvgDeliveryHours(
+            @RequestParam(required = false) Integer fromMonth,
+            @RequestParam(required = false) Integer toMonth
+    ) {
+        return ResponseEntity.ok(
+                dashBoardService.getAvgDeliveryHours(fromMonth, toMonth)
+        );
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @GetMapping("/warehouse-time-stats")
+    public ResponseEntity<List<WarehouseTimeResponse>> getWarehouseTimeStats(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false, defaultValue = "CUSTOM") DashboardFilterType filterType
+    ) {
+        return ResponseEntity.ok(
+                dashBoardService.getWarehouseTimeStats(startDate, endDate, filterType)
+        );
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','STAFF_SALE','STAFF_WAREHOUSE_DOMESTIC')")
+    @GetMapping("/warehouse-overdue/{page}/{size}")
+    public ResponseEntity<Page<WarehouseOverdueResponse>> getWarehouseOverdue(
+            @PathVariable int page,
+            @PathVariable int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+                dashBoardService.getWarehouseOverdue(pageable)
+        );
+    }
+
 }

@@ -1518,4 +1518,114 @@ Page<Orders> filterOrdersByLinkStatusAndRoutes(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    @Query(value = """
+    WITH raw AS (
+        SELECT DISTINCT
+            ol.link_id,
+            ap.created_at AS payment_date,
+            po.order_id,
+            pu.purchase_time AS purchase_date,
+            r.name AS route_name,
+            o.created_at AS order_date
+        FROM auto_payment ap
+        INNER JOIN payment p
+            ON p.payment_code = ap.payment_code
+        INNER JOIN payment_orders po
+            ON po.payment_id = p.payment_id
+        INNER JOIN orders o
+            ON o.order_id = po.order_id
+        INNER JOIN order_links ol
+            ON ol.order_id = o.order_id
+        INNER JOIN purchases pu
+            ON pu.purchase_id = ol.purchase_id
+        LEFT JOIN route r
+            ON r.route_id = o.route_id
+        WHERE ap.payment_purpose = 'THANH_TOAN_DON_HANG'
+          AND o.created_at BETWEEN :startDate AND :endDate
+    ),
+    hour AS (
+        SELECT
+            *,
+            DATE_TRUNC('month', order_date) AS month,
+            DATE_PART(
+                'hour',
+                purchase_date - payment_date
+            ) AS diff_hours
+        FROM raw
+    )
+    SELECT
+        CAST(month AS DATE) AS month,
+        route_name,
+        ROUND(CAST(AVG(diff_hours) AS NUMERIC), 2) AS avg_delivery_hours
+    FROM hour
+    GROUP BY month, route_name
+    ORDER BY month, route_name
+    """, nativeQuery = true)
+    List<Object[]> getAvgDeliveryHoursRaw(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query(value = """
+    WITH time_delivery AS (
+        SELECT
+            w.warehouse_id,
+            wl.country,
+            w.arrival_time   AS domestic_arrival_date,
+            w.delivery_time  AS vnpost_delivery_date,
+            w.created_at     AS foreign_arrival_date,
+            w.dispatch_time  AS foreign_dispatch_date
+        FROM warehouse w
+        LEFT JOIN warehouse_location wl
+            ON w.location_id = wl.location_id
+        WHERE w.created_at BETWEEN :startDate AND :endDate
+    ),
+    time_transport AS (
+        SELECT *,
+            DATE_PART('day', AGE(DATE(vnpost_delivery_date), DATE(domestic_arrival_date))) AS days_in_domestic,
+            DATE_PART('day', AGE(DATE(foreign_dispatch_date), DATE(foreign_arrival_date))) AS days_in_foreign
+        FROM time_delivery
+        WHERE vnpost_delivery_date IS NOT NULL
+          AND vnpost_delivery_date BETWEEN :startDate AND :endDate
+    )
+    SELECT
+        country,
+        COUNT(DISTINCT warehouse_id) AS total_delivered,
+        ROUND(CAST(AVG(days_in_domestic) AS NUMERIC), 2) AS avg_days_domestic,
+        ROUND(CAST(AVG(days_in_foreign) AS NUMERIC), 2) AS avg_days_foreign
+    FROM time_transport
+    WHERE country != 'Việt Nam'
+    GROUP BY country
+    ORDER BY country
+    """, nativeQuery = true)
+    List<Object[]> getWarehouseTimeStats(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query(value = """
+    SELECT DISTINCT
+        w.warehouse_id,
+        o.order_id,
+        o.customer_id,
+        acc_cus.name   AS customer_name,
+        acc_staff.name AS staff_name,
+        r.name         AS route_name,
+        w.status,
+        CAST(w.arrival_time AS DATE) AS domestic_arrival_date,
+        CURRENT_DATE - CAST(w.arrival_time AS DATE) AS days_in_warehouse,
+        w.net_weight
+    FROM warehouse w
+    LEFT JOIN orders o          ON o.order_id = w.order_id
+    LEFT JOIN route r           ON r.route_id = o.route_id
+    LEFT JOIN account acc_cus   ON acc_cus.account_id = o.customer_id
+    LEFT JOIN account acc_staff ON acc_staff.account_id = o.staff_id
+    WHERE w.status != 'DA_GIAO'
+      AND w.arrival_time <= CURRENT_DATE - INTERVAL '5 days'
+      AND (:staffId IS NULL OR o.staff_id = :staffId)
+    ORDER BY domestic_arrival_date DESC
+    """, nativeQuery = true)
+    Page<Object[]> getWarehouseOverdue(Pageable pageable,
+                                       @Param("staffId") Long staffId);
 }

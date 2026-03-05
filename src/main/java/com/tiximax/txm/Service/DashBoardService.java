@@ -1502,4 +1502,105 @@ private ExportedQuantity emptyDaily(LocalDate date) {
 
         return response;
     }
+
+    public List<AvgDeliveryResponse> getAvgDeliveryHours(Integer fromMonth, Integer toMonth) {
+        LocalDateTime[] range = getMonthRange(fromMonth, toMonth);
+        LocalDateTime startOfMonth = range[0];
+        LocalDateTime endOfMonth   = range[1];
+
+        List<Object[]> rawResults =
+                ordersRepository.getAvgDeliveryHoursRaw(startOfMonth, endOfMonth);
+
+        List<AvgDeliveryResponse> response = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            java.sql.Date sqlDate = (java.sql.Date) row[0];
+            LocalDate month = sqlDate.toLocalDate();
+            String routeName = (String) row[1];
+            BigDecimal avgDeliveryHours = (BigDecimal) row[2];
+
+            response.add(new AvgDeliveryResponse(month, routeName, avgDeliveryHours));
+        }
+
+        return response;
+    }
+
+    private LocalDateTime[] getMonthRange(Integer fromMonth, Integer toMonth) {
+        YearMonth now = YearMonth.now();
+
+        if (fromMonth == null || toMonth == null) {
+            throw new BadRequestException("Phải truyền tháng bắt đầu và tháng kết thúc");
+        }
+
+        if (fromMonth < 1 || fromMonth > 12 || toMonth < 1 || toMonth > 12) {
+            throw new BadRequestException("Tháng phải từ 1 đến 12");
+        }
+
+        YearMonth startYm = YearMonth.of(now.getYear(), fromMonth);
+        YearMonth endYm   = YearMonth.of(now.getYear(), toMonth);
+
+        if (fromMonth > toMonth) {
+            endYm = endYm.plusYears(1);
+        }
+
+        LocalDateTime start = startYm.atDay(1).atStartOfDay();
+        LocalDateTime end   = endYm.atEndOfMonth().atTime(23, 59, 59);
+
+        return new LocalDateTime[]{start, end};
+    }
+
+    public List<WarehouseTimeResponse> getWarehouseTimeStats(LocalDate startDate, LocalDate endDate, DashboardFilterType filterType) {
+        StartEndDate dateRange = getDateStartEnd(filterType);
+        LocalDate finalStart = (startDate != null) ? startDate : dateRange.getStartDate();
+        LocalDate finalEnd = (endDate != null) ? endDate : dateRange.getEndDate();
+
+        LocalDateTime startDateTime = (finalStart != null) ? finalStart.atStartOfDay() : null;
+        LocalDateTime endDateTime = (finalEnd != null) ? finalEnd.plusDays(1).atStartOfDay() : null;
+
+        List<Object[]> rawResults = ordersRepository.getWarehouseTimeStats(startDateTime, endDateTime);
+
+        List<WarehouseTimeResponse> response = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            String country = (String) row[0];
+            Long totalDelivered = ((Number) row[1]).longValue();
+            Double avgDaysDomestic = row[2] != null ? ((BigDecimal) row[2]).doubleValue() : null;
+            Double avgDaysForeign = row[3] != null ? ((BigDecimal) row[3]).doubleValue() : null;
+
+            response.add(new WarehouseTimeResponse(country, totalDelivered, avgDaysDomestic, avgDaysForeign));
+        }
+
+        return response;
+    }
+
+    public Page<WarehouseOverdueResponse> getWarehouseOverdue(Pageable pageable) {
+        Staff staff = (Staff) accountUtils.getAccountCurrent();
+        Long staffId = null;
+        if (!staff.getRole().equals(AccountRoles.MANAGER)
+                && !staff.getRole().equals(AccountRoles.ADMIN)
+                && !staff.getRole().equals(AccountRoles.STAFF_WAREHOUSE_DOMESTIC)){
+            staffId = staff.getAccountId();
+        }
+        Page<Object[]> rawPage = ordersRepository.getWarehouseOverdue(pageable, staffId);
+
+        return rawPage.map(row -> {
+            Long warehouseId       = ((Number) row[0]).longValue();
+            Long orderId           = row[1] != null ? ((Number) row[1]).longValue() : null;
+            Long customerId        = row[2] != null ? ((Number) row[2]).longValue() : null;
+            String customerName    = (String) row[3];
+            String staffName       = (String) row[4];
+            String routeName       = (String) row[5];
+            String status          = (String) row[6];
+            java.sql.Date sqlDate  = (java.sql.Date) row[7];
+            LocalDate arrivalDate  = sqlDate != null ? sqlDate.toLocalDate() : null;
+            Long daysInWarehouse   = row[8] != null ? ((Number) row[8]).longValue() : null;
+            Double netWeight       = row[9] != null ? ((Number) row[9]).doubleValue() : null;
+
+            return new WarehouseOverdueResponse(
+                    warehouseId, orderId, customerId,
+                    customerName, staffName, routeName,
+                    status, arrivalDate, daysInWarehouse, netWeight
+            );
+        });
+    }
 }
