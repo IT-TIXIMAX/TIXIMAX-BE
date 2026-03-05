@@ -69,4 +69,8 @@ public class Packing {
     @JsonIgnore
     Destination destination;
 
+    @OneToOne(mappedBy = "resultingPacking", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private Repack sourceRepack;
+
 }

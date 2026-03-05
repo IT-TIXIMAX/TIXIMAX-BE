@@ -93,5 +93,10 @@ public class Warehouse {
     @JoinColumn(name = "flight_shipment_id")
     @JsonIgnore
     private FlightShipment flightShipment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "repack_id", nullable = true)
+    @JsonIgnore
+    private Repack repack;
 }
 
