@@ -1,4 +1,4 @@
-package com.tiximax.txm.Model;
+package com.tiximax.txm.Model.DTOResponse.FlightShipment;
 
 import lombok.Data;
 import lombok.Getter;

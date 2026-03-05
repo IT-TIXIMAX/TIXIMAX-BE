@@ -1,8 +1,9 @@
 package com.tiximax.txm.API;
 
 import com.tiximax.txm.Entity.FlightShipment;
-import com.tiximax.txm.Model.FlightShipmentRequest;
-import com.tiximax.txm.Model.FlightShipmentResponse;
+import com.tiximax.txm.Model.DTORequest.FlightShipment.FlightShipmentRequest;
+import com.tiximax.txm.Model.DTORequest.FlightShipment.UpdateFlightShipmentRequest;
+import com.tiximax.txm.Model.DTOResponse.FlightShipment.FlightShipmentResponse;
 import com.tiximax.txm.Service.FlightShipmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,15 @@ public class FlightShipmentController {
         return ResponseEntity.ok(flightShipmentService.createFlightShipment(request));
     }
 
+    @PostMapping("/code")
+    public ResponseEntity<?> createWithCode(@RequestBody String request) {
+        flightShipmentService.createFlight(request);
+        return ResponseEntity.ok().build();
+    }
+
+
+
+
     @GetMapping("/{id}")
     public ResponseEntity<FlightShipmentResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(flightShipmentService.getFlightShipmentId(id));
@@ -37,7 +47,7 @@ public class FlightShipmentController {
 
     @PatchMapping("/{id}")
     public ResponseEntity<FlightShipmentResponse> updateFlightShipment(@PathVariable Long id,
-                                                            @RequestBody FlightShipmentRequest request) {
+                                                            @RequestBody UpdateFlightShipmentRequest request) {
         return ResponseEntity.ok(flightShipmentService.updateFlightShipment(id, request));
     }
     @DeleteMapping("/{id}")

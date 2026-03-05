@@ -3,14 +3,19 @@ package com.tiximax.txm.Service;
 import com.tiximax.txm.Entity.FlightShipment;
 import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.Staff;
+import com.tiximax.txm.Enums.FlightStatus;
 import com.tiximax.txm.Exception.BadRequestException;
-import com.tiximax.txm.Model.FlightShipmentRequest;
-import com.tiximax.txm.Model.FlightShipmentResponse;
+import com.tiximax.txm.Exception.NotFoundException;
+import com.tiximax.txm.Model.DTORequest.FlightShipment.FlightShipmentRequest;
+import com.tiximax.txm.Model.DTORequest.FlightShipment.UpdateFlightShipmentRequest;
+import com.tiximax.txm.Model.DTOResponse.FlightShipment.FlightShipmentResponse;
 import com.tiximax.txm.Repository.FlightShipmentRepository;
 import com.tiximax.txm.Repository.PackingRepository;
 import com.tiximax.txm.Repository.StaffRepository;
+import static com.tiximax.txm.Utils.Helpper.UpdateHelper.*;
 
 import com.tiximax.txm.Utils.AccountUtils;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,13 +32,49 @@ public class FlightShipmentService {
     private FlightShipmentRepository flightShipmentRepository;
 
     @Autowired
-    private StaffRepository staffRepository;
-
-    @Autowired
     private AccountUtils accountUtils;
 
     @Autowired
     private PackingRepository packingRepository;
+
+
+    @Transactional
+    public void createFlight(String flightCode){
+        if (flightShipmentRepository.existsByFlightCode(flightCode)) {
+            throw new BadRequestException("Mã chuyến bay đã tồn tại: " + flightCode);
+        }
+        List<Packing> packings = packingRepository.findByFlightCode(flightCode);
+        for (Packing packing : packings){
+            packing.setStatusFlight(true);
+        }
+        FlightShipment entity = new FlightShipment();
+        entity.setFlightCode(flightCode);
+        entity.setStatus(FlightStatus.DANG_CHO);
+        entity.setCreatedAt(LocalDateTime.now());
+        entity.setStaff((Staff) accountUtils.getAccountCurrent());
+        entity = flightShipmentRepository.save(entity);
+    }
+    @Transactional
+public FlightShipmentResponse updateFlightShipment(Long id, UpdateFlightShipmentRequest request) {
+
+    FlightShipment entity = flightShipmentRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy chuyến bay"));
+    applyIfPresent(request.getAwbFilePath(), entity::setAwbFilePath);
+    applyIfPresent(request.getExportLicensePath(), entity::setExportLicensePath);
+    applyIfPresent(request.getSingleInvoicePath(), entity::setSingleInvoicePath);
+    applyIfPresent(request.getInvoiceFilePath(), entity::setInvoiceFilePath);
+    applyIfPresent(request.getPackingListPath(), entity::setPackingListPath);
+    applyIfPresent(request.getTotalVolumeWeight(), entity::setTotalVolumeWeight);
+    applyIfPresent(request.getAirFreightCost(), entity::setAirFreightCost);
+    applyIfPresent(request.getCustomsClearanceCost(), entity::setCustomsClearanceCost);
+    applyIfPresent(request.getAirportShippingCost(), entity::setAirportShippingCost);
+    applyIfPresent(request.getOtherCosts(), entity::setOtherCosts);
+    applyIfPresent(request.getAirFreightPaid(), entity::setAirFreightPaid);
+    applyIfPresent(request.getCustomsPaid(), entity::setCustomsPaid);
+    calculateCostsAndProfit(entity);
+    calculateProfitIfNeeded(entity);
+    return mapToResponse(entity);
+}
 
     @Transactional
     public FlightShipment createFlightShipment(FlightShipmentRequest request) {
@@ -85,7 +126,6 @@ public class FlightShipmentService {
         if (request.getAirFreightPaidDate() != null){entity.setAirFreightPaidDate(request.getAirFreightPaidDate().atStartOfDay());}
         if (request.getCustomsPaid() != null){entity.setCustomsPaid(request.getCustomsPaid());}
         if (request.getCustomsPaidDate() != null){entity.setCustomsPaidDate(request.getCustomsPaidDate().atStartOfDay());}
-
         entity.setStaff((Staff) accountUtils.getAccountCurrent());
 
         calculateCosts(entity);

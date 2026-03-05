@@ -50,15 +50,6 @@ import java.util.stream.Collectors;
 
 public class PartialShipmentService {
 
-    @Value("${bank.name}")
-    private String bankName;
-
-    @Value("${bank.number}")
-    private String bankNumber;
-
-    @Value("${bank.owner}")
-    private String bankOwner;
-
     @Autowired
     private OrdersRepository ordersRepository;
 
@@ -766,6 +757,12 @@ public class PartialShipmentService {
             p.setPayment(savedPayment);
             partialShipmentRepository.save(p);
         });
+
+        partialShipmentRepository.flush();
+
+        if (qrAmount.compareTo(BigDecimal.ZERO) == 0) {
+        paymentService.confirmedPaymentShipment(savedPayment.getPaymentCode());
+        }
 
         for (Orders order : ordersList) {
 
