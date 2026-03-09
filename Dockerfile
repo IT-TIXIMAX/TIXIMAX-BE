@@ -1,8 +1,19 @@
+# Stage 1: Build
 FROM maven:3.8.5-openjdk-17 AS build
-COPY . .
+WORKDIR /app
+
+COPY pom.xml .
+# Download dependencies for offline use to cache them
+RUN mvn dependency:go-offline -B
+
+COPY src ./src
 RUN mvn clean package -DskipTests
 
-FROM openjdk:17.0.1-jdk-slim
-COPY --from=build /target/txm-0.0.1-SNAPSHOT.jar project.jar
-EXPOSE 8080
+# Stage 2: Run
+# Using JRE alpine version to minimize the final image size
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+
+COPY --from=build /app/target/txm-0.0.1-SNAPSHOT.jar project.jar
+
 ENTRYPOINT ["java", "-jar", "project.jar"]
