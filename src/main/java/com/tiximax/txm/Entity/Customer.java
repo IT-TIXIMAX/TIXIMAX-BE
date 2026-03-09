@@ -46,4 +46,7 @@ public class Customer extends Account {
     @JsonIgnore
     private Set<Address> addresses = new HashSet<>();
 
+    @OneToMany(mappedBy = "customer")
+    @JsonIgnore
+    private Set<Repack> repacks = new HashSet<>();
 }

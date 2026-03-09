@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -60,6 +61,10 @@ public class Staff extends Account {
     @OneToMany(mappedBy = "staff", cascade = CascadeType.ALL)
     @JsonIgnore
     private Set<MarketingMedia> marketingMedia;
+
+    @OneToMany(mappedBy = "staff")
+    @JsonIgnore
+    private Set<Repack> repacks;
 
     private Boolean canRequestExpenses = false;
 
