@@ -1,10 +1,7 @@
 package com.tiximax.txm.Repository;
-
-import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Purchases;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment;
-import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
-import com.tiximax.txm.Model.EnumFilter.PurchaseFilter;
+
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -99,7 +96,6 @@ public interface PurchasesRepository extends JpaRepository<Purchases, Long> {
         JOIN customer c ON c.account_id = o.customer_id
         WHERE p.is_purchased = true
           AND o.route_id IN :routeIds
-
           AND EXISTS (
               SELECT 1
               FROM order_links ol
@@ -146,7 +142,6 @@ Page<Long> findPurchaseIdsPendingShipment(
         @Param("customerCode") String customerCode,
         Pageable pageable
 );
-
 
 
 @Query(

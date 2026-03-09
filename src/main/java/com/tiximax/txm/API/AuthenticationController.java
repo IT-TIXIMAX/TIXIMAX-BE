@@ -12,9 +12,7 @@ import com.tiximax.txm.Model.DTORequest.Auth.StaffPatchRequest;
 import com.tiximax.txm.Model.DTORequest.Auth.VerifyAccountRequest;
 import com.tiximax.txm.Model.DTORequest.Customer.CustomerPatchRequest;
 import com.tiximax.txm.Model.DTOResponse.Auth.EmailDetail;
-import com.tiximax.txm.Model.DTOResponse.Customer.CustomerInactive;
 import com.tiximax.txm.Model.DTOResponse.Customer.CustomerResponseDTO;
-import com.tiximax.txm.Model.DTOResponse.DashBoard.CustomerTop;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.SaleStats;
 import com.tiximax.txm.Model.DTOResponse.DashBoard.StaffPerformance;
 import com.tiximax.txm.Model.DTOResponse.Staff.StaffInfo;
@@ -36,19 +34,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import java.math.BigDecimal;
 import java.net.URI;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
-
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
-
 import org.json.JSONObject;
 
 @RestController

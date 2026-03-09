@@ -5,21 +5,16 @@ import com.tiximax.txm.Entity.Packing;
 import com.tiximax.txm.Entity.Staff;
 import com.tiximax.txm.Enums.FlightStatus;
 import com.tiximax.txm.Exception.BadRequestException;
-import com.tiximax.txm.Exception.NotFoundException;
 import com.tiximax.txm.Model.DTORequest.FlightShipment.FlightShipmentRequest;
 import com.tiximax.txm.Model.DTORequest.FlightShipment.UpdateFlightShipmentRequest;
 import com.tiximax.txm.Model.DTOResponse.FlightShipment.FlightShipmentResponse;
 import com.tiximax.txm.Repository.FlightShipmentRepository;
 import com.tiximax.txm.Repository.PackingRepository;
-import com.tiximax.txm.Repository.StaffRepository;
 import static com.tiximax.txm.Utils.Helpper.UpdateHelper.*;
-
 import com.tiximax.txm.Utils.AccountUtils;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
