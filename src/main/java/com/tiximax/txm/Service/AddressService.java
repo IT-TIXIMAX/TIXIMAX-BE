@@ -98,7 +98,6 @@ public class AddressService {
             throw new IllegalArgumentException("Không tìm thấy khách hàng với mã: " + customerCode);
         }
         Customer customer = customerOptional.get();
-
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy địa chỉ này!"));
         if (!address.getCustomer().getCustomerCode().equals(customerCode)) {
@@ -108,7 +107,6 @@ public class AddressService {
         if (addressName == null || addressName.trim().isEmpty()) {
             throw new IllegalArgumentException("Tên địa chỉ không được để trống!");
         }
-
         address.setAddressName(addressName);
         return addressRepository.save(address);
     }

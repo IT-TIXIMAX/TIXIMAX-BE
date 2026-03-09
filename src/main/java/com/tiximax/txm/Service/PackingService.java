@@ -1,6 +1,7 @@
 package com.tiximax.txm.Service;
 
 import com.tiximax.txm.Entity.*;
+import com.tiximax.txm.Enums.FlightStatus;
 import com.tiximax.txm.Enums.OrderLinkStatus;
 import com.tiximax.txm.Enums.OrderStatus;
 import com.tiximax.txm.Enums.PackingStatus;
@@ -339,80 +340,91 @@ public class PackingService {
 
 @Transactional
 public void assignFlightCode(List<Long> packingIds, String flightCode) {
-
-    // 1) Nếu chưa có flight shipment thì tạo luôn
-    if (flightShipmentRepository.existsByFlightCode(flightCode)) {
-        throw new BadRequestException("Mã chuyến bay đã tồn tại: " + flightCode);
+    if (packingIds == null || packingIds.isEmpty()) {
+        throw new BadRequestException("Danh sách packing không được để trống!");
+    }
+    if (flightCode == null || flightCode.trim().isEmpty()) {
+        throw new BadRequestException("Mã chuyến bay không được để trống!");
     }
 
-    // 2) Lấy packing chưa có flightCode và gán flightCode
+    String normalizedFlightCode = flightCode.trim();
+    Staff staff = (Staff) accountUtils.getAccountCurrent();
+    if (staff == null) {
+        throw new AccessDeniedException("Không xác định được nhân viên đang đăng nhập!");
+    }
+
+    if (flightShipmentRepository.existsByFlightCode(normalizedFlightCode)) {
+        throw new BadRequestException("Mã chuyến bay đã tồn tại: " + normalizedFlightCode);
+    }
+
+    LocalDateTime now = LocalDateTime.now();
+
     List<Packing> packings = packingRepository.findAllById(packingIds)
             .stream()
             .filter(p -> p.getFlightCode() == null)
             .peek(p -> {
-                p.setFlightCode(flightCode);
+                p.setFlightCode(normalizedFlightCode);
                 p.setStatus(PackingStatus.DA_BAY);
-                p.setStatusFlight(true);          // ✅ gắn luôn ở đây
-                p.setFlyTime(LocalDateTime.now()); // ✅ set luôn ở đây
+                p.setStatusFlight(true);
+                p.setFlyTime(now);
             })
             .toList();
 
     if (packings.isEmpty()) {
-        throw new BadRequestException(
-                "Không tìm thấy packing nào phù hợp hoặc đã được gán chuyến bay!"
-        );
+        throw new BadRequestException("Không tìm thấy packing nào phù hợp hoặc đã được gán chuyến bay!");
     }
 
-    // 3) Tạo FlightShipment
     FlightShipment entity = new FlightShipment();
-    entity.setFlightCode(flightCode);
-    entity.setCreatedAt(LocalDateTime.now());
+    entity.setFlightCode(normalizedFlightCode);
+    entity.setCreatedAt(now);
+    entity.setAirFreightPaid(false);
+    entity.setCustomsPaid(false);
+    entity.setStatus(FlightStatus.DANG_CHO);
+    entity.setStaff(staff);
     flightShipmentRepository.save(entity);
 
-    // 4) Collect shipmentCodes
     Set<String> allShipmentCodes = packings.stream()
-            .flatMap(p -> p.getPackingList().stream())
+            .map(Packing::getPackingList)
+            .filter(Objects::nonNull)
+            .flatMap(Collection::stream)
             .filter(code -> code != null && !code.trim().isEmpty())
             .collect(Collectors.toSet());
 
-    Map<String, List<OrderLinks>> orderLinksByShipment =
-            allShipmentCodes.isEmpty()
-                    ? Map.of()
-                    : orderLinksRepository
-                        .findByShipmentCodeIn(new ArrayList<>(allShipmentCodes))
-                        .stream()
-                        .collect(Collectors.groupingBy(OrderLinks::getShipmentCode));
+    Map<String, List<OrderLinks>> orderLinksByShipment = allShipmentCodes.isEmpty()
+            ? Map.of()
+            : orderLinksRepository
+                    .findByShipmentCodeIn(new ArrayList<>(allShipmentCodes))
+                    .stream()
+                    .collect(Collectors.groupingBy(OrderLinks::getShipmentCode));
 
-    // 5) Update dispatchTime cho warehouse
-    if (!allShipmentCodes.isEmpty()) {
-        warehouseRepository.updateDispatchTimeByTrackingCodes(
-                LocalDateTime.now(),
-                new ArrayList<>(allShipmentCodes)
-        );
-    }
+    Map<String, List<Warehouse>> warehousesByShipment = allShipmentCodes.isEmpty()
+            ? Map.of()
+            : warehouseRepository.findByTrackingCodeIn(new ArrayList<>(allShipmentCodes))
+                    .stream()
+                    .collect(Collectors.groupingBy(Warehouse::getTrackingCode));
 
-    // 6) Update trạng thái OrderLinks
+    List<Warehouse> touchedWarehouses = new ArrayList<>();
     for (Packing packing : packings) {
+        List<String> packingList = packing.getPackingList() == null ? List.of() : packing.getPackingList();
 
-        packing.getPackingList().stream()
+        packingList.stream()
                 .filter(code -> code != null && !code.trim().isEmpty())
-                .flatMap(code ->
-                        orderLinksByShipment
-                                .getOrDefault(code, List.of())
-                                .stream()
-                )
+                .flatMap(code -> orderLinksByShipment.getOrDefault(code, List.of()).stream())
                 .forEach(ol -> ol.setStatus(OrderLinkStatus.DANG_CHUYEN_VN));
 
-        ordersService.addProcessLog(
-                null,
-                packing.getPackingCode(),
-                ProcessLogAction.DA_BAY
-        );
+        packingList.stream()
+                .filter(code -> code != null && !code.trim().isEmpty())
+                .flatMap(code -> warehousesByShipment.getOrDefault(code, List.of()).stream())
+                .forEach(warehouse -> {
+                    warehouse.setFlightShipment(entity);
+                    warehouse.setDispatchTime(now);
+                    touchedWarehouses.add(warehouse);
+                });
+        ordersService.addProcessLog(null, packing.getPackingCode(), ProcessLogAction.DA_BAY);
     }
 
-    // 7) Save
     packingRepository.saveAll(packings);
-
+    warehouseRepository.saveAll(touchedWarehouses);
     orderLinksRepository.saveAll(
             orderLinksByShipment.values()
                     .stream()
@@ -420,7 +432,6 @@ public void assignFlightCode(List<Long> packingIds, String flightCode) {
                     .toList()
     );
 }
-
 
     private String generatePackingCode(String location, String destinationName) {
         String monthYear = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMyy"));

@@ -1,10 +1,7 @@
 package com.tiximax.txm.Repository;
-
-import com.tiximax.txm.Entity.OrderLinks;
 import com.tiximax.txm.Entity.Purchases;
 import com.tiximax.txm.Model.DTOResponse.Purchase.PurchasePendingShipment;
-import com.tiximax.txm.Model.DTOResponse.Purchase.PurchaseProfitResult;
-import com.tiximax.txm.Model.EnumFilter.PurchaseFilter;
+
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,9 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -101,7 +96,6 @@ public interface PurchasesRepository extends JpaRepository<Purchases, Long> {
         JOIN customer c ON c.account_id = o.customer_id
         WHERE p.is_purchased = true
           AND o.route_id IN :routeIds
-
           AND EXISTS (
               SELECT 1
               FROM order_links ol
@@ -111,7 +105,6 @@ public interface PurchasesRepository extends JpaRepository<Purchases, Long> {
                       OR (:status IS NOT NULL AND ol.status = :status)
                     )
           )
-
           AND (
                 NOT EXISTS (
                     SELECT 1
@@ -149,7 +142,6 @@ Page<Long> findPurchaseIdsPendingShipment(
         @Param("customerCode") String customerCode,
         Pageable pageable
 );
-
 
 
 @Query(

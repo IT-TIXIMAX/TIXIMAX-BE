@@ -1001,7 +1001,6 @@ private void checkDraftEditable(DraftDomestic draft) {
                 + "-" + (char) (maxSuffix + 1);
     }
 
-
 private Double calculateAndRoundWeight(Double totalWeight) {
     if (totalWeight == null) return 0.0;
 
