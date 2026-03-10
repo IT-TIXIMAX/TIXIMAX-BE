@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "tiximax-be-java"
+        APP_NAME = "tiximax-be-old"
     }
 
     options {
@@ -21,9 +21,14 @@ pipeline {
                     echo "[Init] Detected branch: ${BR}"
 
                     def branchMap = [
-                        "deploy": [
-                            envName: "deploy",
-                            credId : "env-tiximax-be-java-deploy",
+                        "staging": [
+                            envName: "staging",
+                            credId : "env-tiximax-be-old-staging",
+                        ],
+
+                        "product": [
+                            envName: "product",
+                            credId : "env-tiximax-be-old-product",
                         ]
                     ]
 
