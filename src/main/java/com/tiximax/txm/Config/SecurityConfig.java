@@ -4,9 +4,12 @@ import com.tiximax.txm.Exception.CustomAccessDeniedHandler;
 import com.tiximax.txm.Exception.CustomAuthenticationEntryPoint;
 import com.tiximax.txm.Service.AuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,14 +19,16 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.List;
 
@@ -33,11 +38,19 @@ import java.util.List;
 public class SecurityConfig {
 
     @Autowired
-    Filter filter;
+    private Filter filter;
+
     @Autowired
     private CustomAuthenticationEntryPoint authenticationEntryPoint;
+
     @Autowired
     private CustomAccessDeniedHandler accessDeniedHandler;
+
+    @Value("${swagger.username}")
+    private String swaggerUsername;
+
+    @Value("${swagger.password}")
+    private String swaggerPassword;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -50,18 +63,56 @@ public class SecurityConfig {
     }
 
     @Bean
+    public InMemoryUserDetailsManager swaggerUserDetailsService() {
+        var user = User.withUsername(swaggerUsername)
+                .password(swaggerPassword)
+                .roles("SWAGGER")
+                .build();
+
+        return new InMemoryUserDetailsManager(user);
+    }
+
+    @Bean
+    public DaoAuthenticationProvider swaggerAuthenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(swaggerUserDetailsService());
+        provider.setPasswordEncoder(NoOpPasswordEncoder.getInstance());
+        return provider;
+    }
+
+    @Bean
+    @Order(1)
+    public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .authenticationProvider(swaggerAuthenticationProvider())
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().authenticated()
+                )
+                .httpBasic(Customizer.withDefaults())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationService authenticationService) throws Exception {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                    .exceptionHandling(ex -> ex
-        .authenticationEntryPoint(authenticationEntryPoint) 
-        .accessDeniedHandler(accessDeniedHandler)          
-    )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(
-                            "/payments/receive",
-                            "/api/payments/receive",
+                                "/payments/receive",
+                                "/api/payments/receive",
                                 "/accounts/login",
                                 "/accounts/verify",
                                 "/accounts/forgot-password/send-otp",
@@ -74,15 +125,12 @@ public class SecurityConfig {
                                 "/images/upload-image",
                                 "/accounts/login-google",
                                 "/accounts/callback",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui.html",
                                 "/auth/**",
                                 "/error",
                                 "/accounts/userinfo",
                                 "/ws/**",
                                 "/websocket/**",
-                                "/orders/shipments-by-phone/{phone}",
+                                "/orders/shipments-by-phone/**",
                                 "/google7e5ab6dc49fef2d8.html"
                         ).permitAll()
                         .anyRequest().authenticated()
@@ -101,9 +149,24 @@ public class SecurityConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:4173", "https://tiximax-fe.vercel.app", "http://127.0.0.1:5500", "http://localhost:5500", "https://tiximax.app", "http://tiximax.app","http://127.0.0.1:8080", "https://www.tiximax.net","https://tiximax.net", "http://localhost:3000", "https://fe-old-tiximax.techleaf.pro", "https://fe-old-product.tiximax.net", "https://fe-old-staging.tiximax.net"));
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:4173",
+                "https://tiximax-fe.vercel.app",
+                "http://127.0.0.1:5500",
+                "http://localhost:5500",
+                "https://tiximax.app",
+                "http://tiximax.app",
+                "http://127.0.0.1:8080",
+                "https://www.tiximax.net",
+                "https://tiximax.net",
+                "http://localhost:3000",
+                "https://fe-old-tiximax.techleaf.pro",
+                "https://fe-old-product.tiximax.net",
+                "https://fe-old-staging.tiximax.net"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*")); 
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -120,5 +183,4 @@ public class SecurityConfig {
     public SessionRegistry sessionRegistry() {
         return new SessionRegistryImpl();
     }
-
 }
