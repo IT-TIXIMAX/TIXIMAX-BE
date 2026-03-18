@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -63,31 +64,26 @@ public class SecurityConfig {
     }
 
     @Bean
-    public InMemoryUserDetailsManager swaggerUserDetailsService() {
-        var user = User.withUsername(swaggerUsername)
-                .password(swaggerPassword)
-                .roles("SWAGGER")
-                .build();
-
-        return new InMemoryUserDetailsManager(user);
-    }
-
-    @Bean
-    public DaoAuthenticationProvider swaggerAuthenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(swaggerUserDetailsService());
-        provider.setPasswordEncoder(NoOpPasswordEncoder.getInstance());
-        return provider;
-    }
-
-    @Bean
     @Order(1)
     public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
+        InMemoryUserDetailsManager swaggerUsers = new InMemoryUserDetailsManager(
+                User.withUsername(swaggerUsername)
+                        .password(swaggerPassword)
+                        .roles("SWAGGER")
+                        .build()
+        );
+
+        DaoAuthenticationProvider swaggerProvider = new DaoAuthenticationProvider();
+        swaggerProvider.setUserDetailsService(swaggerUsers);
+        swaggerProvider.setPasswordEncoder(NoOpPasswordEncoder.getInstance());
+
+        AuthenticationManager swaggerAuthManager = new ProviderManager(swaggerProvider);
+
         http
                 .securityMatcher("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .authenticationProvider(swaggerAuthenticationProvider())
+                .authenticationManager(swaggerAuthManager)
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().authenticated()
                 )
