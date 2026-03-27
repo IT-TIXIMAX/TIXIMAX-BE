@@ -159,7 +159,8 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "https://fe-old-tiximax.techleaf.pro",
                 "https://fe-old-product.tiximax.net",
-                "https://fe-old-staging.tiximax.net"
+                "https://fe-old-staging.tiximax.net",
+                "https://fe-old-test.tiximax.net"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
